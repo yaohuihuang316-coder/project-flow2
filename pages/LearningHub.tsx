@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
-  Network, BarChart3, TrendingUp, Settings, Info,
+  Network, BarChart3, TrendingUp,
   PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield
 } from 'lucide-react';
 import { 
@@ -497,7 +497,7 @@ const AdvancedAlgorithmLab = () => {
                 );
             case 'monte':
             default:
-                const monteData = Array.from({ length: 50 }, (_, i) => ({
+                const monteData = Array.from({ length: 50 }, () => ({
                     x: Math.floor(Math.random() * 100),
                     y: Math.floor(Math.random() * 100),
                     z: Math.floor(Math.random() * 100),
@@ -511,7 +511,7 @@ const AdvancedAlgorithmLab = () => {
                             <ZAxis type="number" dataKey="z" range={[50, 400]} name="Score" />
                             <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                             <Scatter name="Scenarios" data={monteData} fill="#8884d8">
-                                {monteData.map((entry, index) => (
+                                {monteData.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#3b82f6' : '#8b5cf6'} />
                                 ))}
                             </Scatter>

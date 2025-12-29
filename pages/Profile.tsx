@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Award, Download, Share2, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy } from 'lucide-react';
+import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);

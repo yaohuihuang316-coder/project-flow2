@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Clock, MapPin, MoreHorizontal, Plus, Video, Play, Pause, X, CloudRain, Coffee, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Video, Play, Pause, X, CloudRain, Coffee, Zap } from 'lucide-react';
 
 const Schedule: React.FC = () => {
     // --- Focus Mode State ---
