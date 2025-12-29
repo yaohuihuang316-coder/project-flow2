@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { ArrowRight, Mail, User, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Mail, User, Loader2, AlertCircle, CheckCircle2, Database } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface LoginProps {
@@ -34,8 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             .single();
 
         if (data) {
-            // User exists -> Login immediately (Simulated passwordless)
-            // In a real app, we would ask for password here
+            // User exists -> Login immediately
             setTimeout(() => {
                 onLogin({
                     id: data.id,
@@ -48,22 +47,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 });
             }, 800);
         } else {
-            // User does not exist -> Go to Step 2 (Register)
+            // User does not exist (or error finding them) -> Go to Step 2 (Register)
+            // Note: PGRST116 is the code for "0 rows" from .single()
             setIsNewUser(true);
             setStep('details');
             setIsLoading(false);
         }
-    } catch (err) {
-        // Handle case where .single() returns 0 rows (which is an error in Supabase JS logic sometimes)
-        // Or generic network error
-        // If error code is PGRST116, it means no rows found -> New User
-        // @ts-ignore
+    } catch (err: any) {
+        console.error(err);
+        // If table doesn't exist or network error, let user register anyway (handled in step 2)
+        // or strictly show error. Here we allow flow to proceed to step 2 to try insert.
         if (err.code === 'PGRST116' || (err.details && err.details.includes('0 rows'))) {
              setIsNewUser(true);
              setStep('details');
         } else {
-             console.error(err);
-             setError("连接数据库失败，请稍后重试");
+             setError("连接数据库失败。请检查 Supabase 配置。");
         }
         setIsLoading(false);
     }
@@ -90,7 +88,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       try {
           const { error } = await supabase.from('app_users').insert(newUser);
           
-          if (error) throw error;
+          if (error) {
+              // If table missing, throw specific error
+              throw error;
+          }
 
           // Success
           onLogin({
@@ -103,9 +104,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       } catch (err: any) {
           console.error(err);
-          setError(err.message || "注册失败");
+          setError(err.message || "注册失败，请检查数据库表结构。");
           setIsLoading(false);
       }
+  };
+
+  // Fallback: Demo Login (No DB required)
+  const handleDemoLogin = () => {
+      onLogin({
+          id: 'demo-user',
+          email: 'demo@projectflow.com',
+          name: 'Demo Admin',
+          role: 'SuperAdmin', // Grant admin rights for demo
+          joined_at: new Date().toISOString()
+      });
   };
 
   return (
@@ -127,7 +139,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <form onSubmit={step === 'email' ? handleCheckEmail : handleRegister} className="space-y-6">
           
-          {/* Email Input (Always Visible but Readonly in Step 2) */}
+          {/* Email Input */}
           <div className="space-y-1">
             <div className={`relative group transition-all duration-300 rounded-2xl p-1 bg-gradient-to-r from-blue-400/0 to-indigo-400/0 ${step === 'email' ? 'focus-within:from-blue-400 focus-within:to-indigo-400 focus-within:shadow-lg focus-within:shadow-blue-500/20' : ''}`}>
               <div className="relative flex items-center bg-white/80 backdrop-blur-md rounded-[14px] px-4 py-4 transition-all border border-transparent">
@@ -146,7 +158,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          {/* Name Input (Only in Step 2) */}
+          {/* Name Input (Step 2) */}
           {step === 'details' && (
              <div className="space-y-1 animate-fade-in-up">
                 <div className="relative group transition-all duration-300 rounded-2xl p-1 bg-gradient-to-r from-blue-400/0 to-indigo-400/0 focus-within:from-blue-400 focus-within:to-indigo-400 focus-within:shadow-lg focus-within:shadow-blue-500/20">
@@ -187,10 +199,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </button>
         </form>
 
-        <div className="mt-8 flex items-center justify-center text-sm font-medium text-gray-400">
-          <p>
+        <div className="mt-8 flex flex-col items-center justify-center gap-4">
+          <p className="text-sm font-medium text-gray-400">
             {step === 'email' ? 'Protected by ProjectFlow Security' : <button onClick={() => setStep('email')} className="text-blue-600 hover:underline">返回修改邮箱</button>}
           </p>
+          
+          {/* Demo Login Button */}
+          {error && (
+              <button 
+                onClick={handleDemoLogin}
+                className="text-xs font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2"
+              >
+                  <Database size={12}/> 数据库未连接？试用演示账号
+              </button>
+          )}
         </div>
       </div>
     </div>

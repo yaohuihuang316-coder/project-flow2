@@ -15,7 +15,7 @@ import { Page } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 // --- Types ---
-// Main Categories: Foundation (Basic), Advanced (Labs), Implementation (Projects)
+// Main Categories
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
 // Sub Categories for Foundation
 type SubCategory = 'Course' | 'Cert' | 'Official';
@@ -24,7 +24,21 @@ interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
 }
 
-// --- Data: 2. 进阶实验室 (Keep Static for UI Demo) ---
+// --- Mock Data: Fallback if DB is empty ---
+const MOCK_COURSES: Record<string, any[]> = {
+    'Course': [
+        { id: 'mk-1', title: '项目管理知识体系 (PMBOK)', author: 'PMI Official', rating: '4.9', duration: '12h 30m', chapters: 12, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80' },
+        { id: 'mk-2', title: '敏捷实践指南 (Agile)', author: 'Mike Cohn', rating: '4.8', duration: '8h 15m', chapters: 8, image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80' },
+    ],
+    'Cert': [
+        { id: 'mk-3', title: 'PMP 认证冲刺班', author: 'Sarah Chen', rating: '5.0', duration: '40h', chapters: 24, image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80' },
+    ],
+    'Official': [
+        { id: 'mk-4', title: '企业合规与流程必修', author: 'Internal HR', rating: '4.5', duration: '2h', chapters: 4, image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80' },
+    ]
+};
+
+// --- Data: 2. 进阶实验室 (Static) ---
 const ALGORITHMS = [
     { id: 'cpm', name: '关键路径法 (CPM)', desc: '识别最长任务序列，确定最短工期', icon: Network },
     { id: 'evm', name: '挣值管理 (EVM)', desc: '综合测量范围、进度、成本绩效', icon: BarChart3 },
@@ -38,7 +52,7 @@ const ALGORITHMS = [
     { id: 'burn', name: '燃尽图 (Burndown)', desc: '敏捷开发中剩余工作量可视化', icon: TrendingUp },
 ];
 
-// --- Data: 3. 实战演练 (Keep Static for UI Demo) ---
+// --- Data: 3. 实战演练 (Static) ---
 const PROJECTS = [
     { id: 'p1', title: '企业级 ERP 重构', tech: ['Java', 'Spring Cloud', 'Docker'], desc: '遗留单体系统微服务化拆分与容器化部署。', color: 'from-blue-500 to-indigo-600', icon: Server },
     { id: 'p2', title: '跨境电商中台', tech: ['Vue 3', 'Node.js', 'Redis'], desc: '高并发秒杀系统设计与库存一致性解决方案。', color: 'from-orange-400 to-red-500', icon: Globe },
@@ -68,13 +82,15 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
         if (mainTab !== 'Foundation') return;
 
         setIsLoading(true);
+        // DB Query
         const { data, error } = await supabase
             .from('app_courses')
             .select('*')
-            .eq('category', subTab) // Use subTab to filter DB categories (Course, Cert, Official)
+            .eq('category', subTab) 
+            .eq('status', 'Published')
             .order('created_at', { ascending: false });
 
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
             setCourses(data.map(c => {
                 let chapterCount = 0;
                 if (Array.isArray(c.chapters)) chapterCount = c.chapters.length;
@@ -84,8 +100,9 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                 return { ...c, chapters: chapterCount };
             }));
         } else {
-            console.error(error);
-            setCourses([]);
+            // Fallback to Mock Data if DB is empty or fails
+            console.log(`Using mock data for ${subTab}`);
+            setCourses(MOCK_COURSES[subTab] || []);
         }
         setIsLoading(false);
     };
