@@ -3,7 +3,8 @@ import {
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
-  PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2
+  PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
+  Layout, Cpu, Briefcase
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -14,8 +15,10 @@ import { Page } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 // --- Types ---
-// Updated to match DB categories
-type CategoryType = 'Course' | 'Cert' | 'Official' | 'Labs' | 'Projects';
+// Main Categories: Foundation (Basic), Advanced (Labs), Implementation (Projects)
+type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
+// Sub Categories for Foundation
+type SubCategory = 'Course' | 'Cert' | 'Official';
 
 interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
@@ -50,38 +53,35 @@ const PROJECTS = [
 ];
 
 const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
-  // Default to 'Course' which matches DB category
-  const [activeTab, setActiveTab] = useState<CategoryType>('Course');
+  // Navigation State
+  const [mainTab, setMainTab] = useState<MainCategory>('Foundation');
+  const [subTab, setSubTab] = useState<SubCategory>('Course');
+  
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch Courses from Supabase dynamically based on activeTab
+  // Fetch Courses from Supabase dynamically
+  // Trigger when mainTab is Foundation (and subTab changes) 
   useEffect(() => {
     const fetchCourses = async () => {
-        // Only fetch from DB for these categories
-        if (['Labs', 'Projects'].includes(activeTab)) return;
+        if (mainTab !== 'Foundation') return;
 
         setIsLoading(true);
         const { data, error } = await supabase
             .from('app_courses')
             .select('*')
-            .eq('category', activeTab) 
-            .order('created_at', { ascending: false }); // Newest first
+            .eq('category', subTab) // Use subTab to filter DB categories (Course, Cert, Official)
+            .order('created_at', { ascending: false });
 
         if (!error && data) {
             setCourses(data.map(c => {
-                // Parse chapters safely to get count
                 let chapterCount = 0;
                 if (Array.isArray(c.chapters)) chapterCount = c.chapters.length;
                 else if (typeof c.chapters === 'string') {
                     try { chapterCount = JSON.parse(c.chapters).length; } catch(e) {}
                 }
-
-                return {
-                    ...c,
-                    chapters: chapterCount
-                };
+                return { ...c, chapters: chapterCount };
             }));
         } else {
             console.error(error);
@@ -91,50 +91,76 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
     };
 
     fetchCourses();
-  }, [activeTab]);
+  }, [mainTab, subTab]);
 
-  // Reset when tab changes
+  // Reset detail view when tab changes
   useEffect(() => {
     setSelectedItem(null);
-  }, [activeTab]);
+  }, [mainTab, subTab]);
 
   return (
     <div className="pt-28 pb-12 px-6 sm:px-10 max-w-7xl mx-auto min-h-screen">
       {/* Header & Tabs */}
-      <div className={`flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6 transition-all duration-500 ${selectedItem ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100'}`}>
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 tracking-tight">学海无涯</h1>
-          <p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">书山有路勤为径</p>
+      <div className={`flex flex-col gap-6 mb-10 transition-all duration-500 ${selectedItem ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100'}`}>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+                <h1 className="text-4xl font-bold text-gray-900 tracking-tight">学海无涯</h1>
+                <p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">书山有路勤为径</p>
+            </div>
+
+            {/* Level 1 Tabs (Main Categories) */}
+            <div className="bg-gray-200/50 p-1.5 rounded-full flex relative backdrop-blur-md shadow-inner">
+                {[
+                    { id: 'Foundation', label: '基础 (Foundation)', icon: Layout },
+                    { id: 'Advanced', label: '进阶 (Advanced)', icon: Cpu },
+                    { id: 'Implementation', label: '实战 (Projects)', icon: Briefcase }
+                ].map((tab) => (
+                    <button
+                    key={tab.id}
+                    onClick={() => setMainTab(tab.id as MainCategory)}
+                    className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${
+                        mainTab === tab.id
+                        ? 'bg-white text-black shadow-md scale-100'
+                        : 'text-gray-500 hover:text-gray-800 scale-95'
+                    }`}
+                    >
+                    <tab.icon size={16} />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                    </button>
+                ))}
+            </div>
         </div>
 
-        {/* Apple-style Segmented Control */}
-        <div className="bg-gray-200/50 p-1.5 rounded-full flex flex-wrap md:flex-nowrap relative w-full md:w-auto backdrop-blur-md shadow-inner gap-1 md:gap-0">
-          {[
-            { id: 'Course', label: '体系课程' },
-            { id: 'Cert', label: '认证冲刺' },
-            { id: 'Official', label: '官方必修' },
-            { id: 'Labs', label: '进阶算法' },
-            { id: 'Projects', label: '实战项目' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as CategoryType)}
-              className={`relative z-10 flex-1 md:flex-none px-4 md:px-6 py-2 text-xs md:text-sm font-bold rounded-full transition-all duration-300 whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-white text-black shadow-[0_2px_10px_rgba(0,0,0,0.05)] scale-100'
-                  : 'text-gray-500 hover:text-gray-800 scale-95'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* Level 2 Tabs (Only for Foundation) */}
+        {mainTab === 'Foundation' && (
+            <div className="flex gap-4 animate-fade-in pl-1">
+                {[
+                    { id: 'Course', label: '体系课程' },
+                    { id: 'Cert', label: '认证冲刺' },
+                    { id: 'Official', label: '官方必修' }
+                ].map((sub) => (
+                    <button
+                        key={sub.id}
+                        onClick={() => setSubTab(sub.id as SubCategory)}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                            subTab === sub.id 
+                            ? 'bg-black text-white border-black' 
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                        {sub.label}
+                    </button>
+                ))}
+            </div>
+        )}
       </div>
 
       {/* Content Area */}
       <div className="animate-fade-in-up">
-         {/* --- 1. Dynamic Course Grid (Course / Cert / Official) --- */}
-         {['Course', 'Cert', 'Official'].includes(activeTab) && !selectedItem && (
+         
+         {/* --- View 1: Foundation (Course List) --- */}
+         {mainTab === 'Foundation' && !selectedItem && (
            <div className="min-h-[300px]">
              {isLoading ? (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
@@ -154,7 +180,6 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                             src={item.image || `https://source.unsplash.com/random/800x600?tech,${item.id}`} 
                             alt={item.title} 
                             onError={(e) => {
-                                // Fallback image if source fails
                                 (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80';
                             }}
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
@@ -191,20 +216,20 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
              ) : (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
                      <Database size={32} className="mb-4 opacity-50" />
-                     <p className="font-bold">暂无 "{activeTab}" 类别的内容</p>
+                     <p className="font-bold">暂无 "{subTab}" 类别的内容</p>
                      <p className="text-xs mt-1">请前往管理后台 (Admin) 添加此类别的课程</p>
                  </div>
              )}
            </div>
          )}
          
-         {/* --- 2. 进阶探微 (Advanced Algorithm Lab) --- */}
-         {activeTab === 'Labs' && !selectedItem && (
+         {/* --- View 2: Advanced (Labs) --- */}
+         {mainTab === 'Advanced' && !selectedItem && (
             <AdvancedAlgorithmLab />
          )}
 
-         {/* --- 3. 实战演练 (Implementation Projects) --- */}
-         {activeTab === 'Projects' && !selectedItem && (
+         {/* --- View 3: Implementation (Projects) --- */}
+         {mainTab === 'Implementation' && !selectedItem && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
                 {PROJECTS.map(project => (
                   <div 
@@ -220,7 +245,6 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                           </div>
                       </div>
                       <div className="p-8 flex flex-col justify-between flex-1 relative overflow-hidden">
-                          {/* Background Glow */}
                           <div className={`absolute -right-10 -bottom-10 w-40 h-40 bg-gradient-to-br ${project.color} blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity duration-500`}></div>
                           
                           <div>

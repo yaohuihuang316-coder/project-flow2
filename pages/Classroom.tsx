@@ -1,41 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, Play, 
-  Minimize2, Maximize2, FileText, Download, CheckCircle, Send, Loader2, AlertCircle
+  Minimize2, Maximize2, FileText, Download, CheckCircle, Send, Loader2, AlertCircle, Save
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { UserProfile } from '../types';
 
 interface ClassroomProps {
     courseId?: string;
+    currentUser?: UserProfile | null;
 }
 
-const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default' }) => {
+const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'notes' | 'resources'>('catalog');
   const [focusMode, setFocusMode] = useState(false);
-  const [noteContent, setNoteContent] = useState('');
   
+  // Note State
+  const [noteContent, setNoteContent] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [noteStatus, setNoteStatus] = useState<string>('');
+
   // Data State
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch specific course data from Supabase
+  // 1. Fetch Course Data
   useEffect(() => {
     const fetchCourse = async () => {
         setIsLoading(true);
         setError(null);
         
         try {
-            // First try to fetch specific ID
+            // Fetch Course
             let { data: courseData, error: courseError } = await supabase
                 .from('app_courses')
                 .select('*')
                 .eq('id', courseId)
                 .single();
 
-            // Fallback to default if not found (or if courseId is 'default')
+            // Fallback Logic
             if (courseError || !courseData) {
-                console.warn(`Course ${courseId} not found, trying fallback 'pmp-basic'`);
+                console.warn(`Course ${courseId} not found, trying fallback`);
                 const { data: fallbackData } = await supabase
                     .from('app_courses')
                     .select('*')
@@ -45,20 +51,12 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default' }) => {
             }
 
             if (courseData) {
-                // Ensure JSON fields are parsed (Supabase JS usually auto-parses JSONB)
-                const safeChapters = Array.isArray(courseData.chapters) 
-                    ? courseData.chapters 
-                    : typeof courseData.chapters === 'string' ? JSON.parse(courseData.chapters) : [];
-                
-                const safeResources = Array.isArray(courseData.resources)
-                    ? courseData.resources
-                    : typeof courseData.resources === 'string' ? JSON.parse(courseData.resources) : [];
-
-                const safeModuleInfo = typeof courseData.module_info === 'object' 
-                    ? courseData.module_info 
-                    : { module: 'Module 1', subTitle: 'Overview' };
+                const safeChapters = Array.isArray(courseData.chapters) ? courseData.chapters : typeof courseData.chapters === 'string' ? JSON.parse(courseData.chapters) : [];
+                const safeResources = Array.isArray(courseData.resources) ? courseData.resources : typeof courseData.resources === 'string' ? JSON.parse(courseData.resources) : [];
+                const safeModuleInfo = typeof courseData.module_info === 'object' ? courseData.module_info : { module: 'Module 1', subTitle: 'Overview' };
 
                 setData({
+                    id: courseData.id,
                     title: courseData.title,
                     image: courseData.image,
                     module: safeModuleInfo?.module || 'Module 1',
@@ -79,6 +77,56 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default' }) => {
 
     fetchCourse();
   }, [courseId]);
+
+  // 2. Fetch User Notes for this Course
+  useEffect(() => {
+      const fetchNotes = async () => {
+          if (!currentUser || !data?.id) return;
+
+          const { data: progressData } = await supabase
+              .from('app_user_progress')
+              .select('notes')
+              .eq('user_id', currentUser.id)
+              .eq('course_id', data.id)
+              .single();
+          
+          if (progressData && progressData.notes) {
+              setNoteContent(progressData.notes);
+          }
+      };
+      
+      if (!isLoading && data) {
+          fetchNotes();
+      }
+  }, [currentUser, data, isLoading]);
+
+  // 3. Save Notes Handler
+  const handleSaveNote = async () => {
+      if (!currentUser || !data?.id) {
+          setNoteStatus('请先登录');
+          return;
+      }
+      
+      setIsSavingNote(true);
+      setNoteStatus('保存中...');
+
+      const { error } = await supabase.from('app_user_progress').upsert({
+          user_id: currentUser.id,
+          course_id: data.id,
+          notes: noteContent,
+          last_accessed: new Date().toISOString()
+      }, { onConflict: 'user_id,course_id' });
+
+      setIsSavingNote(false);
+      
+      if (error) {
+          console.error(error);
+          setNoteStatus('保存失败');
+      } else {
+          setNoteStatus('已同步至云端');
+          setTimeout(() => setNoteStatus(''), 2000);
+      }
+  };
 
 
   if (isLoading) {
@@ -213,15 +261,20 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default' }) => {
                     <div className="h-full flex flex-col">
                         <textarea 
                             className="w-full h-64 bg-yellow-50/50 border border-yellow-100 rounded-2xl p-4 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-yellow-200 resize-none font-medium leading-relaxed"
-                            placeholder="在此记录重点..."
+                            placeholder={currentUser ? "在此记录重点... (会自动保存)" : "请先登录以保存笔记"}
                             value={noteContent}
                             onChange={(e) => setNoteContent(e.target.value)}
                         />
                         <div className="mt-4 flex justify-between items-center">
-                            <button className="text-xs font-bold text-blue-500 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
-                                + 14:20 截图
-                            </button>
-                            <button className="text-xs font-bold text-white bg-black px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors">
+                            <span className="text-xs text-gray-400 font-medium">
+                                {noteStatus}
+                            </span>
+                            <button 
+                                onClick={handleSaveNote}
+                                disabled={isSavingNote || !currentUser}
+                                className="text-xs font-bold text-white bg-black px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {isSavingNote ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>}
                                 保存笔记
                             </button>
                         </div>

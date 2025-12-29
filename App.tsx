@@ -87,11 +87,13 @@ const App: React.FC = () => {
       case Page.LOGIN:
         return <Login onLogin={handleLogin} />;
       case Page.DASHBOARD:
-        return <Dashboard onNavigate={navigateTo} />;
+        // Pass currentUser to Dashboard for data sync
+        return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
       case Page.LEARNING:
         return <LearningHub onNavigate={navigateTo} />;
       case Page.CLASSROOM:
-        return <Classroom courseId={currentCourseId} />;
+        // Pass currentUser to Classroom for saving notes
+        return <Classroom courseId={currentCourseId} currentUser={currentUser} />;
       case Page.PROFILE:
         return <Profile currentUser={currentUser} onLogout={handleLogout} />;
       case Page.SCHEDULE:
@@ -101,7 +103,7 @@ const App: React.FC = () => {
       case Page.SIMULATION:
         return <Simulation onBack={() => navigateTo(Page.DASHBOARD)} />;
       default:
-        return <Dashboard onNavigate={navigateTo} />;
+        return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }
   };
 

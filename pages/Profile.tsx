@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield } from 'lucide-react';
 import { UserProfile } from '../types';
+import { supabase } from '../lib/supabaseClient';
 
 interface ProfileProps {
     currentUser?: UserProfile | null;
@@ -10,6 +11,50 @@ interface ProfileProps {
 
 const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
+  const [certificates, setCertificates] = useState<any[]>([]);
+
+  // --- Fetch Real Achievements ---
+  useEffect(() => {
+      const fetchAchievements = async () => {
+          if (!currentUser) return;
+          const { data, error } = await supabase
+              .from('app_achievements')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .order('date_awarded', { ascending: false });
+          
+          if (data && data.length > 0) {
+              // Map DB data to UI Model
+              const mappedCerts = data.map(item => ({
+                  id: item.id.toString(),
+                  title: item.title,
+                  titleEn: item.title_en || 'Certificate',
+                  issuer: item.issuer || 'ProjectFlow',
+                  date: item.date_awarded,
+                  user: currentUser.name,
+                  bgGradient: item.meta_data?.bg || 'bg-gradient-to-br from-blue-400 to-blue-600',
+                  sealColor: item.meta_data?.seal || 'border-white text-white'
+              }));
+              setCertificates(mappedCerts);
+          } else {
+              // Fallback for new users (Empty State or Mock)
+              setCertificates([
+                { 
+                    id: 'DEMO-001', 
+                    title: '欢迎加入 ProjectFlow', 
+                    titleEn: 'Welcome Member',
+                    issuer: 'System', 
+                    date: new Date().toISOString().split('T')[0], 
+                    bgGradient: 'bg-gradient-to-br from-gray-700 to-black', 
+                    sealColor: 'border-gray-200 text-gray-100',
+                    user: currentUser?.name || 'Guest'
+                }
+              ]);
+          }
+      };
+
+      fetchAchievements();
+  }, [currentUser]);
 
   // --- Mock Data: Contribution Heatmap ---
   const heatmapData = useMemo(() => {
@@ -53,40 +98,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       { id: 4, name: 'Bug猎手', desc: '在实战中修复10个Bug', icon: Bug, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
       { id: 5, name: '完美主义', desc: '单个测验获得100分', icon: Target, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
       { id: 6, name: '高产似母猪', desc: '一周提交20次代码', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-  ];
-
-  // --- Mock Data: Certificates ---
-  const certificates = [
-    { 
-        id: 'CSM-2023', 
-        title: '敏捷 Scrum Master 认证', 
-        titleEn: 'Certified Scrum Master',
-        issuer: 'Scrum Alliance', 
-        date: '2023-05-12', 
-        bgGradient: 'bg-gradient-to-br from-[#FF9966] to-[#FF5E62]', 
-        sealColor: 'border-yellow-200 text-yellow-100',
-        user: currentUser?.name || 'Student'
-    },
-    { 
-        id: 'PMP-2022', 
-        title: 'PMP 项目管理专业人士', 
-        titleEn: 'Project Management Professional',
-        issuer: 'PMI Institute', 
-        date: '2022-11-20', 
-        bgGradient: 'bg-gradient-to-br from-[#4facfe] to-[#00f2fe]',
-        sealColor: 'border-blue-200 text-blue-100',
-        user: currentUser?.name || 'Student'
-    },
-    { 
-        id: 'GPM-2021', 
-        title: 'Google 项目管理证书', 
-        titleEn: 'Google Project Management Cert',
-        issuer: 'Coursera', 
-        date: '2021-08-15', 
-        bgGradient: 'bg-gradient-to-br from-[#43e97b] to-[#38f9d7]',
-        sealColor: 'border-green-200 text-green-100',
-        user: currentUser?.name || 'Student'
-    },
   ];
 
   const handleDownload = (certTitle: string) => {
