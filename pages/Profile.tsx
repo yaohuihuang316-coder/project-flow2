@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy } from 'lucide-react';
+import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield } from 'lucide-react';
+import { UserProfile } from '../types';
 
-const Profile: React.FC = () => {
+interface ProfileProps {
+    currentUser?: UserProfile | null;
+    onLogout?: () => void;
+}
+
+const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
 
   // --- Mock Data: Contribution Heatmap ---
@@ -33,7 +39,8 @@ const Profile: React.FC = () => {
   const leaderboard = [
       { rank: 1, name: 'Sarah Chen', xp: '12,450', avatar: 'https://i.pravatar.cc/150?u=1' },
       { rank: 2, name: 'Mike Ross', xp: '11,200', avatar: 'https://i.pravatar.cc/150?u=2' },
-      { rank: 3, name: 'Alex Chen (Me)', xp: '9,850', avatar: 'https://i.pravatar.cc/150?u=3', isMe: true }, // Current User
+      // Inject current user into leaderboard dynamically
+      { rank: 3, name: currentUser?.name || 'Me', xp: '9,850', avatar: '', isMe: true }, 
       { rank: 4, name: 'Jennie Kim', xp: '8,400', avatar: 'https://i.pravatar.cc/150?u=4' },
       { rank: 5, name: 'David Zhang', xp: '7,230', avatar: 'https://i.pravatar.cc/150?u=5' },
   ];
@@ -58,7 +65,7 @@ const Profile: React.FC = () => {
         date: '2023-05-12', 
         bgGradient: 'bg-gradient-to-br from-[#FF9966] to-[#FF5E62]', 
         sealColor: 'border-yellow-200 text-yellow-100',
-        user: 'Alex Chen'
+        user: currentUser?.name || 'Student'
     },
     { 
         id: 'PMP-2022', 
@@ -68,7 +75,7 @@ const Profile: React.FC = () => {
         date: '2022-11-20', 
         bgGradient: 'bg-gradient-to-br from-[#4facfe] to-[#00f2fe]',
         sealColor: 'border-blue-200 text-blue-100',
-        user: 'Alex Chen'
+        user: currentUser?.name || 'Student'
     },
     { 
         id: 'GPM-2021', 
@@ -78,7 +85,7 @@ const Profile: React.FC = () => {
         date: '2021-08-15', 
         bgGradient: 'bg-gradient-to-br from-[#43e97b] to-[#38f9d7]',
         sealColor: 'border-green-200 text-green-100',
-        user: 'Alex Chen'
+        user: currentUser?.name || 'Student'
     },
   ];
 
@@ -104,8 +111,31 @@ const Profile: React.FC = () => {
   return (
     <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen space-y-6">
         
+        {/* --- 0. User Info Card (Dynamic) --- */}
+        <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-up">
+            <div className="flex items-center gap-6 w-full">
+                <div className="w-24 h-24 rounded-full bg-black text-white flex items-center justify-center text-3xl font-bold shadow-2xl">
+                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="flex-1">
+                    <h1 className="text-3xl font-bold text-gray-900">{currentUser?.name || 'Guest User'}</h1>
+                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500 font-medium">
+                         <span className="flex items-center gap-1.5"><Mail size={16}/> {currentUser?.email || 'guest@example.com'}</span>
+                         <span className="flex items-center gap-1.5"><Shield size={16}/> {currentUser?.role || 'Student'}</span>
+                         <span className="flex items-center gap-1.5"><Calendar size={16}/> Joined {currentUser?.joined_at ? new Date(currentUser.joined_at).toLocaleDateString() : 'Just now'}</span>
+                    </div>
+                </div>
+            </div>
+            <button 
+                onClick={onLogout}
+                className="w-full md:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+            >
+                <LogOut size={16}/> 退出登录
+            </button>
+        </div>
+
         {/* --- 1. Top Section: Contribution Heatmap --- */}
-        <div className="glass-card rounded-[2rem] p-6 animate-fade-in-up">
+        <div className="glass-card rounded-[2rem] p-6 animate-fade-in-up delay-100">
             <div className="flex justify-between items-end mb-4">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">学习活跃度 (Activity)</h2>
@@ -129,19 +159,10 @@ const Profile: React.FC = () => {
                     ))}
                 </div>
             </div>
-            <div className="flex items-center gap-2 mt-3 text-[10px] text-gray-400 justify-end">
-                <span>Less</span>
-                <div className="w-2.5 h-2.5 bg-gray-100 rounded-[2px]"></div>
-                <div className="w-2.5 h-2.5 bg-emerald-200 rounded-[2px]"></div>
-                <div className="w-2.5 h-2.5 bg-emerald-300 rounded-[2px]"></div>
-                <div className="w-2.5 h-2.5 bg-emerald-400 rounded-[2px]"></div>
-                <div className="w-2.5 h-2.5 bg-emerald-500 rounded-[2px]"></div>
-                <span>More</span>
-            </div>
         </div>
 
         {/* --- 2. Middle Section: Radar & Leaderboard --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-200">
             
             {/* Left: Capability Radar (Col Span 8) */}
             <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-6 relative flex flex-col justify-between">
@@ -203,7 +224,13 @@ const Profile: React.FC = () => {
                                 }`}>
                                     {user.rank <= 3 ? <Medal size={14}/> : user.rank}
                                 </div>
-                                <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-white/20" />
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-white/20" />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-xs text-white font-bold">
+                                        {user.name.charAt(0)}
+                                    </div>
+                                )}
                                 <div>
                                     <p className="text-sm font-bold leading-none">{user.name}</p>
                                     <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? 'Current User' : 'Senior PM'}</p>
@@ -217,7 +244,7 @@ const Profile: React.FC = () => {
         </div>
 
         {/* --- 3. Bottom Section: Certificates & Badges --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-300">
             
             {/* Left: Certificate Stack (Col Span 4) */}
             <div className="lg:col-span-4 flex flex-col gap-4">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Page, AdminRole } from '../../types';
+import { Page, AdminRole, UserProfile } from '../../types';
 import { 
   LayoutDashboard, Users, FileText, Settings, 
   LogOut, Bell, ChevronRight, Shield, Activity, Menu, X
@@ -9,15 +9,20 @@ interface AdminLayoutProps {
   children: React.ReactNode;
   currentPage: Page;
   setPage: (page: Page) => void;
-  currentRole: AdminRole;
-  setRole: (role: AdminRole) => void;
+  currentUser?: UserProfile | null;
+  currentRole?: AdminRole; // Optional prop if we want to force override locally
+  setRole?: (role: AdminRole) => void; // Optional if we keep the switcher
+  onLogout?: () => void;
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ 
-  children, currentPage, setPage, currentRole, setRole 
+  children, currentPage, setPage, currentUser, onLogout
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // Use user's role, default to Student if not found
+  const role = currentUser?.role || 'Student';
+
   // 菜单配置 (已中文化)
   const menuItems = [
     { 
@@ -92,7 +97,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
           {menuItems.map((item) => {
             // Permission Check
-            if (!item.roles.includes(currentRole)) return null;
+            if (!item.roles.includes(role)) return null;
 
             const isActive = currentPage === item.page;
             return (
@@ -114,7 +119,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
 
         <div className="p-4 border-t border-gray-100">
           <button 
-            onClick={() => setPage(Page.LOGIN)}
+            onClick={onLogout}
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors w-full px-2"
           >
             <LogOut size={16} />
@@ -149,24 +154,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 md:gap-6">
-            {/* Role Switcher (Simulation) */}
-            <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg p-1 pr-3">
-              <div className={`p-1 rounded-md ${
-                currentRole === 'SuperAdmin' ? 'bg-purple-100 text-purple-600' :
-                currentRole === 'Manager' ? 'bg-blue-100 text-blue-600' :
-                'bg-green-100 text-green-600'
-              }`}>
-                <Shield size={14} />
-              </div>
-              <select 
-                value={currentRole}
-                onChange={(e) => setRole(e.target.value as AdminRole)}
-                className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer min-w-[80px]"
-              >
-                <option value="SuperAdmin">超级管理员</option>
-                <option value="Manager">运营经理</option>
-                <option value="Editor">内容编辑</option>
-              </select>
+            {/* Role Badge */}
+            <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5">
+              <Shield size={14} className="text-gray-500"/>
+              <span className="text-xs font-bold text-gray-700">{role}</span>
             </div>
 
             <div className="h-4 w-px bg-gray-300 hidden md:block"></div>
@@ -176,8 +167,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             
-            <div className="w-8 h-8 rounded-full bg-gray-200 border border-gray-300 overflow-hidden">
-               <img src="https://i.pravatar.cc/150?u=admin" alt="Admin" />
+            <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs">
+               {currentUser?.name ? currentUser.name.charAt(0) : 'A'}
             </div>
           </div>
         </header>

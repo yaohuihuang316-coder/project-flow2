@@ -16,15 +16,16 @@ import UserTable from './pages/admin/UserTable';
 import AdminContent from './pages/admin/AdminContent';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminMonitor from './pages/admin/AdminMonitor';
-import { Page, AdminRole } from './types';
+import { Page, AdminRole, UserProfile } from './types';
 
 const App: React.FC = () => {
   // 1. 全局导航状态管理
   const [currentPage, setCurrentPage] = useState<Page>(Page.LOGIN);
   // 新增：课程 ID 状态
   const [currentCourseId, setCurrentCourseId] = useState<string>('default');
-  // 新增：后台角色状态
-  const [adminRole, setAdminRole] = useState<AdminRole>('SuperAdmin');
+  
+  // 2. 用户身份状态 (Persisted User State)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   // 核心跳转逻辑
   const navigateTo = (page: Page, secondaryId?: string) => {
@@ -45,7 +46,23 @@ const App: React.FC = () => {
       return page === Page.LOGIN || page === Page.KNOWLEDGE_GRAPH || page === Page.SIMULATION;
   };
 
-  // 2. 动态组件渲染器
+  // 3. 登录处理
+  const handleLogin = (user: UserProfile) => {
+      setCurrentUser(user);
+      // 如果是管理员，去后台；否则去仪表盘
+      if (['SuperAdmin', 'Manager', 'Editor'].includes(user.role)) {
+          setCurrentPage(Page.ADMIN_DASHBOARD);
+      } else {
+          setCurrentPage(Page.DASHBOARD);
+      }
+  };
+
+  const handleLogout = () => {
+      setCurrentUser(null);
+      setCurrentPage(Page.LOGIN);
+  };
+
+  // 4. 动态组件渲染器
   const renderPage = () => {
     // 优先处理后台页面
     if (isAdminPage(currentPage)) {
@@ -53,11 +70,11 @@ const App: React.FC = () => {
         <AdminLayout 
           currentPage={currentPage} 
           setPage={setCurrentPage} 
-          currentRole={adminRole}
-          setRole={setAdminRole}
+          currentUser={currentUser} // Pass actual user
+          onLogout={handleLogout}
         >
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
-          {currentPage === Page.ADMIN_USERS && <UserTable currentRole={adminRole} />}
+          {currentPage === Page.ADMIN_USERS && <UserTable currentRole={currentUser?.role || 'SuperAdmin'} />}
           {currentPage === Page.ADMIN_CONTENT && <AdminContent />}
           {currentPage === Page.ADMIN_SETTINGS && <AdminSettings />}
           {currentPage === Page.ADMIN_MONITOR && <AdminMonitor />}
@@ -68,7 +85,7 @@ const App: React.FC = () => {
     // 前台页面
     switch (currentPage) {
       case Page.LOGIN:
-        return <Login setPage={setCurrentPage} />;
+        return <Login onLogin={handleLogin} />;
       case Page.DASHBOARD:
         return <Dashboard onNavigate={navigateTo} />;
       case Page.LEARNING:
@@ -76,7 +93,7 @@ const App: React.FC = () => {
       case Page.CLASSROOM:
         return <Classroom courseId={currentCourseId} />;
       case Page.PROFILE:
-        return <Profile />;
+        return <Profile currentUser={currentUser} onLogout={handleLogout} />;
       case Page.SCHEDULE:
         return <Schedule />;
       case Page.KNOWLEDGE_GRAPH:
@@ -94,7 +111,12 @@ const App: React.FC = () => {
       {/* Desktop Navbar (Hidden on Mobile) */}
       {!isAdminPage(currentPage) && !isImmersivePage(currentPage) && (
         <div className="hidden md:block">
-            <Navbar currentPage={currentPage} setPage={setCurrentPage} />
+            <Navbar 
+                currentPage={currentPage} 
+                setPage={setCurrentPage} 
+                currentUser={currentUser}
+                onLogout={handleLogout}
+            />
         </div>
       )}
       

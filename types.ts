@@ -16,7 +16,17 @@ export enum Page {
   ADMIN_MONITOR = 'ADMIN_MONITOR'
 }
 
-export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor';
+export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor' | 'Student';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: AdminRole;
+  avatar?: string;
+  department?: string;
+  joined_at?: string;
+}
 
 export interface Course {
   id: string;

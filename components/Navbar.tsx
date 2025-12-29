@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Page } from '../types';
-import { LayoutDashboard, Library, PlayCircle, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X } from 'lucide-react';
+import { Page, UserProfile } from '../types';
+import { LayoutDashboard, Library, PlayCircle, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Shield } from 'lucide-react';
 
 interface NavbarProps {
   currentPage: Page;
   setPage: (page: Page) => void;
+  currentUser?: UserProfile | null;
+  onLogout?: () => void;
 }
 
 // Mock Notifications
@@ -14,7 +16,7 @@ const NOTIFICATIONS = [
     { id: 3, title: '系统维护', msg: '系统将于今晚 02:00 进行例行维护。', time: '3h ago', type: 'warning' },
 ];
 
-const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage }) => {
+const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLogout }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -81,7 +83,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage }) => {
         })}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
           {/* Notification Center */}
           <div className="relative" ref={notifRef}>
               <button 
@@ -120,13 +122,28 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage }) => {
               )}
           </div>
 
-          <button 
-            onClick={() => setPage(Page.LOGIN)}
-            className="p-2.5 rounded-full hover:bg-gray-200/50 text-gray-400 hover:text-red-500 transition-colors duration-300"
-            title="退出登录"
-          >
-            <LogOut size={20} />
-          </button>
+          {/* User Profile / Logout */}
+          <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
+             {currentUser && (
+                 <div className="flex items-center gap-2 cursor-default">
+                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-700 to-black text-white flex items-center justify-center text-xs font-bold">
+                         {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                     </div>
+                     <div className="hidden lg:block text-right leading-tight">
+                         <div className="text-xs font-bold text-gray-900">{currentUser.name}</div>
+                         <div className="text-[10px] text-gray-500">{currentUser.role}</div>
+                     </div>
+                 </div>
+             )}
+
+             <button 
+                onClick={onLogout}
+                className="p-2.5 rounded-full hover:bg-gray-200/50 text-gray-400 hover:text-red-500 transition-colors duration-300"
+                title="退出登录"
+            >
+                <LogOut size={18} />
+            </button>
+          </div>
       </div>
     </nav>
   );
