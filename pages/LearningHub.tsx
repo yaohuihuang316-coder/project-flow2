@@ -14,7 +14,8 @@ import { Page } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 // --- Types ---
-type CategoryType = 'foundation' | 'advanced' | 'implementation';
+// Updated to match DB categories
+type CategoryType = 'Course' | 'Cert' | 'Official' | 'Labs' | 'Projects';
 
 interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
@@ -49,35 +50,47 @@ const PROJECTS = [
 ];
 
 const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<CategoryType>('foundation');
+  // Default to 'Course' which matches DB category
+  const [activeTab, setActiveTab] = useState<CategoryType>('Course');
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [courses, setCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch Courses from Supabase
+  // Fetch Courses from Supabase dynamically based on activeTab
   useEffect(() => {
     const fetchCourses = async () => {
+        // Only fetch from DB for these categories
+        if (['Labs', 'Projects'].includes(activeTab)) return;
+
         setIsLoading(true);
         const { data, error } = await supabase
             .from('app_courses')
             .select('*')
-            .eq('category', 'foundation') // currently only fetching foundation category from DB
-            .order('created_at', { ascending: true });
+            .eq('category', activeTab) 
+            .order('created_at', { ascending: false }); // Newest first
 
         if (!error && data) {
-            setCourses(data.map(c => ({
-                ...c,
-                chapters: c.chapters?.length || 0 // Count JSON chapters
-            })));
+            setCourses(data.map(c => {
+                // Parse chapters safely to get count
+                let chapterCount = 0;
+                if (Array.isArray(c.chapters)) chapterCount = c.chapters.length;
+                else if (typeof c.chapters === 'string') {
+                    try { chapterCount = JSON.parse(c.chapters).length; } catch(e) {}
+                }
+
+                return {
+                    ...c,
+                    chapters: chapterCount
+                };
+            }));
         } else {
             console.error(error);
+            setCourses([]);
         }
         setIsLoading(false);
     };
 
-    if (activeTab === 'foundation') {
-        fetchCourses();
-    }
+    fetchCourses();
   }, [activeTab]);
 
   // Reset when tab changes
@@ -95,16 +108,18 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
         </div>
 
         {/* Apple-style Segmented Control */}
-        <div className="bg-gray-200/50 p-1.5 rounded-full flex relative w-full md:w-auto backdrop-blur-md shadow-inner">
+        <div className="bg-gray-200/50 p-1.5 rounded-full flex flex-wrap md:flex-nowrap relative w-full md:w-auto backdrop-blur-md shadow-inner gap-1 md:gap-0">
           {[
-            { id: 'foundation', label: '基础修练' },
-            { id: 'advanced', label: '进阶实验室' },
-            { id: 'implementation', label: '实战演练' }
+            { id: 'Course', label: '体系课程' },
+            { id: 'Cert', label: '认证冲刺' },
+            { id: 'Official', label: '官方必修' },
+            { id: 'Labs', label: '进阶算法' },
+            { id: 'Projects', label: '实战项目' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as CategoryType)}
-              className={`relative z-10 flex-1 md:flex-none px-8 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${
+              className={`relative z-10 flex-1 md:flex-none px-4 md:px-6 py-2 text-xs md:text-sm font-bold rounded-full transition-all duration-300 whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-white text-black shadow-[0_2px_10px_rgba(0,0,0,0.05)] scale-100'
                   : 'text-gray-500 hover:text-gray-800 scale-95'
@@ -118,13 +133,13 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
 
       {/* Content Area */}
       <div className="animate-fade-in-up">
-         {/* --- 1. 基础修练 (Cards -> Jump to Classroom) --- */}
-         {activeTab === 'foundation' && !selectedItem && (
+         {/* --- 1. Dynamic Course Grid (Course / Cert / Official) --- */}
+         {['Course', 'Cert', 'Official'].includes(activeTab) && !selectedItem && (
            <div className="min-h-[300px]">
              {isLoading ? (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                      <Loader2 size={32} className="animate-spin mb-4" />
-                     <p>Loading Courses from Database...</p>
+                     <p>Loading Content...</p>
                  </div>
              ) : courses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
@@ -135,11 +150,19 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                         className="group bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer overflow-hidden border border-gray-100/50"
                     >
                         <div className="aspect-[4/3] overflow-hidden relative">
-                        <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        <img 
+                            src={item.image || `https://source.unsplash.com/random/800x600?tech,${item.id}`} 
+                            alt={item.title} 
+                            onError={(e) => {
+                                // Fallback image if source fails
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80';
+                            }}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                        />
                         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
                         <div className="absolute top-4 right-4 bg-white/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-1 text-white text-xs font-bold shadow-lg">
                             <Star size={12} fill="white" />
-                            <span>4.9</span>
+                            <span>{item.rating || '4.8'}</span>
                         </div>
                         <div className="absolute bottom-4 left-4 right-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500">
                                 <button className="w-full bg-white/90 backdrop-blur text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg">
@@ -148,15 +171,18 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                         </div>
                         </div>
                         <div className="p-6">
-                        <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2 truncate">{item.title}</h3>
-                        <p className="text-xs text-gray-500 mb-4">{item.author}</p>
+                        <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2 truncate" title={item.title}>{item.title}</h3>
+                        <p className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-gray-200 block"></span>
+                            {item.author}
+                        </p>
                         <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            <span className="flex items-center gap-1"><Clock size={14} /> {item.duration}</span>
+                            <span className="flex items-center gap-1"><Clock size={14} /> {item.duration || '2h 15m'}</span>
                             <span className="flex items-center gap-1"><BookOpen size={14} /> {item.chapters} 章节</span>
                         </div>
                         {/* Progress Line */}
                         <div className="mt-4 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full" style={{width: `${item.progress}%`}}></div>
+                                <div className="h-full bg-blue-500 rounded-full" style={{width: `${Math.random() * 100}%`}}></div>
                         </div>
                         </div>
                     </div>
@@ -165,19 +191,20 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
              ) : (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
                      <Database size={32} className="mb-4 opacity-50" />
-                     <p>暂无课程数据，请在 Supabase 执行 SQL 初始化脚本。</p>
+                     <p className="font-bold">暂无 "{activeTab}" 类别的内容</p>
+                     <p className="text-xs mt-1">请前往管理后台 (Admin) 添加此类别的课程</p>
                  </div>
              )}
            </div>
          )}
          
          {/* --- 2. 进阶探微 (Advanced Algorithm Lab) --- */}
-         {activeTab === 'advanced' && !selectedItem && (
+         {activeTab === 'Labs' && !selectedItem && (
             <AdvancedAlgorithmLab />
          )}
 
          {/* --- 3. 实战演练 (Implementation Projects) --- */}
-         {activeTab === 'implementation' && !selectedItem && (
+         {activeTab === 'Projects' && !selectedItem && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
                 {PROJECTS.map(project => (
                   <div 

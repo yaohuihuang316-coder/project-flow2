@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { Users, BookOpen, Server, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 const AdminDashboard: React.FC = () => {
+  // Real Data State
+  const [totalUsers, setTotalUsers] = useState<number | string>('Loading...');
+  const [totalCourses, setTotalCourses] = useState<number | string>('Loading...');
+
   // Mock Data
   const growthData = [
     { name: '周一', users: 4000, active: 2400 },
@@ -25,10 +30,32 @@ const AdminDashboard: React.FC = () => {
   ];
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
+  useEffect(() => {
+      const fetchStats = async () => {
+          // Fetch User Count
+          const { count: userCount, error: userError } = await supabase
+              .from('app_users')
+              .select('*', { count: 'exact', head: true });
+          
+          if (!userError) setTotalUsers(userCount || 0);
+          else setTotalUsers(12450); // Fallback mock
+
+          // Fetch Course Count
+          const { count: courseCount, error: courseError } = await supabase
+              .from('app_courses')
+              .select('*', { count: 'exact', head: true });
+          
+          if (!courseError) setTotalCourses(courseCount || 0);
+          else setTotalCourses(24); // Fallback mock
+      };
+
+      fetchStats();
+  }, []);
+
   const stats = [
-    { label: '总用户数', value: '12,450', change: '+12%', icon: Users },
+    { label: '总用户数', value: totalUsers, change: '+12%', icon: Users },
     { label: '今日活跃', value: '1,203', change: '+5%', icon: TrendingUp },
-    { label: '新增课程', value: '24', change: '+2', icon: BookOpen },
+    { label: '在线课程', value: totalCourses, change: '+2', icon: BookOpen },
     { label: '服务器负载', value: '34%', change: '-2%', icon: Server },
   ];
 
@@ -114,7 +141,7 @@ const AdminDashboard: React.FC = () => {
             {/* Center Text */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
               <div className="text-center">
-                <span className="block text-2xl font-bold text-gray-900">12K</span>
+                <span className="block text-2xl font-bold text-gray-900">{typeof totalUsers === 'number' ? (totalUsers / 1000).toFixed(1) + 'K' : '12K'}</span>
                 <span className="text-xs text-gray-400 uppercase font-bold">总用户</span>
               </div>
             </div>

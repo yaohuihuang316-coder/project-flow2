@@ -10,23 +10,42 @@ interface CourseBuilderProps {
 
 const CourseBuilder: React.FC<CourseBuilderProps> = ({ isOpen, onClose, course, onSave }) => {
   const [formData, setFormData] = useState<any>({
-    title: '', author: '', status: 'Draft', chapters: []
+    title: '', author: '', status: 'Draft', category: 'Course', chapters: []
   });
 
   useEffect(() => {
     if (course) {
+      // Safely parse chapters if they are string (from Supabase if not auto-parsed)
+      let parsedChapters = [];
+      if (Array.isArray(course.chapters)) {
+        parsedChapters = course.chapters;
+      } else if (typeof course.chapters === 'string') {
+        try {
+          parsedChapters = JSON.parse(course.chapters);
+        } catch(e) {
+          parsedChapters = [];
+        }
+      }
+
       setFormData({
-        title: course.title,
-        author: course.author,
+        title: course.title || '',
+        author: course.author || '',
         status: course.status === 'Published' ? 'Published' : 'Draft',
-        chapters: [
-            { id: 1, title: 'Introduction to Concept', duration: '10:00', type: 'video' },
-            { id: 2, title: 'Core Principles', duration: '25:00', type: 'video' },
-            { id: 3, title: 'Quiz: Chapter 1', duration: '15:00', type: 'quiz' },
-        ] // Mock chapters
+        category: course.category || 'Course',
+        chapters: parsedChapters.length > 0 ? parsedChapters : [
+             { id: 1, title: 'Introduction', duration: '05:00', type: 'video' }
+        ]
       });
     } else {
-      setFormData({ title: '', author: '', status: 'Draft', chapters: [] });
+      setFormData({ 
+          title: '', 
+          author: '', 
+          status: 'Draft', 
+          category: 'Course',
+          chapters: [
+            { id: 1, title: 'New Chapter 1', duration: '10:00', type: 'video' }
+          ] 
+      });
     }
   }, [course, isOpen]);
 
@@ -108,11 +127,16 @@ const CourseBuilder: React.FC<CourseBuilderProps> = ({ isOpen, onClose, course, 
                         />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase">难度</label>
-                        <select className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none">
-                            <option>Foundation</option>
-                            <option>Advanced</option>
-                            <option>Expert</option>
+                        <label className="text-xs font-bold text-gray-500 uppercase">分类</label>
+                        <select 
+                            value={formData.category || 'Course'}
+                            onChange={(e) => setFormData({...formData, category: e.target.value})}
+                            className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none"
+                        >
+                            <option value="Course">体系课程 (Course)</option>
+                            <option value="Cert">认证冲刺 (Cert)</option>
+                            <option value="Official">官方必修 (Official)</option>
+                            <option value="UGC">社区内容 (UGC)</option>
                         </select>
                     </div>
                 </div>

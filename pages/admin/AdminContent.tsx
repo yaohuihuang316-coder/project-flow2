@@ -32,19 +32,20 @@ const AdminContent: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
+      if (error) {
+        console.error('Error fetching content:', error.message || JSON.stringify(error));
+        setContentData(INITIAL_DATA);
+      } else if (data && data.length > 0) {
         const mappedData = data.map(item => ({
           ...item,
-          lastUpdate: item.last_update || item.created_at?.split('T')[0],
+          lastUpdate: item.last_update || (item.created_at ? item.created_at.split('T')[0] : 'N/A'),
         }));
         setContentData(mappedData);
       } else {
         setContentData(INITIAL_DATA);
       }
     } catch (err) {
-      console.error('Error fetching content:', err);
+      console.error('Unexpected error fetching content:', err);
       setContentData(INITIAL_DATA);
     } finally {
       setIsLoading(false);
@@ -89,28 +90,33 @@ const AdminContent: React.FC = () => {
           category: 'New'
       };
 
-      // 使用 'app_courses' 表
-      const { error } = await supabase.from('app_courses').upsert({
-         id: newItem.id.toString(), 
-         title: newItem.title,
-         author: newItem.author,
-         type: newItem.type,
-         status: newItem.status,
-         category: newItem.category,
-         views: newItem.views,
-         last_update: newItem.last_update,
-      });
-
-      if (!error) {
-        fetchContent(); // Refresh from server
-      } else {
-        console.error("Failed to save to DB (Table: app_courses):", error);
-        // Fallback local update
-        if (editingCourse) {
-            setContentData(contentData.map(c => c.id === editingCourse.id ? { ...c, ...newItem, lastUpdate: newItem.last_update } : c));
+      try {
+        // 使用 'app_courses' 表
+        const { error } = await supabase.from('app_courses').upsert({
+           id: newItem.id.toString(), 
+           title: newItem.title,
+           author: newItem.author,
+           type: newItem.type,
+           status: newItem.status,
+           category: newItem.category,
+           views: newItem.views,
+           last_update: newItem.last_update,
+           chapters: newItem.chapters // Ensure chapters are saved
+        });
+  
+        if (!error) {
+          fetchContent(); // Refresh from server
         } else {
-            setContentData([ { ...newItem, lastUpdate: newItem.last_update }, ...contentData]);
+          console.error("Failed to save to DB (Table: app_courses):", error.message || JSON.stringify(error));
+          // Fallback local update
+          if (editingCourse) {
+              setContentData(contentData.map(c => c.id === editingCourse.id ? { ...c, ...newItem, lastUpdate: newItem.last_update } : c));
+          } else {
+              setContentData([ { ...newItem, lastUpdate: newItem.last_update }, ...contentData]);
+          }
         }
+      } catch (err) {
+        console.error("Unexpected error saving content:", err);
       }
   };
 
