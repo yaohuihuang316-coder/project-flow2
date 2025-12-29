@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Edit2, Trash2, Plus, MoreHorizontal, CheckSquare, Square, Download, Shield, X, Loader2 } from 'lucide-react';
+import { Search, Filter, Edit2, Trash2, Plus, CheckSquare, Square, Download, Shield, Loader2 } from 'lucide-react';
 import { AdminRole } from '../../types';
 import UserDrawer from './UserDrawer';
 import { supabase } from '../../lib/supabaseClient';
@@ -8,20 +8,7 @@ interface UserTableProps {
   currentRole: AdminRole;
 }
 
-// 对应数据库里的字段
-interface User {
-  id: string;
-  email: string;
-  role: string;
-  department: string | null;
-  avatar: string | null;
-  xp_points: number;
-  created_at: string;
-  name?: string; 
-  status?: string;
-}
-
-const UserTable: React.FC<UserTableProps> = ({ currentRole }) => {
+const UserTable: React.FC<UserTableProps> = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

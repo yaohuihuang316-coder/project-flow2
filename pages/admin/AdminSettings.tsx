@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Lock, Bell, Globe, Database, Shield, Server, Mail, AlertTriangle, Cloud, ToggleLeft, ToggleRight, Check } from 'lucide-react';
+import { Save, Bell, Globe, Shield, Server, Mail, AlertTriangle, Cloud } from 'lucide-react';
 
 type SettingsTab = 'general' | 'security' | 'notifications' | 'backup' | 'audit';
 
@@ -30,11 +30,19 @@ const AdminSettings: React.FC = () => {
       { id: 'general', label: '通用设置', icon: Globe },
       { id: 'security', label: '安全策略', icon: Shield },
       { id: 'notifications', label: '通知渠道', icon: Bell },
-      { id: 'backup', label: '备份与恢复', icon: Database },
-      { id: 'audit', label: '审计规则', icon: FileText },
+      { id: 'backup', label: '备份与恢复', icon: DatabaseIcon },
+      { id: 'audit', label: '审计规则', icon: FileTextIcon },
   ];
 
-  function FileText(props: any) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>; }
+  // Renamed to avoid collision or clarify usage. Using built-in SVGs or just simple icons.
+  // Actually the previous file had manual SVGs which is fine, but Lucide has these icons.
+  // I will use simple icons from lucide or just the ones imported.
+  // Wait, the previous code imported Database but didn't use it in navItems correctly? 
+  // It used 'Database' in the import.
+  // Let's just fix the imports. 
+
+  function DatabaseIcon(props: any) { return <Server {...props} />; } // Fallback or use Server icon
+  function FileTextIcon(props: any) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>; }
 
   return (
     <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-140px)] min-h-[600px] animate-fade-in">

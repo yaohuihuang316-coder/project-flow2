@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Activity, Cpu, HardDrive, Wifi, Globe, Server, AlertTriangle, CheckCircle, Terminal, Zap } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { Activity, Globe, Server, Terminal, Cpu } from 'lucide-react';
 
 const AdminMonitor: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'nodes'>('overview');
   
   // --- 1. Mock Live Data ---
   const [trafficData, setTrafficData] = useState<any[]>([]);
@@ -48,7 +47,7 @@ const AdminMonitor: React.FC = () => {
     if (!mapRef.current) return;
     const myChart = echarts.init(mapRef.current);
 
-    // Mock world map coordinates (Approximate centroids for effect)
+    // Mock world map coordinates
     const data = [
         {name: 'Shanghai', value: [121.4737, 31.2304, 150]},
         {name: 'New York', value: [-74.0059, 40.7128, 120]},
@@ -135,118 +134,94 @@ const AdminMonitor: React.FC = () => {
                       <p className="text-gray-400 text-xs mt-1">Live active sessions distribution</p>
                   </div>
                   <div className="text-right">
-                      <div className="text-3xl font-mono font-bold text-blue-400">14,203</div>
-                      <div className="text-xs text-gray-500 uppercase font-bold">Active Users</div>
+                      <div className="text-2xl font-mono text-blue-400 font-bold">12,450</div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-wider">Active Users</div>
                   </div>
               </div>
               
-              {/* Map Container */}
-              <div className="flex-1 w-full h-full absolute inset-0 opacity-40">
-                  <div ref={mapRef} className="w-full h-full" />
-                  {/* Decorative Map Grid Lines (CSS) */}
-                  <div className="absolute inset-0" style={{backgroundImage: 'radial-gradient(#3b82f6 1px, transparent 1px)', backgroundSize: '40px 40px', opacity: 0.2}}></div>
-              </div>
-
-              {/* Traffic Chart Overlay (Bottom) */}
-              <div className="h-24 w-full mt-auto z-10 relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trafficData}>
-                        <defs>
-                            <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <Area type="monotone" dataKey="req" stroke="#3b82f6" strokeWidth={2} fill="url(#trafficGradient)" isAnimationActive={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-              </div>
+              {/* ECharts Container */}
+              <div ref={mapRef} className="flex-1 w-full h-full absolute inset-0 opacity-80" />
+              
+              {/* Overlay Grid */}
+              <div className="absolute inset-0 pointer-events-none" style={{backgroundImage: 'radial-gradient(#1e293b 1px, transparent 1px)', backgroundSize: '40px 40px', opacity: 0.3}}></div>
           </div>
 
-          {/* 2. Service Health Matrix (Side Block) */}
-          <div className="lg:col-span-1 bg-white rounded-2xl p-5 border border-gray-200 shadow-sm flex flex-col">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Server size={18}/> 服务矩阵</h3>
-              <div className="grid grid-cols-3 gap-3 flex-1 content-start">
-                  {services.map((svc, i) => (
-                      <div key={i} className="aspect-square rounded-xl bg-gray-50 border border-gray-100 flex flex-col items-center justify-center p-2 text-center hover:bg-white hover:shadow-md transition-all cursor-pointer group">
-                          <div className={`w-3 h-3 rounded-full mb-2 ${
-                              svc.status === 'healthy' ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 
-                              svc.status === 'warning' ? 'bg-yellow-500 shadow-[0_0_8px_#eab308]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'
-                          }`}></div>
-                          <span className="text-[9px] font-bold text-gray-600 leading-tight group-hover:text-black">{svc.name}</span>
-                      </div>
-                  ))}
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-                  <button className="text-xs font-bold text-blue-600 hover:underline">查看详细拓扑</button>
-              </div>
-          </div>
+          {/* 2. System Vitals (Right Column) */}
+          <div className="lg:col-span-1 space-y-6">
+             {/* CPU Load */}
+             <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+                 <div className="flex justify-between items-center mb-4">
+                     <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2"><Cpu size={16}/> Core Load</h4>
+                     <span className="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded">Healthy</span>
+                 </div>
+                 <div className="flex items-end gap-1 h-16 justify-between px-2">
+                     {[40, 65, 34, 87, 56, 45, 78, 23].map((val, i) => (
+                         <div key={i} className="w-2 bg-blue-500 rounded-t-sm transition-all duration-500" style={{height: `${val}%`}}></div>
+                     ))}
+                 </div>
+                 <div className="mt-4 flex justify-between text-xs text-gray-500 font-mono">
+                     <span>Avg: 45%</span>
+                     <span>Peak: 87%</span>
+                 </div>
+             </div>
 
-          {/* 3. Resource Gauges (Bottom Row) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2"><Cpu size={18}/> 资源负载</h3>
-             <div className="grid grid-cols-3 gap-6">
-                 <div className="text-center">
-                     <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-                         <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                             <path className="text-gray-100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                             <path className="text-blue-500 transition-all duration-1000" strokeDasharray="45, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                         </svg>
-                         <div className="absolute flex flex-col items-center">
-                             <span className="text-xl font-bold text-gray-900">45%</span>
-                             <span className="text-[9px] text-gray-400 font-bold uppercase">CPU</span>
+             {/* Terminal Logs */}
+             <div className="bg-black rounded-2xl p-5 border border-gray-800 shadow-lg flex flex-col h-[220px]">
+                 <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 mb-3"><Terminal size={14}/> System Logs</h4>
+                 <div className="flex-1 overflow-hidden font-mono text-[10px] space-y-1.5 text-gray-300">
+                     {logs.map((log, i) => (
+                         <div key={i} className="truncate opacity-80 border-l-2 border-transparent hover:border-blue-500 pl-2 transition-colors">
+                             <span className={log.includes('WARN') ? 'text-yellow-400' : log.includes('ERR') ? 'text-red-400' : 'text-green-400'}>
+                                 {log.split(' ')[0]}
+                             </span>
+                             <span className="ml-2">{log.substring(log.indexOf(' ')+1)}</span>
                          </div>
-                     </div>
-                 </div>
-                 <div className="text-center">
-                     <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-                         <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                             <path className="text-gray-100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                             <path className="text-purple-500 transition-all duration-1000" strokeDasharray="62, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                         </svg>
-                         <div className="absolute flex flex-col items-center">
-                             <span className="text-xl font-bold text-gray-900">62%</span>
-                             <span className="text-[9px] text-gray-400 font-bold uppercase">RAM</span>
-                         </div>
-                     </div>
-                 </div>
-                 <div className="text-center">
-                     <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
-                         <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                             <path className="text-gray-100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                             <path className="text-orange-500 transition-all duration-1000" strokeDasharray="28, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                         </svg>
-                         <div className="absolute flex flex-col items-center">
-                             <span className="text-xl font-bold text-gray-900">28%</span>
-                             <span className="text-[9px] text-gray-400 font-bold uppercase">IOPS</span>
-                         </div>
-                     </div>
+                     ))}
                  </div>
              </div>
           </div>
 
-          {/* 4. Live Terminal (Bottom Row) */}
-          <div className="lg:col-span-2 bg-[#1e1e1e] rounded-2xl p-0 border border-gray-700 shadow-sm overflow-hidden flex flex-col">
-              <div className="h-8 bg-[#2d2d2d] border-b border-black flex items-center px-3 justify-between">
-                  <span className="text-xs text-gray-400 font-mono flex items-center gap-2"><Terminal size={12}/> term-01</span>
-                  <div className="flex gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                  </div>
-              </div>
-              <div className="flex-1 p-4 font-mono text-xs text-green-400 overflow-y-hidden relative">
-                  <div className="absolute inset-0 p-4 space-y-1">
-                    {logs.map((log, i) => (
-                        <div key={i} className={`opacity-${Math.max(30, 100 - i*10)} ${log.includes('WARN') ? 'text-yellow-400' : log.includes('ERROR') ? 'text-red-400' : ''}`}>
-                            <span className="text-gray-600 mr-2">$</span>
-                            {log}
-                        </div>
-                    ))}
-                  </div>
+          {/* 3. Real-time Requests Chart */}
+          <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm h-[300px] flex flex-col">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Server size={18}/> 实时请求量 (RPS)</h3>
+              <div className="flex-1 w-full min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trafficData}>
+                        <defs>
+                            <linearGradient id="colorReq" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <Area type="monotone" dataKey="req" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorReq)" isAnimationActive={false} />
+                    </AreaChart>
+                </ResponsiveContainer>
               </div>
           </div>
 
+          {/* 4. Service Health Matrix */}
+          <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm h-[300px] overflow-y-auto custom-scrollbar">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">微服务状态矩阵</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {services.map((svc, i) => (
+                      <div key={i} className={`p-3 rounded-xl border flex flex-col justify-between ${
+                          svc.status === 'healthy' ? 'bg-green-50/50 border-green-100' : 
+                          svc.status === 'warning' ? 'bg-yellow-50/50 border-yellow-100' : 
+                          'bg-red-50/50 border-red-100'
+                      }`}>
+                          <div className="flex justify-between items-start">
+                              <div className={`w-2 h-2 rounded-full ${
+                                  svc.status === 'healthy' ? 'bg-green-500' : 
+                                  svc.status === 'warning' ? 'bg-yellow-500' : 
+                                  'bg-red-500'
+                              }`}></div>
+                              <span className="text-[10px] font-mono text-gray-500">{svc.uptime}</span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-700 mt-2 truncate" title={svc.name}>{svc.name}</span>
+                      </div>
+                  ))}
+              </div>
+          </div>
       </div>
     </div>
   );

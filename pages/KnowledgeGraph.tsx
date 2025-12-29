@@ -53,7 +53,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
             { source: '5', target: '2' }, // Resource -> Schedule
         ];
 
-        const option = {
+        const option: any = {
             backgroundColor: '#0f172a', // slate-900
             tooltip: {},
             animationDuration: 1500,
