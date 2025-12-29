@@ -3,7 +3,7 @@ import {
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
-  PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield
+  PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -11,6 +11,7 @@ import {
   BarChart, Bar, AreaChart, Area
 } from 'recharts';
 import { Page } from '../types';
+import { supabase } from '../lib/supabaseClient';
 
 // --- Types ---
 type CategoryType = 'foundation' | 'advanced' | 'implementation';
@@ -19,71 +20,7 @@ interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
 }
 
-// --- Data: 1. 基础修练 (12 Courses) ---
-const COURSES = [
-  {
-    id: 'pmp-basic', title: 'PMP 项目管理精讲', author: 'Dr. Sarah Chen',
-    description: '全面掌握 PMBOK 核心概念与五大过程组，项目经理必修课。',
-    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80', duration: '4h 30m', progress: 45, chapters: 12
-  },
-  {
-    id: 'agile', title: '敏捷开发 (Agile) 实战', author: 'Mike Ross',
-    description: '从 Scrum 到 Kanban，深入理解敏捷宣言及其在软件开发中的应用。',
-    image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80', duration: '3h 15m', progress: 10, chapters: 8
-  },
-  {
-    id: 'stakeholder', title: '干系人分析与沟通', author: 'Jennie Kim',
-    description: '权力/利益矩阵实战，如何搞定难缠的 Stakeholder。',
-    image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80', duration: '2h 00m', progress: 0, chapters: 6
-  },
-  {
-    id: 'risk-mgmt', title: '风险管理实务', author: 'David Zhang',
-    description: '识别、评估和缓解项目风险，蒙特卡洛模拟入门。',
-    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80', duration: '5h 00m', progress: 0, chapters: 15
-  },
-  {
-    id: 'cost-control', title: '成本控制与预算', author: 'Elena Wood',
-    description: '挣值管理 (EVM) 详解，如何避免项目超支。',
-    image: 'https://images.unsplash.com/photo-1554224155-98406852d0aa?auto=format&fit=crop&w=800&q=80', duration: '3h 45m', progress: 0, chapters: 10
-  },
-  {
-    id: 'quality-qa', title: '质量管理 (QA/QC)', author: 'Robert Fox',
-    description: '六西格玛基础，PDCA 循环在项目中的落地。',
-    image: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80', duration: '4h 10m', progress: 5, chapters: 9
-  },
-  {
-    id: 'hr-leadership', title: '团队建设与领导力', author: 'Susan Lee',
-    description: '塔克曼阶梯理论，如何带领高绩效团队。',
-    image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80', duration: '2h 30m', progress: 0, chapters: 7
-  },
-  {
-    id: 'procurement', title: '采购与合同管理', author: 'Alan Wake',
-    description: '合同类型选择（FP, TM, CR）与供应商谈判技巧。',
-    image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=800&q=80', duration: '3h 00m', progress: 0, chapters: 8
-  },
-  {
-    id: 'integration', title: '项目整合管理', author: 'Dr. Sarah Chen',
-    description: '制定项目章程，驾驭变更控制委员会 (CCB)。',
-    image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80', duration: '4h 00m', progress: 0, chapters: 11
-  },
-  {
-    id: 'scope-wbs', title: '范围管理与 WBS', author: 'Mike Ross',
-    description: '如何避免范围蔓延，拆解工作分解结构 (WBS)。',
-    image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80', duration: '2h 45m', progress: 20, chapters: 8
-  },
-  {
-    id: 'schedule-time', title: '进度管理与规划', author: 'Jennie Kim',
-    description: '关键路径法 (CPM) 与资源平滑技术。',
-    image: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=800&q=80', duration: '3h 30m', progress: 0, chapters: 10
-  },
-  {
-    id: 'ethics', title: 'PMI 道德行为准则', author: 'PMI Official',
-    description: '项目经理的职业责任与道德规范案例分析。',
-    image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=800&q=80', duration: '1h 30m', progress: 0, chapters: 4
-  }
-];
-
-// --- Data: 2. 进阶实验室 (10 Algorithms) ---
+// --- Data: 2. 进阶实验室 (Keep Static for UI Demo) ---
 const ALGORITHMS = [
     { id: 'cpm', name: '关键路径法 (CPM)', desc: '识别最长任务序列，确定最短工期', icon: Network },
     { id: 'evm', name: '挣值管理 (EVM)', desc: '综合测量范围、进度、成本绩效', icon: BarChart3 },
@@ -97,7 +34,7 @@ const ALGORITHMS = [
     { id: 'burn', name: '燃尽图 (Burndown)', desc: '敏捷开发中剩余工作量可视化', icon: TrendingUp },
 ];
 
-// --- Data: 3. 实战演练 (10 Projects) ---
+// --- Data: 3. 实战演练 (Keep Static for UI Demo) ---
 const PROJECTS = [
     { id: 'p1', title: '企业级 ERP 重构', tech: ['Java', 'Spring Cloud', 'Docker'], desc: '遗留单体系统微服务化拆分与容器化部署。', color: 'from-blue-500 to-indigo-600', icon: Server },
     { id: 'p2', title: '跨境电商中台', tech: ['Vue 3', 'Node.js', 'Redis'], desc: '高并发秒杀系统设计与库存一致性解决方案。', color: 'from-orange-400 to-red-500', icon: Globe },
@@ -114,6 +51,34 @@ const PROJECTS = [
 const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<CategoryType>('foundation');
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch Courses from Supabase
+  useEffect(() => {
+    const fetchCourses = async () => {
+        setIsLoading(true);
+        const { data, error } = await supabase
+            .from('app_courses')
+            .select('*')
+            .eq('category', 'foundation') // currently only fetching foundation category from DB
+            .order('created_at', { ascending: true });
+
+        if (!error && data) {
+            setCourses(data.map(c => ({
+                ...c,
+                chapters: c.chapters?.length || 0 // Count JSON chapters
+            })));
+        } else {
+            console.error(error);
+        }
+        setIsLoading(false);
+    };
+
+    if (activeTab === 'foundation') {
+        fetchCourses();
+    }
+  }, [activeTab]);
 
   // Reset when tab changes
   useEffect(() => {
@@ -155,40 +120,54 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
       <div className="animate-fade-in-up">
          {/* --- 1. 基础修练 (Cards -> Jump to Classroom) --- */}
          {activeTab === 'foundation' && !selectedItem && (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
-             {COURSES.map(item => (
-               <div 
-                key={item.id} 
-                onClick={() => onNavigate(Page.CLASSROOM, item.id)}
-                className="group bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer overflow-hidden border border-gray-100/50"
-               >
-                 <div className="aspect-[4/3] overflow-hidden relative">
-                   <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                   <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
-                   <div className="absolute top-4 right-4 bg-white/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-1 text-white text-xs font-bold shadow-lg">
-                     <Star size={12} fill="white" />
-                     <span>4.9</span>
-                   </div>
-                   <div className="absolute bottom-4 left-4 right-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500">
-                        <button className="w-full bg-white/90 backdrop-blur text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg">
-                            <PlayCircle size={18} /> 开始学习
-                        </button>
-                   </div>
+           <div className="min-h-[300px]">
+             {isLoading ? (
+                 <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                     <Loader2 size={32} className="animate-spin mb-4" />
+                     <p>Loading Courses from Database...</p>
                  </div>
-                 <div className="p-6">
-                   <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2 truncate">{item.title}</h3>
-                   <p className="text-xs text-gray-500 mb-4">{item.author}</p>
-                   <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                     <span className="flex items-center gap-1"><Clock size={14} /> {item.duration}</span>
-                     <span className="flex items-center gap-1"><BookOpen size={14} /> {item.chapters} 章节</span>
-                   </div>
-                   {/* Progress Line */}
-                   <div className="mt-4 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{width: `${item.progress}%`}}></div>
-                   </div>
+             ) : courses.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
+                    {courses.map(item => (
+                    <div 
+                        key={item.id} 
+                        onClick={() => onNavigate(Page.CLASSROOM, item.id)}
+                        className="group bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer overflow-hidden border border-gray-100/50"
+                    >
+                        <div className="aspect-[4/3] overflow-hidden relative">
+                        <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                        <div className="absolute top-4 right-4 bg-white/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-1 text-white text-xs font-bold shadow-lg">
+                            <Star size={12} fill="white" />
+                            <span>4.9</span>
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500">
+                                <button className="w-full bg-white/90 backdrop-blur text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg">
+                                    <PlayCircle size={18} /> 开始学习
+                                </button>
+                        </div>
+                        </div>
+                        <div className="p-6">
+                        <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2 truncate">{item.title}</h3>
+                        <p className="text-xs text-gray-500 mb-4">{item.author}</p>
+                        <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                            <span className="flex items-center gap-1"><Clock size={14} /> {item.duration}</span>
+                            <span className="flex items-center gap-1"><BookOpen size={14} /> {item.chapters} 章节</span>
+                        </div>
+                        {/* Progress Line */}
+                        <div className="mt-4 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-500 rounded-full" style={{width: `${item.progress}%`}}></div>
+                        </div>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+             ) : (
+                 <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
+                     <Database size={32} className="mb-4 opacity-50" />
+                     <p>暂无课程数据，请在 Supabase 执行 SQL 初始化脚本。</p>
                  </div>
-               </div>
-             ))}
+             )}
            </div>
          )}
          
@@ -269,7 +248,7 @@ const AdvancedAlgorithmLab = () => {
     const [isCalculating, setIsCalculating] = useState(false);
     const [result, setResult] = useState<any>(null);
 
-    // Mock Data Sets
+    // Mock Data Sets (Visualizations) - Kept static for demo purposes as they are UI specific
     const evmData = [
         { month: 'Jan', pv: 100, ev: 100, ac: 90 },
         { month: 'Feb', pv: 200, ev: 180, ac: 180 },

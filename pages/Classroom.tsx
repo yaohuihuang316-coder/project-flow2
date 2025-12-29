@@ -1,196 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, Play, 
-  Minimize2, Maximize2, FileText, Download, CheckCircle, Send
+  Minimize2, Maximize2, FileText, Download, CheckCircle, Send, Loader2, AlertCircle
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface ClassroomProps {
     courseId?: string;
 }
 
-// 课程数据字典 - 映射 LearningHub 中的所有 ID
-const COURSE_DATA: Record<string, any> = {
-    // --- 1. Existing IDs ---
-    'agile': {
-        title: '敏捷项目管理实战 (Agile Practice)',
-        module: 'Module 2',
-        subTitle: 'Scrum 框架与站会流程',
-        image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '敏捷宣言与原则', time: '10:00', active: false },
-            { title: 'Scrum 角色详解 (PO, SM, Team)', time: '25:00', active: false },
-            { title: '每日站会 (Daily Stand-up) 实操', time: '15:30', active: true },
-            { title: '冲刺回顾会 (Retrospective)', time: '20:10', active: false },
-        ],
-        resources: [
-            { name: 'ScrumGuide_2024.pdf', size: '1.2 MB' },
-            { name: 'Kanban_Template.fig', size: '5 MB' },
-        ]
-    },
-    'stakeholder': {
-        title: '干系人分析与沟通 (Stakeholder)',
-        module: 'Module 5',
-        subTitle: '权力/利益矩阵模型详解',
-        image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '识别干系人：谁在影响项目？', time: '12:00', active: false },
-            { title: '权力/利益矩阵 (Power/Interest Grid)', time: '18:45', active: true },
-            { title: '制定沟通管理计划', time: '22:10', active: false },
-            { title: '管理干系人期望', time: '15:00', active: false },
-        ],
-        resources: [
-            { name: 'Stakeholder_Matrix.xlsx', size: '300 KB' },
-            { name: 'Comm_Plan_Template.docx', size: '1.5 MB' },
-        ]
-    },
-    // --- 2. New IDs from LearningHub Expansion ---
-    'pmp-basic': {
-        title: 'PMP 项目管理精讲',
-        module: 'Module 1',
-        subTitle: 'PMBOK 指南第七版概览',
-        image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '项目管理五大过程组', time: '45:00', active: true },
-            { title: '十大知识领域概览', time: '30:00', active: false },
-            { title: '项目经理的能力三角', time: '20:00', active: false },
-        ],
-        resources: [{ name: 'PMBOK_Summary.pdf', size: '5.2 MB' }]
-    },
-    'risk-mgmt': {
-        title: '风险管理实务',
-        module: 'Module 4',
-        subTitle: '风险登记册与定性分析',
-        image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '识别风险：头脑风暴法', time: '15:00', active: false },
-            { title: '概率与影响矩阵 (P-I Matrix)', time: '25:00', active: true },
-            { title: '规划风险应对策略', time: '30:00', active: false },
-        ],
-        resources: [{ name: 'Risk_Register_Template.xls', size: '400 KB' }]
-    },
-    'cost-control': {
-        title: '成本控制与预算',
-        module: 'Module 6',
-        subTitle: '挣值管理 (EVM) 计算实战',
-        image: 'https://images.unsplash.com/photo-1554224155-98406852d0aa?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '成本估算方法', time: '20:00', active: false },
-            { title: 'PV, EV, AC 核心概念', time: '35:00', active: true },
-            { title: 'CPI 与 SPI 指标分析', time: '25:00', active: false },
-        ],
-        resources: [{ name: 'EVM_Calculator.xlsx', size: '1 MB' }]
-    },
-    'quality-qa': {
-        title: '质量管理 (QA/QC)',
-        module: 'Module 7',
-        subTitle: '质量控制工具与技术',
-        image: 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '规划质量管理', time: '18:00', active: false },
-            { title: '帕累托图与因果图', time: '22:00', active: true },
-            { title: '质量核对单', time: '15:00', active: false },
-        ],
-        resources: [{ name: 'Quality_Checklist.pdf', size: '200 KB' }]
-    },
-    'hr-leadership': {
-        title: '团队建设与领导力',
-        module: 'Module 8',
-        subTitle: '塔克曼团队发展阶段',
-        image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '形成期与震荡期', time: '25:00', active: true },
-            { title: '冲突管理技巧', time: '30:00', active: false },
-            { title: '激励理论', time: '20:00', active: false },
-        ],
-        resources: [{ name: 'Leadership_Styles.pdf', size: '1.5 MB' }]
-    },
-    'procurement': {
-        title: '采购与合同管理',
-        module: 'Module 9',
-        subTitle: '合同类型详解',
-        image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '总价合同 vs 成本补偿合同', time: '35:00', active: true },
-            { title: '采购工作说明书 (SOW)', time: '20:00', active: false },
-            { title: '索赔管理', time: '15:00', active: false },
-        ],
-        resources: [{ name: 'Contract_Templates.zip', size: '3 MB' }]
-    },
-    'integration': {
-        title: '项目整合管理',
-        module: 'Module 10',
-        subTitle: '变更控制流程',
-        image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '制定项目章程', time: '20:00', active: false },
-            { title: '指导与管理项目工作', time: '25:00', active: false },
-            { title: '实施整体变更控制', time: '40:00', active: true },
-        ],
-        resources: [{ name: 'Change_Request_Form.docx', size: '100 KB' }]
-    },
-    'scope-wbs': {
-        title: '范围管理与 WBS',
-        module: 'Module 3',
-        subTitle: '创建工作分解结构',
-        image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '收集需求', time: '30:00', active: false },
-            { title: '定义范围', time: '20:00', active: false },
-            { title: 'WBS 分解原则', time: '35:00', active: true },
-        ],
-        resources: [{ name: 'WBS_Example.xlsx', size: '500 KB' }]
-    },
-    'schedule-time': {
-        title: '进度管理与规划',
-        module: 'Module 4',
-        subTitle: '关键路径法 (CPM)',
-        image: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '排列活动顺序', time: '20:00', active: false },
-            { title: '估算活动持续时间', time: '25:00', active: false },
-            { title: '关键路径计算', time: '45:00', active: true },
-        ],
-        resources: [{ name: 'Schedule_Network_Diagram.pdf', size: '800 KB' }]
-    },
-    'ethics': {
-        title: 'PMI 道德行为准则',
-        module: 'Module 11',
-        subTitle: '职业责任',
-        image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1920&q=80',
-        chapters: [
-            { title: '责任与尊重', time: '20:00', active: true },
-            { title: '公正与诚实', time: '20:00', active: false },
-        ],
-        resources: [{ name: 'Code_of_Ethics.pdf', size: '1 MB' }]
-    },
-    // --- Default Fallback ---
-    'default': {
-        title: '定义项目范围 (Scope Management)',
-        module: 'Module 3',
-        subTitle: '创建工作分解结构 (WBS)',
-        image: 'https://picsum.photos/1920/1080',
-        chapters: [
-            { title: '课程介绍与导学', time: '12:00', active: false },
-            { title: '项目章程的制定核心', time: '45:00', active: false },
-            { title: '定义项目范围 (当前)', time: '32:15', active: true },
-            { title: 'WBS 工作分解结构实战', time: '28:40', active: false },
-            { title: '制定进度计划', time: '55:00', active: false },
-        ],
-        resources: [
-            { name: '课程讲义.pdf', size: '2.4 MB' },
-            { name: 'WBS_Template.xlsx', size: '120 KB' },
-            { name: '实战案例源码.zip', size: '15 MB' },
-        ]
-    }
-};
-
 const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default' }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'notes' | 'resources'>('catalog');
   const [focusMode, setFocusMode] = useState(false);
   const [noteContent, setNoteContent] = useState('');
+  
+  // Data State
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 根据 courseId 获取数据，如果没有匹配则使用 default
-  const data = COURSE_DATA[courseId] || COURSE_DATA['default'];
+  // Fetch specific course data from Supabase
+  useEffect(() => {
+    const fetchCourse = async () => {
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+            // First try to fetch specific ID
+            let { data: courseData, error: courseError } = await supabase
+                .from('app_courses')
+                .select('*')
+                .eq('id', courseId)
+                .single();
+
+            // Fallback to default if not found (or if courseId is 'default')
+            if (courseError || !courseData) {
+                console.warn(`Course ${courseId} not found, trying fallback 'pmp-basic'`);
+                const { data: fallbackData } = await supabase
+                    .from('app_courses')
+                    .select('*')
+                    .limit(1)
+                    .single();
+                courseData = fallbackData;
+            }
+
+            if (courseData) {
+                // Ensure JSON fields are parsed (Supabase JS usually auto-parses JSONB)
+                const safeChapters = Array.isArray(courseData.chapters) 
+                    ? courseData.chapters 
+                    : typeof courseData.chapters === 'string' ? JSON.parse(courseData.chapters) : [];
+                
+                const safeResources = Array.isArray(courseData.resources)
+                    ? courseData.resources
+                    : typeof courseData.resources === 'string' ? JSON.parse(courseData.resources) : [];
+
+                const safeModuleInfo = typeof courseData.module_info === 'object' 
+                    ? courseData.module_info 
+                    : { module: 'Module 1', subTitle: 'Overview' };
+
+                setData({
+                    title: courseData.title,
+                    image: courseData.image,
+                    module: safeModuleInfo?.module || 'Module 1',
+                    subTitle: safeModuleInfo?.subTitle || courseData.title,
+                    chapters: safeChapters.length > 0 ? safeChapters : [{title: 'Course Intro', time: '10:00', active: true}],
+                    resources: safeResources
+                });
+            } else {
+                setError("无法加载课程数据，请检查数据库。");
+            }
+        } catch (err) {
+            console.error(err);
+            setError("网络错误，无法连接到 Supabase。");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    fetchCourse();
+  }, [courseId]);
+
+
+  if (isLoading) {
+      return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F5F7]">
+              <Loader2 size={40} className="animate-spin text-blue-500 mb-4" />
+              <p className="text-gray-500 font-medium">正在加载课程资源...</p>
+          </div>
+      );
+  }
+
+  if (error || !data) {
+      return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F5F7]">
+              <AlertCircle size={40} className="text-red-500 mb-4" />
+              <p className="text-gray-900 font-bold mb-2">加载失败</p>
+              <p className="text-gray-500 text-sm">{error || '未知错误'}</p>
+          </div>
+      );
+  }
 
   return (
     <div className={`pt-16 min-h-screen transition-colors duration-700 ease-in-out ${focusMode ? 'bg-[#050505]' : 'bg-[#F5F5F7]'}`}>
@@ -323,22 +231,28 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default' }) => {
                 {/* Resources View */}
                 {activeTab === 'resources' && (
                     <div className="space-y-3 mt-2">
-                        {data.resources.map((res: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors group">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500">
-                                        <FileText size={20} />
+                        {data.resources && data.resources.length > 0 ? (
+                            data.resources.map((res: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500">
+                                            <FileText size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-800">{res.name}</p>
+                                            <p className="text-xs text-gray-400">{res.size}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800">{res.name}</p>
-                                        <p className="text-xs text-gray-400">{res.size}</p>
-                                    </div>
+                                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+                                        <Download size={18} />
+                                    </button>
                                 </div>
-                                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
-                                    <Download size={18} />
-                                </button>
+                            ))
+                        ) : (
+                            <div className="text-center py-10 text-gray-400 text-sm">
+                                暂无相关资源
                             </div>
-                        ))}
+                        )}
                     </div>
                 )}
             </div>
