@@ -16,7 +16,7 @@ import UserTable from './pages/admin/UserTable';
 import AdminContent from './pages/admin/AdminContent';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminMonitor from './pages/admin/AdminMonitor';
-import { Page, AdminRole, UserProfile } from './types';
+import { Page, UserProfile } from './types';
 
 const App: React.FC = () => {
   // 1. 全局导航状态管理

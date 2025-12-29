@@ -55,7 +55,7 @@ const AdminContent: React.FC = () => {
       // Logic adjustment: Currently Database only stores 'Course', 'Cert', 'Official' which are all technically 'courses' type in this admin view.
       // If user wants to differentiate, they need to add a 'type' column or map 'category' to these tabs.
       // For now, we assume everything in DB is a course unless specified.
-      const matchTab = activeTab === 'courses' ? true : false; // Temporarily show all under courses for demo simplicity if type col missing
+      // const matchTab = activeTab === 'courses' ? true : false; // Removed as currently unused
       
       const matchSearch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (item.author || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = filterStatus === 'All' || item.status === filterStatus;

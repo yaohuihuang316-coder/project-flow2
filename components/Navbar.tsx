@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserProfile } from '../types';
-import { LayoutDashboard, Library, PlayCircle, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Shield } from 'lucide-react';
+import { LayoutDashboard, Library, PlayCircle, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X } from 'lucide-react';
 
 interface NavbarProps {
   currentPage: Page;

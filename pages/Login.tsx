@@ -27,7 +27,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('app_users')
             .select('*')
             .eq('email', email)

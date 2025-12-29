@@ -17,7 +17,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   useEffect(() => {
       const fetchAchievements = async () => {
           if (!currentUser) return;
-          const { data, error } = await supabase
+          const { data } = await supabase
               .from('app_achievements')
               .select('*')
               .eq('user_id', currentUser.id)

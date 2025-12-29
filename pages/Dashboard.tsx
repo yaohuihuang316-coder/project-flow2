@@ -28,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
         if (!currentUser) return;
 
         // Fetch all progress records for this user
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('app_user_progress')
             .select('progress')
             .eq('user_id', currentUser.id);
