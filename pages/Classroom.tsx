@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  ChevronLeft, ChevronRight, MessageSquare, Play, 
-  MoreHorizontal, Minimize2, Maximize2, List, FileText, Download, CheckCircle, Send
+  MessageSquare, Play, 
+  Minimize2, Maximize2, FileText, Download, CheckCircle, Send
 } from 'lucide-react';
 
 interface ClassroomProps {

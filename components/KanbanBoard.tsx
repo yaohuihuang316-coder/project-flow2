@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  MoreHorizontal, Plus, AlertCircle, CheckCircle2, Clock, 
-  AlertTriangle, RotateCcw, Play, Pause, Flame, ChevronUp 
+  MoreHorizontal, Plus, CheckCircle2, Clock, 
+  AlertTriangle 
 } from 'lucide-react';
-import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 // --- Types ---
 type Status = 'Backlog' | 'Ready' | 'In Progress' | 'Review' | 'Done';
@@ -34,7 +34,8 @@ const COLUMNS: Status[] = ['Backlog', 'Ready', 'In Progress', 'Review', 'Done'];
 
 const KanbanBoard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
-  const [sprintDaysLeft, setSprintDaysLeft] = useState(10);
+  // Remove unused setter
+  const [sprintDaysLeft] = useState(10);
   const [burndownData, setBurndownData] = useState<{ day: number; remaining: number }[]>([]);
   const [notification, setNotification] = useState<{ msg: string; type: 'info' | 'error' } | null>(null);
   

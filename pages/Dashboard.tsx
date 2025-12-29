@@ -1,6 +1,6 @@
 import React from 'react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts';
-import { Play, Calendar, Trophy, ArrowUpRight, Clock, Activity, Share2, MessageCircle, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, Trophy, ArrowUpRight, Activity, Share2 } from 'lucide-react';
 import { Page } from '../types';
 
 interface DashboardProps {

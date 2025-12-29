@@ -1,6 +1,6 @@
 import React from 'react';
 import { Page } from '../types';
-import { LayoutDashboard, Library, PlayCircle, User, Compass } from 'lucide-react';
+import { LayoutDashboard, Library, User, Compass } from 'lucide-react';
 
 interface MobileTabbarProps {
   currentPage: Page;
