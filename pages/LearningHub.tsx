@@ -15,30 +15,14 @@ import { Page } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 // --- Types ---
-// Main Categories
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
-// Sub Categories for Foundation
 type SubCategory = 'Course' | 'Cert' | 'Official';
 
 interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
 }
 
-// --- Mock Data: Fallback if DB is empty ---
-const MOCK_COURSES: Record<string, any[]> = {
-    'Course': [
-        { id: 'mk-1', title: '项目管理知识体系 (PMBOK)', author: 'PMI Official', rating: '4.9', duration: '12h 30m', chapters: 12, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80' },
-        { id: 'mk-2', title: '敏捷实践指南 (Agile)', author: 'Mike Cohn', rating: '4.8', duration: '8h 15m', chapters: 8, image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80' },
-    ],
-    'Cert': [
-        { id: 'mk-3', title: 'PMP 认证冲刺班', author: 'Sarah Chen', rating: '5.0', duration: '40h', chapters: 24, image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80' },
-    ],
-    'Official': [
-        { id: 'mk-4', title: '企业合规与流程必修', author: 'Internal HR', rating: '4.5', duration: '2h', chapters: 4, image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80' },
-    ]
-};
-
-// --- Data: 2. 进阶实验室 (Static) ---
+// --- Data: 2. 进阶实验室 (Interactive Components remain hardcoded for now) ---
 const ALGORITHMS = [
     { id: 'cpm', name: '关键路径法 (CPM)', desc: '识别最长任务序列，确定最短工期', icon: Network },
     { id: 'evm', name: '挣值管理 (EVM)', desc: '综合测量范围、进度、成本绩效', icon: BarChart3 },
@@ -52,7 +36,7 @@ const ALGORITHMS = [
     { id: 'burn', name: '燃尽图 (Burndown)', desc: '敏捷开发中剩余工作量可视化', icon: TrendingUp },
 ];
 
-// --- Data: 3. 实战演练 (Static) ---
+// --- Data: 3. 实战演练 (Interactive Components remain hardcoded for now) ---
 const PROJECTS = [
     { id: 'p1', title: '企业级 ERP 重构', tech: ['Java', 'Spring Cloud', 'Docker'], desc: '遗留单体系统微服务化拆分与容器化部署。', color: 'from-blue-500 to-indigo-600', icon: Server },
     { id: 'p2', title: '跨境电商中台', tech: ['Vue 3', 'Node.js', 'Redis'], desc: '高并发秒杀系统设计与库存一致性解决方案。', color: 'from-orange-400 to-red-500', icon: Globe },
@@ -76,13 +60,13 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch Courses from Supabase dynamically
-  // Trigger when mainTab is Foundation (and subTab changes) 
   useEffect(() => {
     const fetchCourses = async () => {
         if (mainTab !== 'Foundation') return;
 
         setIsLoading(true);
-        // DB Query
+        setCourses([]); // Clear previous state
+
         const { data, error } = await supabase
             .from('app_courses')
             .select('*')
@@ -90,7 +74,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
             .eq('status', 'Published')
             .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
             setCourses(data.map(c => {
                 let chapterCount = 0;
                 if (Array.isArray(c.chapters)) chapterCount = c.chapters.length;
@@ -100,9 +84,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                 return { ...c, chapters: chapterCount };
             }));
         } else {
-            // Fallback to Mock Data if DB is empty or fails
-            console.log(`Using mock data for ${subTab}`);
-            setCourses(MOCK_COURSES[subTab] || []);
+            console.error("Fetch error or empty:", error);
         }
         setIsLoading(false);
     };
@@ -182,7 +164,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
              {isLoading ? (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                      <Loader2 size={32} className="animate-spin mb-4" />
-                     <p>Loading Content...</p>
+                     <p>正在从数据库加载内容...</p>
                  </div>
              ) : courses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
@@ -233,8 +215,9 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
              ) : (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
                      <Database size={32} className="mb-4 opacity-50" />
-                     <p className="font-bold">暂无 "{subTab}" 类别的内容</p>
-                     <p className="text-xs mt-1">请前往管理后台 (Admin) 添加此类别的课程</p>
+                     <p className="font-bold">数据库中暂无 "{subTab}" 类别的内容</p>
+                     <p className="text-xs mt-1">请前往管理后台 (Admin) -> 内容 CMS 添加数据</p>
+                     <p className="text-[10px] text-gray-300 mt-4 font-mono">Table: app_courses | Category: {subTab}</p>
                  </div>
              )}
            </div>

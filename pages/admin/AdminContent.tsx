@@ -3,12 +3,6 @@ import { Search, Plus, MoreVertical, BookOpen, Clock, Tag, Eye, FileText, Archiv
 import CourseBuilder from './CourseBuilder';
 import { supabase } from '../../lib/supabaseClient';
 
-// --- Fallback Data (Used if DB is empty) ---
-const INITIAL_DATA = [
-    { id: 'pmp-001', title: 'PMP® 项目管理专业人士认证', author: 'Dr. Sarah Chen', type: 'courses', status: 'Published', views: 12450, lastUpdate: '2023-10-24', category: 'Cert' },
-    { id: 'acp-002', title: 'PMI-ACP® 敏捷实践指南', author: 'Mike Ross', type: 'courses', status: 'Published', views: 8930, lastUpdate: '2023-10-20', category: 'Cert' },
-];
-
 const AdminContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'courses' | 'labs' | 'projects'>('courses');
   const [filterStatus, setFilterStatus] = useState<string>('All');
@@ -34,7 +28,7 @@ const AdminContent: React.FC = () => {
 
       if (error) {
         console.error('Error fetching content:', error.message || JSON.stringify(error));
-        setContentData(INITIAL_DATA);
+        setContentData([]);
       } else if (data && data.length > 0) {
         const mappedData = data.map(item => ({
           ...item,
@@ -42,11 +36,11 @@ const AdminContent: React.FC = () => {
         }));
         setContentData(mappedData);
       } else {
-        setContentData(INITIAL_DATA);
+        setContentData([]);
       }
     } catch (err) {
       console.error('Unexpected error fetching content:', err);
-      setContentData(INITIAL_DATA);
+      setContentData([]);
     } finally {
       setIsLoading(false);
     }
@@ -58,10 +52,14 @@ const AdminContent: React.FC = () => {
 
   // --- Logic ---
   const filteredData = contentData.filter(item => {
-      const matchTab = item.type === activeTab;
+      // Logic adjustment: Currently Database only stores 'Course', 'Cert', 'Official' which are all technically 'courses' type in this admin view.
+      // If user wants to differentiate, they need to add a 'type' column or map 'category' to these tabs.
+      // For now, we assume everything in DB is a course unless specified.
+      const matchTab = activeTab === 'courses' ? true : false; // Temporarily show all under courses for demo simplicity if type col missing
+      
       const matchSearch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (item.author || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = filterStatus === 'All' || item.status === filterStatus;
-      return matchTab && matchSearch && matchStatus;
+      return matchSearch && matchStatus;
   });
 
   const getStatusStyle = (status: string) => {
@@ -87,7 +85,6 @@ const AdminContent: React.FC = () => {
           type: activeTab,
           views: editingCourse ? editingCourse.views : 0,
           last_update: new Date().toISOString().split('T')[0],
-          category: 'New'
       };
 
       try {
@@ -96,7 +93,7 @@ const AdminContent: React.FC = () => {
            id: newItem.id.toString(), 
            title: newItem.title,
            author: newItem.author,
-           type: newItem.type,
+           // type: newItem.type, // Remove if DB doesn't have type column yet
            status: newItem.status,
            category: newItem.category,
            views: newItem.views,
@@ -108,12 +105,6 @@ const AdminContent: React.FC = () => {
           fetchContent(); // Refresh from server
         } else {
           console.error("Failed to save to DB (Table: app_courses):", error.message || JSON.stringify(error));
-          // Fallback local update
-          if (editingCourse) {
-              setContentData(contentData.map(c => c.id === editingCourse.id ? { ...c, ...newItem, lastUpdate: newItem.last_update } : c));
-          } else {
-              setContentData([ { ...newItem, lastUpdate: newItem.last_update }, ...contentData]);
-          }
         }
       } catch (err) {
         console.error("Unexpected error saving content:", err);
@@ -192,7 +183,7 @@ const AdminContent: React.FC = () => {
 
       {/* --- Data Grid --- */}
       <div className="grid grid-cols-1 gap-4">
-        {filteredData.map(item => (
+        {filteredData.length > 0 ? filteredData.map(item => (
           <div 
             key={item.id} 
             onClick={() => { setEditingCourse(item); setIsBuilderOpen(true); }}
@@ -207,7 +198,7 @@ const AdminContent: React.FC = () => {
 
             <div className="flex items-center gap-5 pl-3">
               <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 border border-gray-100 shadow-sm group-hover:scale-110 transition-transform">
-                 {getIcon(item.type)}
+                 {getIcon('courses')}
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 text-base">{item.title}</h3>
@@ -246,20 +237,18 @@ const AdminContent: React.FC = () => {
               </button>
             </div>
           </div>
-        ))}
-        
-        {!isLoading && filteredData.length === 0 && (
+        )) : (
             <div className="text-center py-24 bg-white border border-dashed border-gray-200 rounded-2xl flex flex-col items-center">
                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                     <Search size={24} className="text-gray-300"/>
                 </div>
-                <p className="text-gray-900 font-bold">未找到相关内容</p>
-                <p className="text-sm text-gray-500 mt-1">请在 Supabase 创建 'app_courses' 表</p>
+                <p className="text-gray-900 font-bold">暂无内容数据</p>
+                <p className="text-sm text-gray-500 mt-1">请点击右上方“新建内容”或检查 Supabase 连接。</p>
                 <button 
-                    onClick={() => { setSearchTerm(''); setFilterStatus('All'); }}
+                    onClick={() => { setSearchTerm(''); setFilterStatus('All'); fetchContent(); }}
                     className="mt-4 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-2"
                 >
-                    <RefreshCw size={12}/> 重置筛选
+                    <RefreshCw size={12}/> 刷新列表
                 </button>
             </div>
         )}
