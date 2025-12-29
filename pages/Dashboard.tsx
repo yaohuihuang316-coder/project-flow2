@@ -38,13 +38,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
             const sumProgress = data.reduce((acc, curr) => acc + (curr.progress || 0), 0);
             const avg = Math.round(sumProgress / totalItems);
             
-            // Simulation logic for demo purposes (to make charts look populated)
-            // Real app would sum actual duration logs
+            // Strictly use real data or 0. No fallback simulation.
             setStats({
-                avgScore: avg > 0 ? avg : 85, // Fallback to 85 if 0 for demo visual
-                totalTime: Math.max(2.5, data.length * 1.5), 
+                avgScore: avg,
+                totalTime: Math.round(data.length * 0.5), // Estimate 30m per active course if time tracking not implemented
                 completed: avg,
-                xp: data.length * 150 + avg * 10
+                xp: data.length * 10
             });
         } else {
             // New user defaults
@@ -56,9 +55,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
   }, [currentUser]);
 
   const ringData = [
-    { name: 'Score', value: stats.avgScore || 85, fill: '#34C759' },    // Green
-    { name: 'Progress', value: stats.completed || 65, fill: '#007AFF' }, // Blue
-    { name: 'Time', value: Math.min(100, (stats.totalTime / 10) * 100) || 50, fill: '#FF2D55' },    // Red
+    { name: 'Score', value: stats.avgScore, fill: '#34C759' },    // Green
+    { name: 'Progress', value: stats.completed, fill: '#007AFF' }, // Blue
+    { name: 'Time', value: Math.min(100, (stats.totalTime / 10) * 100), fill: '#FF2D55' },    // Red
   ];
 
   return (
@@ -102,7 +101,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
                     </RadialBarChart>
                 </ResponsiveContainer>
                 <div className="absolute flex flex-col items-center top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-4 z-20">
-                    <span className="text-5xl font-bold text-gray-900 tracking-tighter">{stats.avgScore > 0 ? stats.avgScore : 0}%</span>
+                    <span className="text-5xl font-bold text-gray-900 tracking-tighter">{stats.avgScore}%</span>
                     <span className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">综合效能</span>
                 </div>
             </div>

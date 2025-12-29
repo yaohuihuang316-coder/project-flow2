@@ -37,19 +37,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               }));
               setCertificates(mappedCerts);
           } else {
-              // Fallback for new users (Empty State or Mock)
-              setCertificates([
-                { 
-                    id: 'DEMO-001', 
-                    title: '欢迎加入 ProjectFlow', 
-                    titleEn: 'Welcome Member',
-                    issuer: 'System', 
-                    date: new Date().toISOString().split('T')[0], 
-                    bgGradient: 'bg-gradient-to-br from-gray-700 to-black', 
-                    sealColor: 'border-gray-200 text-gray-100',
-                    user: currentUser?.name || 'Guest'
-                }
-              ]);
+              setCertificates([]);
           }
       };
 
@@ -264,31 +252,38 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     <button className="text-xs text-blue-600 font-bold hover:underline">查看全部</button>
                  </div>
                  
-                 <div className="relative h-[320px] w-full flex justify-center pt-6 perspective-1000 group">
-                    {certificates.map((cert, index) => (
-                        <div
-                            key={cert.id}
-                            onClick={() => setSelectedCert(cert)}
-                            className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
-                            style={{
-                                top: `${index * 50}px`,
-                                transform: `scale(${1 - index * 0.05}) translateZ(${index * -10}px)`,
-                                zIndex: certificates.length - index,
-                                opacity: 1 - index * 0.1,
-                            }}
-                        >
-                             <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                             <div className="relative z-10 flex justify-between items-start">
-                                <Award className="opacity-80"/>
-                                <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">{cert.id}</span>
-                             </div>
-                             <div className="relative z-10">
-                                 <h3 className="font-bold text-lg leading-tight">{cert.title}</h3>
-                                 <p className="text-[10px] opacity-80">{cert.issuer}</p>
-                             </div>
-                        </div>
-                    ))}
-                 </div>
+                 {certificates.length > 0 ? (
+                     <div className="relative h-[320px] w-full flex justify-center pt-6 perspective-1000 group">
+                        {certificates.map((cert, index) => (
+                            <div
+                                key={cert.id}
+                                onClick={() => setSelectedCert(cert)}
+                                className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
+                                style={{
+                                    top: `${index * 50}px`,
+                                    transform: `scale(${1 - index * 0.05}) translateZ(${index * -10}px)`,
+                                    zIndex: certificates.length - index,
+                                    opacity: 1 - index * 0.1,
+                                }}
+                            >
+                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                                <div className="relative z-10 flex justify-between items-start">
+                                    <Award className="opacity-80"/>
+                                    <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">{cert.id}</span>
+                                </div>
+                                <div className="relative z-10">
+                                    <h3 className="font-bold text-lg leading-tight">{cert.title}</h3>
+                                    <p className="text-[10px] opacity-80">{cert.issuer}</p>
+                                </div>
+                            </div>
+                        ))}
+                     </div>
+                 ) : (
+                     <div className="h-[200px] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+                         <Award size={32} className="opacity-50 mb-2"/>
+                         <p className="text-xs font-bold">暂无证书</p>
+                     </div>
+                 )}
             </div>
 
             {/* Right: Badge Wall (Col Span 8) */}

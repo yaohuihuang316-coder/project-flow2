@@ -22,7 +22,7 @@ interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
 }
 
-// --- Data: 2. 进阶实验室 (Interactive Components remain hardcoded for now) ---
+// --- Data: 2. 进阶实验室 (Interactive Components remain hardcoded for now as they are tools) ---
 const ALGORITHMS = [
     { id: 'cpm', name: '关键路径法 (CPM)', desc: '识别最长任务序列，确定最短工期', icon: Network },
     { id: 'evm', name: '挣值管理 (EVM)', desc: '综合测量范围、进度、成本绩效', icon: BarChart3 },
@@ -36,7 +36,7 @@ const ALGORITHMS = [
     { id: 'burn', name: '燃尽图 (Burndown)', desc: '敏捷开发中剩余工作量可视化', icon: TrendingUp },
 ];
 
-// --- Data: 3. 实战演练 (Interactive Components remain hardcoded for now) ---
+// --- Data: 3. 实战演练 (Interactive Components remain hardcoded for now as they are tools) ---
 const PROJECTS = [
     { id: 'p1', title: '企业级 ERP 重构', tech: ['Java', 'Spring Cloud', 'Docker'], desc: '遗留单体系统微服务化拆分与容器化部署。', color: 'from-blue-500 to-indigo-600', icon: Server },
     { id: 'p2', title: '跨境电商中台', tech: ['Vue 3', 'Node.js', 'Redis'], desc: '高并发秒杀系统设计与库存一致性解决方案。', color: 'from-orange-400 to-red-500', icon: Globe },
@@ -84,7 +84,8 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                 return { ...c, chapters: chapterCount };
             }));
         } else {
-            console.error("Fetch error or empty:", error);
+            console.log("No data or error:", error);
+            setCourses([]);
         }
         setIsLoading(false);
     };
@@ -164,7 +165,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
              {isLoading ? (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                      <Loader2 size={32} className="animate-spin mb-4" />
-                     <p>正在从数据库加载内容...</p>
+                     <p>正在加载内容...</p>
                  </div>
              ) : courses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
@@ -201,12 +202,12 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
                             {item.author}
                         </p>
                         <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                            <span className="flex items-center gap-1"><Clock size={14} /> {item.duration || '2h 15m'}</span>
+                            <span className="flex items-center gap-1"><Clock size={14} /> {item.duration || 'N/A'}</span>
                             <span className="flex items-center gap-1"><BookOpen size={14} /> {item.chapters} 章节</span>
                         </div>
                         {/* Progress Line */}
                         <div className="mt-4 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-500 rounded-full" style={{width: `${Math.random() * 100}%`}}></div>
+                                <div className="h-full bg-blue-500 rounded-full" style={{width: '0%'}}></div>
                         </div>
                         </div>
                     </div>
@@ -215,9 +216,9 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate }) => {
              ) : (
                  <div className="flex flex-col items-center justify-center h-64 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
                      <Database size={32} className="mb-4 opacity-50" />
-                     <p className="font-bold">数据库中暂无 "{subTab}" 类别的内容</p>
-                     <p className="text-xs mt-1">请前往管理后台 (Admin) -> 内容 CMS 添加数据</p>
-                     <p className="text-[10px] text-gray-300 mt-4 font-mono">Table: app_courses | Category: {subTab}</p>
+                     <p className="font-bold">暂无 "{subTab}" 内容</p>
+                     <p className="text-xs mt-1">请在数据库中添加 app_courses 数据</p>
+                     <p className="text-[10px] text-gray-300 mt-2 font-mono">Category: {subTab}</p>
                  </div>
              )}
            </div>
