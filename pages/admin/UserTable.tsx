@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Edit2, Trash2, Plus, CheckSquare, Square, Download, Shield, Loader2 } from 'lucide-react';
+import { Search, Filter, Edit2, Trash2, Plus, CheckSquare, Square, Download, Shield, Loader2, Copy } from 'lucide-react';
 import { AdminRole } from '../../types';
 import UserDrawer from './UserDrawer';
 import { supabase } from '../../lib/supabaseClient';
@@ -175,12 +175,16 @@ const UserTable: React.FC<UserTableProps> = () => {
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 font-bold text-sm shrink-0">
                         {user.avatar ? <img src={user.avatar} className="w-full h-full rounded-full object-cover"/> : user.name.charAt(0)}
                       </div>
                       <div>
                         <div className="font-bold text-gray-900 text-sm">{user.name}</div>
                         <div className="text-xs text-gray-500">{user.email}</div>
+                        <div className="text-[10px] text-gray-300 font-mono mt-0.5 flex items-center gap-1">
+                            ID: {user.id} 
+                            <Copy size={10} className="cursor-pointer hover:text-blue-500" onClick={() => navigator.clipboard.writeText(user.id)}/>
+                        </div>
                       </div>
                     </div>
                   </td>
