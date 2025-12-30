@@ -10,7 +10,7 @@ export default defineConfig({
     rollupOptions: {
       // Externalize dependencies that are provided via importmap in index.html
       // to avoid resolution errors during build
-      external: ['html2canvas', 'jspdf']
+      external: ['html2canvas', 'jspdf', '@google/genai']
     }
   }
 })
