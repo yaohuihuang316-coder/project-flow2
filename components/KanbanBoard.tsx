@@ -62,12 +62,23 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
               .select('*')
               .eq('user_id', currentUser.id);
 
-          if (!error && data && data.length > 0) {
-              setTasks(data);
-          } else if (data && data.length === 0) {
-              setTasks([]); 
+          if (!error && data) {
+              // Ensure we fallback if DB columns are missing (though SQL script should fix this)
+              const safeTasks = data.map(t => ({
+                  ...t,
+                  points: t.points || 1,
+                  priority: t.priority || 'Medium',
+                  assignee: t.assignee || 'Unassigned'
+              }));
+              setTasks(safeTasks.length > 0 ? safeTasks : []);
           } else {
-              console.error("Error loading tasks:", error);
+              if (error) {
+                  console.error("Error loading tasks:", error);
+                  if (error.code === '42703') { // Undefined column
+                      setNotification({ msg: '数据库结构待更新 (Missing Columns)', type: 'error' });
+                  }
+              }
+              setTasks([]); 
           }
           setIsLoading(false);
       };
@@ -184,7 +195,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
           setNotification({ msg: '已初始化示例任务', type: 'info' });
           setTimeout(() => setNotification(null), 3000);
       } else {
-          setNotification({ msg: '初始化失败，请检查数据库', type: 'error' });
+          setNotification({ msg: '初始化失败：' + (error.message || 'Check DB'), type: 'error' });
       }
       setIsLoading(false);
   };
