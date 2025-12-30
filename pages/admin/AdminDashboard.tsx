@@ -10,17 +10,7 @@ const AdminDashboard: React.FC = () => {
   // Real Data State
   const [totalUsers, setTotalUsers] = useState<number | string>('Loading...');
   const [totalCourses, setTotalCourses] = useState<number | string>('Loading...');
-
-  // Mock Data
-  const growthData = [
-    { name: '周一', users: 4000, active: 2400 },
-    { name: '周二', users: 3000, active: 1398 },
-    { name: '周三', users: 2000, active: 9800 },
-    { name: '周四', users: 2780, active: 3908 },
-    { name: '周五', users: 1890, active: 4800 },
-    { name: '周六', users: 2390, active: 3800 },
-    { name: '周日', users: 3490, active: 4300 },
-  ];
+  const [growthData, setGrowthData] = useState<any[]>([]);
 
   const pieData = [
     { name: '在校学生', value: 400 },
@@ -32,21 +22,53 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
       const fetchStats = async () => {
-          // Fetch User Count
-          const { count: userCount, error: userError } = await supabase
+          // 1. Fetch User Count & Growth Data
+          const { data: users, error: userError } = await supabase
               .from('app_users')
-              .select('*', { count: 'exact', head: true });
+              .select('created_at');
           
-          if (!userError) setTotalUsers(userCount || 0);
-          else setTotalUsers(12450); // Fallback mock
+          if (!userError && users) {
+              setTotalUsers(users.length);
+              
+              // Process Growth Data (Last 7 days logic simulated by distributing total count)
+              // Since we might not have enough real historical data, we map real data to chart or mock if sparse
+              if (users.length > 5) {
+                  // Simple aggregation by date string
+                  const dateMap: Record<string, number> = {};
+                  users.forEach(u => {
+                      const date = new Date(u.created_at).toLocaleDateString('zh-CN', {month: 'short', day: 'numeric'});
+                      dateMap[date] = (dateMap[date] || 0) + 1;
+                  });
+                  // Convert map to array
+                  const chartData = Object.keys(dateMap).map(key => ({
+                      name: key,
+                      users: dateMap[key],
+                      active: Math.floor(dateMap[key] * 0.7) // Mock active ratio
+                  })).slice(-7); // Last 7 entries
+                  setGrowthData(chartData);
+              } else {
+                  // Fallback Mock if not enough data
+                  setGrowthData([
+                    { name: '周一', users: 10, active: 5 },
+                    { name: '周二', users: 15, active: 8 },
+                    { name: '周三', users: 8, active: 4 },
+                    { name: '周四', users: 20, active: 15 },
+                    { name: '周五', users: 12, active: 10 },
+                    { name: '周六', users: 25, active: 20 },
+                    { name: '周日', users: users.length, active: users.length },
+                  ]);
+              }
+          } else {
+              setTotalUsers(0);
+          }
 
-          // Fetch Course Count
+          // 2. Fetch Course Count
           const { count: courseCount, error: courseError } = await supabase
               .from('app_courses')
               .select('*', { count: 'exact', head: true });
           
           if (!courseError) setTotalCourses(courseCount || 0);
-          else setTotalCourses(24); // Fallback mock
+          else setTotalCourses(0);
       };
 
       fetchStats();

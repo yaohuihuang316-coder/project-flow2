@@ -90,14 +90,14 @@ const App: React.FC = () => {
         // Pass currentUser to Dashboard for data sync
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
       case Page.LEARNING:
-        return <LearningHub onNavigate={navigateTo} />;
+        return <LearningHub onNavigate={navigateTo} currentUser={currentUser} />;
       case Page.CLASSROOM:
         // Pass currentUser to Classroom for saving notes
         return <Classroom courseId={currentCourseId} currentUser={currentUser} />;
       case Page.PROFILE:
         return <Profile currentUser={currentUser} onLogout={handleLogout} />;
       case Page.SCHEDULE:
-        return <Schedule />;
+        return <Schedule currentUser={currentUser} />;
       case Page.KNOWLEDGE_GRAPH:
         return <KnowledgeGraph onBack={() => navigateTo(Page.DASHBOARD)} onNavigate={navigateTo} />;
       case Page.SIMULATION:
