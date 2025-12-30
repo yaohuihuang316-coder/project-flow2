@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  MessageSquare, Play, 
-  Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft
+  Play, Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft, ExternalLink, Bot, X
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { UserProfile } from '../types';
+import { UserProfile, ChatMessage } from '../types';
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 interface ClassroomProps {
     courseId?: string;
@@ -26,11 +26,25 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [completedChapters, setCompletedChapters] = useState<string[]>([]);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
 
+  // AI Chat State
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+      { id: '1', role: 'ai', content: '你好！我是你的 AI 助教。关于这节课的内容，有什么可以帮你的吗？', timestamp: new Date() }
+  ]);
+  const [aiInput, setAiInput] = useState('');
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   // Data State
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Gemini Client Init
+  // Accessing Vite env vars. Strictly per instructions we must use the key from environment.
+  // Using import.meta.env for Vite compatibility, falling back to process.env if needed.
+  const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+  
   // 1. Fetch Course Data
   useEffect(() => {
     const fetchCourse = async () => {
@@ -57,9 +71,9 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                 
                 // If no resources in DB, provide some mocks for download demo
                 const finalResources = safeResources.length > 0 ? safeResources : [
-                    { name: '课程讲义.pdf', size: '2.4 MB', type: 'pdf' },
-                    { name: '实战源码.zip', size: '15 MB', type: 'zip' },
-                    { name: '参考资料链接.txt', size: '1 KB', type: 'txt' }
+                    { name: '课程讲义(示例).pdf', size: '2.4 MB', type: 'pdf', url: '' },
+                    { name: '实战源码(示例).zip', size: '15 MB', type: 'zip', url: '' },
+                    { name: '参考资料(示例).txt', size: '1 KB', type: 'txt', url: '' }
                 ];
 
                 setData({
@@ -118,7 +132,12 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       }
   }, [currentUser, data, isLoading]);
 
-  // 3. Save Notes Handler
+  // Scroll to bottom of chat
+  useEffect(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isAiOpen]);
+
+  // 3. Save Notes Handler (Real Integration)
   const handleSaveNote = async () => {
       if (!currentUser || !data?.id) {
           setNoteStatus('请先登录');
@@ -138,12 +157,23 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       setIsSavingNote(false);
       
       if (error) {
+          console.error(error);
           setNoteStatus('保存失败');
       } else {
           setNoteStatus('已同步至云端');
           setTimeout(() => setNoteStatus(''), 2000);
       }
   };
+
+  // Auto-save debounce
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          if (noteContent && currentUser && data) {
+             handleSaveNote(); 
+          }
+      }, 5000); // 5s auto-save
+      return () => clearTimeout(timer);
+  }, [noteContent]);
 
   // 4. Toggle Chapter Completion & Update Progress %
   const toggleChapter = async (e: React.MouseEvent, chapterId: string) => {
@@ -174,22 +204,93 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   };
 
   // 5. Handle Real Download
-  const handleDownload = (resourceName: string) => {
-      // In a real app, this would use a URL from Supabase Storage
-      // Here we simulate a real file download by creating a blob
-      const content = `这是 ${resourceName} 的模拟文件内容。\n\nProjectFlow Learning Resource\nCourse ID: ${data.id}`;
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+  const handleDownload = (resource: any) => {
+      if (resource.url && resource.url.startsWith('http')) {
+          const link = document.createElement('a');
+          link.href = resource.url;
+          link.target = '_blank'; 
+          link.setAttribute('download', resource.name);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      } else {
+          const content = `这是 ${resource.name} 的模拟文件内容。\n\nProjectFlow Learning Resource\nCourse ID: ${data.id}\n\n(请在后台配置真实下载链接)`;
+          const blob = new Blob([content], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = resource.name; 
+          document.body.appendChild(link);
+          link.click();
+          
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+      }
+  };
+
+  // 6. Real AI Chat Handler (Gemini Streaming)
+  const handleSendMessage = async () => {
+      if (!aiInput.trim()) return;
       
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = resourceName; // Set the file name
-      document.body.appendChild(link);
-      link.click();
+      const userMsg: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: aiInput,
+          timestamp: new Date()
+      };
       
-      // Clean up
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      setChatMessages(prev => [...prev, userMsg]);
+      const currentInput = aiInput;
+      setAiInput('');
+      setIsAiThinking(true);
+
+      // Create AI message placeholder
+      const aiMsgId = (Date.now() + 1).toString();
+      setChatMessages(prev => [...prev, {
+          id: aiMsgId,
+          role: 'ai',
+          content: '', // Start empty
+          timestamp: new Date()
+      }]);
+
+      try {
+        if (!apiKey) throw new Error("API Key not configured");
+        
+        const ai = new GoogleGenAI({ apiKey: apiKey });
+        
+        // Use Streaming
+        const responseStream = await ai.models.generateContentStream({
+            model: 'gemini-2.5-flash-lite-latest', // Fast model for chat
+            contents: [
+                { role: 'user', parts: [{ text: `Context: User is learning the course "${data?.title}".` }] },
+                { role: 'user', parts: [{ text: currentInput }] }
+            ],
+            config: {
+                systemInstruction: "You are a helpful, professional AI teaching assistant for an Enterprise Project Management Learning System. Keep answers concise, encouraging, and relevant to the course context.",
+            }
+        });
+
+        setIsAiThinking(false);
+
+        for await (const chunk of responseStream) {
+            const chunkText = chunk.text();
+            setChatMessages(prev => prev.map(msg => 
+                msg.id === aiMsgId 
+                ? { ...msg, content: msg.content + chunkText }
+                : msg
+            ));
+        }
+
+      } catch (err: any) {
+          console.error("Gemini Error:", err);
+          setIsAiThinking(false);
+          setChatMessages(prev => prev.map(msg => 
+            msg.id === aiMsgId 
+            ? { ...msg, content: "抱歉，我现在无法连接到大脑 (API Error)。请检查 API Key 配置。" }
+            : msg
+        ));
+      }
   };
 
   if (isLoading) {
@@ -360,8 +461,8 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                             onChange={(e) => setNoteContent(e.target.value)}
                         />
                         <div className="mt-4 flex justify-between items-center">
-                            <span className="text-xs text-gray-400 font-medium">
-                                {noteStatus}
+                            <span className={`text-xs font-medium transition-colors ${noteStatus.includes('已同步') ? 'text-green-600' : 'text-gray-400'}`}>
+                                {noteStatus || (noteContent ? '未保存更改' : '')}
                             </span>
                             <button 
                                 onClick={handleSaveNote}
@@ -369,7 +470,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                                 className="text-xs font-bold text-white bg-black px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-50"
                             >
                                 {isSavingNote ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>}
-                                保存笔记
+                                {isSavingNote ? 'Saving' : 'Save'}
                             </button>
                         </div>
                     </div>
@@ -385,17 +486,19 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 border border-gray-100">
                                             <FileText size={20} />
                                         </div>
-                                        <div>
+                                        <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-gray-800 line-clamp-1">{res.name}</p>
                                             <p className="text-xs text-gray-400">{res.size} • {res.type?.toUpperCase()}</p>
                                         </div>
                                     </div>
                                     <button 
-                                        onClick={() => handleDownload(res.name)}
-                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors active:scale-95"
-                                        title="下载资源"
+                                        onClick={() => handleDownload(res)}
+                                        className={`p-2 rounded-full transition-colors active:scale-95 ${
+                                            res.url ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                        }`}
+                                        title={res.url ? "下载真实文件" : "下载模拟文件"}
                                     >
-                                        <Download size={18} />
+                                        {res.url ? <ExternalLink size={18} /> : <Download size={18} />}
                                     </button>
                                 </div>
                             ))
@@ -408,19 +511,99 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                 )}
             </div>
 
-            {/* AI Assistant (Bubble Style) */}
-            <div className="absolute bottom-6 left-6 right-6">
-                <div className="bg-white rounded-[1.5rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100 p-1 flex items-center gap-2 transform transition-all hover:scale-[1.02] cursor-pointer">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white shrink-0 shadow-md">
-                        <MessageSquare size={18} fill="currentColor" />
+            {/* AI Assistant Trigger Button */}
+            {!isAiOpen && (
+                <div className="absolute bottom-6 left-6 right-6">
+                    <div 
+                        onClick={() => setIsAiOpen(true)}
+                        className="bg-white rounded-[1.5rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100 p-1 flex items-center gap-2 transform transition-all hover:scale-[1.02] cursor-pointer"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white shrink-0 shadow-md">
+                            <Bot size={20} fill="currentColor" />
+                        </div>
+                        <div className="flex-1 px-2">
+                            <p className="text-xs font-bold text-gray-900">AI 助教</p>
+                            <p className="text-[10px] text-gray-500 truncate">点击展开对话...</p>
+                        </div>
+                        <button className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white mr-1 hover:bg-gray-800">
+                            <Send size={14} />
+                        </button>
                     </div>
-                    <div className="flex-1 px-2">
-                        <p className="text-xs font-bold text-gray-900">AI 助教</p>
-                        <p className="text-[10px] text-gray-500 truncate">针对当前内容有疑问？</p>
+                </div>
+            )}
+
+            {/* AI Chat Interface (Slide-up Overlay) */}
+            <div className={`absolute inset-x-0 bottom-0 top-16 bg-white z-40 transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) flex flex-col ${isAiOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white/80 backdrop-blur-md">
+                     <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-sm">
+                             <Bot size={16} />
+                         </div>
+                         <div>
+                             <h3 className="font-bold text-gray-900 text-sm">AI 助教</h3>
+                             <p className="text-[10px] text-green-500 font-bold flex items-center gap-1">
+                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 2.5)
+                             </p>
+                         </div>
+                     </div>
+                     <button onClick={() => setIsAiOpen(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
+                         <X size={20} />
+                     </button>
+                </div>
+
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F9FAFB]">
+                    {chatMessages.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            {msg.role === 'ai' && (
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-[10px] shrink-0 mr-2 mt-2">
+                                    <Bot size={12}/>
+                                </div>
+                            )}
+                            <div className={`max-w-[80%] p-3 rounded-2xl text-sm font-medium leading-relaxed ${
+                                msg.role === 'user' 
+                                ? 'bg-blue-600 text-white rounded-br-none' 
+                                : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm'
+                            }`}>
+                                {msg.content}
+                            </div>
+                        </div>
+                    ))}
+                    {isAiThinking && (
+                        <div className="flex justify-start">
+                             <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-[10px] shrink-0 mr-2 mt-2">
+                                <Bot size={12}/>
+                             </div>
+                             <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-none p-3 shadow-sm flex items-center gap-1">
+                                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                             </div>
+                        </div>
+                    )}
+                    <div ref={chatEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div className="p-4 bg-white border-t border-gray-100">
+                    <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
+                        <input 
+                            type="text" 
+                            className="flex-1 bg-transparent pl-4 text-sm outline-none placeholder:text-gray-400"
+                            placeholder="输入你的问题..."
+                            value={aiInput}
+                            onChange={(e) => setAiInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        />
+                        <button 
+                            onClick={handleSendMessage}
+                            disabled={!aiInput.trim() || isAiThinking}
+                            className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                        >
+                            <Send size={16} />
+                        </button>
                     </div>
-                    <button className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white mr-1 hover:bg-gray-800">
-                        <Send size={14} />
-                    </button>
                 </div>
             </div>
         </div>

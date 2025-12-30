@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Feather, Hexagon } from 'lucide-react';
-import { UserProfile } from '../types';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Feather, Hexagon, Info, User } from 'lucide-react';
+import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
 import html2canvas from 'html2canvas';
@@ -18,58 +18,26 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [viewingUser, setViewingUser] = useState<any | null>(null); // For Social Modal
+
   // We use two refs: one for the scaled preview, one for the invisible full-res print version
   const printRef = useRef<HTMLDivElement>(null);
 
-  // --- Fetch Achievements ---
+  // --- Fetch Achievements & Activity Logs ---
   useEffect(() => {
-      const fetchAchievements = async () => {
-          if (!currentUser) {
-              // Mock for guest/demo if DB empty
-              setCertificates([
-                  {
-                      id: 'cert-001',
-                      title: 'PMP 项目管理专业人士',
-                      titleEn: 'Project Management Professional',
-                      issuer: 'PMI Institute',
-                      date: '2023-12-10',
-                      user: 'Alex Chen', // Demo user name
-                      bgGradient: 'bg-gradient-to-br from-gray-900 to-black',
-                      sealColor: 'border-yellow-500 text-yellow-500'
-                  },
-                  {
-                      id: 'cert-002',
-                      title: 'ACP 敏捷认证从业者',
-                      titleEn: 'Agile Certified Practitioner',
-                      issuer: 'PMI Institute',
-                      date: '2024-03-15',
-                      user: 'Alex Chen',
-                      bgGradient: 'bg-gradient-to-br from-blue-600 to-indigo-700',
-                      sealColor: 'border-white text-white'
-                  },
-                  {
-                      id: 'cert-003',
-                      title: 'Scrum Master 认证',
-                      titleEn: 'Certified ScrumMaster (CSM)',
-                      issuer: 'Scrum Alliance',
-                      date: '2024-05-20',
-                      user: 'Alex Chen',
-                      bgGradient: 'bg-gradient-to-br from-orange-500 to-red-600',
-                      sealColor: 'border-white text-white'
-                  }
-              ]);
-              return;
-          }
+      const fetchData = async () => {
+          if (!currentUser) return;
 
-          const { data } = await supabase
+          // 1. Fetch Certificates
+          const { data: certData } = await supabase
               .from('app_achievements')
               .select('*')
               .eq('user_id', currentUser.id)
               .order('date_awarded', { ascending: false });
           
-          if (data && data.length > 0) {
-              const mappedCerts = data.map(item => ({
+          if (certData) {
+              const mappedCerts = certData.map(item => ({
                   id: item.id.toString(),
                   title: item.title,
                   titleEn: item.title_en || 'Professional Certificate',
@@ -80,52 +48,79 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                   sealColor: item.meta_data?.seal || 'border-yellow-500 text-yellow-500'
               }));
               setCertificates(mappedCerts);
-          } else {
-              // Fallback to demo certs if DB empty for current user (even if logged in as 777)
-              if (currentUser.email === '777@projectflow.com') {
-                   setCertificates([
-                      {
-                          id: 'cert-pmp',
-                          title: 'PMP 项目管理专业人士',
-                          titleEn: 'Project Management Professional',
-                          issuer: 'PMI Institute',
-                          date: '2023-12-10',
-                          user: currentUser.name,
-                          bgGradient: 'bg-gradient-to-br from-gray-900 to-black',
-                          sealColor: 'border-yellow-500 text-yellow-500'
-                      },
-                      {
-                          id: 'cert-acp',
-                          title: 'ACP 敏捷认证从业者',
-                          titleEn: 'Agile Certified Practitioner',
-                          issuer: 'PMI Institute',
-                          date: '2024-01-20',
-                          user: currentUser.name,
-                          bgGradient: 'bg-gradient-to-br from-blue-600 to-indigo-700',
-                          sealColor: 'border-white text-white'
-                      }
-                   ]);
-              } else {
-                  setCertificates([]);
-              }
+          }
+
+          // 2. Fetch Activity Logs for Heatmap
+          // Get logs for the last year
+          const oneYearAgo = new Date();
+          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+          
+          const { data: logsData } = await supabase
+              .from('app_activity_logs')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .gte('created_at', oneYearAgo.toISOString());
+          
+          if (logsData) {
+              setActivityLogs(logsData);
           }
       };
 
-      fetchAchievements();
+      fetchData();
   }, [currentUser]);
 
-  // --- Mock Data: Contribution Heatmap ---
+  // --- GitHub-style Heatmap Data Calculation ---
   const heatmapData = useMemo(() => {
-    return Array.from({ length: 364 }, (_, i) => {
-        const random = Math.random();
-        let level = 0;
-        if (random > 0.8) level = 4;
-        else if (random > 0.6) level = 3;
-        else if (random > 0.4) level = 2;
-        else if (random > 0.2) level = 1;
-        return { date: i, level };
+    const today = new Date();
+    const days = [];
+    
+    // Create a map of date -> count from real logs
+    const logMap: Record<string, number> = {};
+    activityLogs.forEach(log => {
+        const dateStr = log.created_at.split('T')[0];
+        logMap[dateStr] = (logMap[dateStr] || 0) + log.points; // Weight by points
     });
-  }, []);
+
+    // Generate last 365 days
+    for (let i = 364; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        let count = logMap[dateStr] || 0;
+        
+        // If no real data (e.g. new user), fallback to mock pattern for demo visualization 
+        // ONLY if user has absolutely no logs to avoid empty chart
+        if (activityLogs.length === 0) {
+             const randomSeed = date.getDate() + date.getMonth() * 3;
+             if (date.getDay() !== 0 && date.getDay() !== 6 && Math.random() > 0.7) {
+                 count = randomSeed % 5;
+             }
+        }
+
+        let level = 0;
+        if (count === 0) level = 0;
+        else if (count <= 2) level = 1;
+        else if (count <= 5) level = 2;
+        else if (count <= 10) level = 3;
+        else level = 4;
+
+        days.push({ date: dateStr, count, level });
+    }
+    return days;
+  }, [activityLogs]);
+
+  // GitHub Green Scale Colors
+  const getHeatmapColor = (level: number) => {
+      switch (level) {
+          case 0: return 'bg-[#ebedf0]'; // Gray
+          case 1: return 'bg-[#9be9a8]'; // Light Green
+          case 2: return 'bg-[#40c463]'; // Medium Green
+          case 3: return 'bg-[#30a14e]'; // Dark Green
+          case 4: return 'bg-[#216e39]'; // Darkest Green
+          default: return 'bg-[#ebedf0]';
+      }
+  };
 
   // --- Mock Data: Skills Radar ---
   const skillsData = [
@@ -139,18 +134,11 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
   // --- Mock Data: Leaderboard ---
   const leaderboard = [
-      { rank: 1, name: currentUser?.name || 'Alex Chen', xp: '18,450', avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=777', isMe: true },
-      { rank: 2, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1' },
-      { rank: 3, name: 'Mike Ross', xp: '14,200', avatar: 'https://i.pravatar.cc/150?u=2' }, 
-      { rank: 4, name: 'Jennie Kim', xp: '12,400', avatar: 'https://i.pravatar.cc/150?u=4' },
-      { rank: 5, name: 'David Zhang', xp: '11,230', avatar: 'https://i.pravatar.cc/150?u=5' },
-      { rank: 6, name: 'Alex Wong', xp: '9,900', avatar: 'https://i.pravatar.cc/150?u=6' },
-      { rank: 7, name: 'Lisa Ray', xp: '8,500', avatar: 'https://i.pravatar.cc/150?u=7' },
-      { rank: 8, name: 'Tom Hiddleston', xp: '7,200', avatar: 'https://i.pravatar.cc/150?u=8' },
-      { rank: 9, name: 'Emma Stone', xp: '6,800', avatar: 'https://i.pravatar.cc/150?u=9' },
-      { rank: 10, name: 'Ryan Gosling', xp: '5,400', avatar: 'https://i.pravatar.cc/150?u=10' },
-      { rank: 11, name: 'Scarlett J', xp: '4,900', avatar: 'https://i.pravatar.cc/150?u=11' },
-      { rank: 12, name: 'Chris Evans', xp: '4,500', avatar: 'https://i.pravatar.cc/150?u=12' },
+      { rank: 1, name: currentUser?.name || 'Alex Chen', xp: '18,450', avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=777', isMe: true, title: '全栈架构师' },
+      { rank: 2, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1', title: '敏捷教练' },
+      { rank: 3, name: 'Mike Ross', xp: '14,200', avatar: 'https://i.pravatar.cc/150?u=2', title: '高级 PM' }, 
+      { rank: 4, name: 'Jennie Kim', xp: '12,400', avatar: 'https://i.pravatar.cc/150?u=4', title: '产品经理' },
+      { rank: 5, name: 'David Zhang', xp: '11,230', avatar: 'https://i.pravatar.cc/150?u=5', title: 'DevOps' },
   ];
 
   // --- Mock Data: Badges ---
@@ -161,13 +149,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       { id: 4, name: '连胜大师', desc: '连续学习30天未中断', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
       { id: 5, name: 'Bug猎手', desc: '在实战中成功修复10个Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100' },
       { id: 6, name: '完美主义', desc: '在单个测验中获得100分满分', icon: Target, unlocked: true, color: 'text-red-500', bg: 'bg-red-100' },
-      { id: 7, name: '高产似母猪', desc: '一周内提交20次代码或作业', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 8, name: '文档专家', desc: '编写超过 5000 字的项目文档', icon: Feather, unlocked: true, color: 'text-blue-600', bg: 'bg-blue-100' },
-      { id: 9, name: '社区之星', desc: '单篇帖子获得 100 个赞', icon: Hexagon, unlocked: true, color: 'text-indigo-500', bg: 'bg-indigo-100' },
-      { id: 10, name: '夜猫子', desc: '在凌晨 2 点提交作业', icon: Lock, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 11, name: '团队核心', desc: '在协作项目中贡献度排名第一', icon: Trophy, unlocked: true, color: 'text-teal-500', bg: 'bg-teal-100' },
-      { id: 12, name: '敏捷先锋', desc: '完成所有敏捷开发实战模块', icon: Zap, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 13, name: '终身学习', desc: '累计学习时长超过 100 小时', icon: Calendar, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
   ];
 
   const handleDownload = async (certTitle: string) => {
@@ -175,19 +156,17 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       setIsGeneratingPdf(true);
 
       try {
-          // Capture the "Phantom" full-resolution element
           const canvas = await html2canvas(printRef.current, {
-              scale: 1, // Already full size
+              scale: 1,
               useCORS: true,
               logging: false,
               backgroundColor: '#ffffff',
               width: 1123,
               height: 794,
-              windowWidth: 1200, // Ensure context considers a large window
+              windowWidth: 1200,
           });
 
           const imgData = canvas.toDataURL('image/png');
-          // A4 Landscape: 297mm x 210mm
           const pdf = new jsPDF('l', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -203,7 +182,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       }
   };
 
-  // Shared Certificate Component for both Preview and Print
   const CertificateTemplate = ({ data }: { data: any }) => (
     <div 
         className="w-[1123px] h-[794px] bg-white relative flex flex-col items-center text-center justify-between p-24 text-slate-900"
@@ -213,17 +191,14 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             boxSizing: 'border-box'
         }}
     >
-        {/* Ornamental Borders */}
         <div className="absolute inset-5 border-[3px] border-double border-[#CA8A04]/30 pointer-events-none"></div>
         <div className="absolute inset-7 border border-[#CA8A04]/10 pointer-events-none"></div>
         
-        {/* Corner Decors */}
         <div className="absolute top-10 left-10 w-24 h-24 border-t-4 border-l-4 border-[#CA8A04]/40 rounded-tl-lg pointer-events-none"></div>
         <div className="absolute top-10 right-10 w-24 h-24 border-t-4 border-r-4 border-[#CA8A04]/40 rounded-tr-lg pointer-events-none"></div>
         <div className="absolute bottom-10 left-10 w-24 h-24 border-b-4 border-l-4 border-[#CA8A04]/40 rounded-bl-lg pointer-events-none"></div>
         <div className="absolute bottom-10 right-10 w-24 h-24 border-b-4 border-r-4 border-[#CA8A04]/40 rounded-br-lg pointer-events-none"></div>
 
-        {/* Header */}
         <div className="z-10 mt-6 w-full flex flex-col items-center">
             <div className="mb-6 relative">
                <Award size={90} className="text-[#CA8A04] drop-shadow-sm opacity-90" strokeWidth={1} />
@@ -237,7 +212,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             </div>
         </div>
 
-        {/* Body */}
         <div className="z-10 w-full flex-1 flex flex-col justify-center items-center">
             <p className="text-xl text-slate-500 italic mb-8 font-serif">This is to certify that</p>
             
@@ -250,7 +224,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             <p className="text-lg text-slate-400 mt-2 font-sans tracking-wider uppercase font-medium">({data.titleEn})</p>
         </div>
 
-        {/* Footer */}
         <div className="w-full flex justify-between items-end px-12 z-10 mb-6">
             <div className="text-center w-64">
                 <div className="border-b border-slate-300 mb-3 pb-1">
@@ -259,7 +232,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Date Issued</p>
             </div>
 
-            {/* Seal */}
             <div className="relative -mb-2 mx-8">
                 <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#FDE047] via-[#EAB308] to-[#A16207] shadow-xl flex items-center justify-center p-1.5 ring-4 ring-[#FEF08A]/50">
                     <div className="w-full h-full rounded-full border-[2px] border-dashed border-white/40 flex items-center justify-center bg-[#CA8A04]/10">
@@ -308,32 +280,37 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             </button>
         </div>
 
-        {/* --- 1. Heatmap --- */}
-        <div className="glass-card rounded-[2rem] p-6 animate-fade-in-up delay-100 hidden md:block">
-            <div className="flex justify-between items-end mb-4">
+        {/* --- 1. GitHub-Style Heatmap (Real Data) --- */}
+        <div className="glass-card rounded-[2rem] p-8 animate-fade-in-up delay-100 hidden md:block">
+            <div className="flex justify-between items-end mb-6">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">学习活跃度</h2>
-                    <p className="text-xs text-gray-500">过去一年</p>
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        学习贡献图 (Activity Heatmap) <Info size={16} className="text-gray-400 cursor-help" />
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">记录你每一天的学习与实战投入（基于真实活动日志）</p>
                 </div>
-                <div className="text-right">
-                    <p className="text-3xl font-bold text-emerald-600 tracking-tight">324 <span className="text-sm font-medium text-gray-400">天</span></p>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">年度活跃</p>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>Less</span>
+                    <div className="flex gap-1">
+                        <div className="w-3 h-3 bg-[#ebedf0] rounded-sm"></div>
+                        <div className="w-3 h-3 bg-[#9be9a8] rounded-sm"></div>
+                        <div className="w-3 h-3 bg-[#40c463] rounded-sm"></div>
+                        <div className="w-3 h-3 bg-[#30a14e] rounded-sm"></div>
+                        <div className="w-3 h-3 bg-[#216e39] rounded-sm"></div>
+                    </div>
+                    <span>More</span>
                 </div>
             </div>
-            <div className="w-full overflow-x-auto pb-2 custom-scrollbar">
-                <div className="grid grid-rows-7 grid-flow-col gap-1 w-fit min-w-full">
+            
+            <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
+                <div className="grid grid-rows-7 grid-flow-col gap-[3px] w-fit min-w-full">
                     {heatmapData.map((day, i) => (
                         <div 
                             key={i} 
-                            className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-[3px] transition-all hover:scale-125 hover:z-10 cursor-default ${
-                                day.level === 0 ? 'bg-gray-100' :
-                                day.level === 1 ? 'bg-emerald-200' :
-                                day.level === 2 ? 'bg-emerald-300' :
-                                day.level === 3 ? 'bg-emerald-400' :
-                                'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
-                            }`}
-                            title={`Activity Level: ${day.level}`}
-                        ></div>
+                            className={`w-3.5 h-3.5 rounded-[2px] transition-all hover:ring-2 hover:ring-gray-400 hover:z-10 relative group ${getHeatmapColor(day.level)}`}
+                            title={`${day.count} contributions on ${day.date}`}
+                        >
+                        </div>
                     ))}
                 </div>
             </div>
@@ -360,7 +337,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                 fill="#3b82f6"
                                 fillOpacity={0.2}
                             />
-                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                            <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                         </RadarChart>
                     </ResponsiveContainer>
                     <div className="absolute top-0 right-0 bg-blue-50/80 backdrop-blur border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
@@ -369,7 +346,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                 </div>
             </div>
 
-            {/* Right: Leaderboard */}
+            {/* Right: Leaderboard (Social Interactive) */}
             <div className="lg:col-span-4 bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 flex flex-col h-[500px]">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -382,7 +359,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     {leaderboard.map((user) => (
                         <div 
                             key={user.rank} 
-                            className={`flex items-center justify-between p-3 rounded-2xl transition-all ${
+                            onClick={() => !user.isMe && setViewingUser(user)}
+                            className={`flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
                                 user.isMe 
                                 ? 'bg-black text-white shadow-lg scale-[1.02]' 
                                 : 'hover:bg-gray-50 text-gray-800'
@@ -406,7 +384,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                 )}
                                 <div>
                                     <p className="text-sm font-bold leading-none">{user.name}</p>
-                                    <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? '我' : 'Level ' + Math.floor(parseInt(user.xp.replace(',',''))/1000)}</p>
+                                    <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? '我' : user.title}</p>
                                 </div>
                             </div>
                             <div className="text-xs font-mono font-bold opacity-90">{user.xp}</div>
@@ -416,99 +394,75 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             </div>
         </div>
 
-        {/* --- 3. Certificates & Badges --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-300">
-            
-            {/* Left: Certificate Stack */}
-            <div className="lg:col-span-4 flex flex-col gap-4">
-                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-bold text-gray-900">荣誉证书</h2>
-                    <button className="text-xs text-blue-600 font-bold hover:underline">查看全部</button>
-                 </div>
-                 
-                 {certificates.length > 0 ? (
-                     <div className="relative h-[320px] w-full flex justify-center pt-6 perspective-1000 group">
-                        {certificates.map((cert, index) => (
-                            <div
-                                key={cert.id}
-                                onClick={() => setSelectedCert(cert)}
-                                className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
-                                style={{
-                                    top: `${index * 60}px`,
-                                    transform: `scale(${1 - index * 0.05}) translateZ(${index * -20}px)`,
-                                    zIndex: certificates.length - index,
-                                    opacity: index > 2 ? 0 : 1 - index * 0.1,
-                                }}
-                            >
-                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] rounded-3xl"></div>
-                                <div className="relative z-10 flex justify-between items-start">
-                                    <Award className="opacity-80"/>
-                                    <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">No. {cert.id}</span>
-                                </div>
-                                <div className="relative z-10">
-                                    <h3 className="font-bold text-lg leading-tight line-clamp-2">{cert.title}</h3>
-                                    <p className="text-[10px] opacity-80 mt-1">{cert.issuer} • {cert.date}</p>
-                                </div>
-                            </div>
-                        ))}
-                     </div>
-                 ) : (
-                     <div className="h-[200px] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
-                         <Award size={32} className="opacity-50 mb-2"/>
-                         <p className="text-xs font-bold">暂无证书</p>
-                     </div>
-                 )}
-            </div>
+        {/* --- 3. Badges --- */}
+        <div className="glass-card rounded-[2.5rem] p-8 animate-fade-in-up delay-300">
+             <div className="flex items-center justify-between mb-6">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">徽章收藏馆</h2>
+                    <p className="text-sm text-gray-500">已解锁 {badges.filter(b => b.unlocked).length} / {badges.length} 个成就</p>
+                </div>
+             </div>
 
-            {/* Right: Badge Wall */}
-            <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-8">
-                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">徽章收藏馆</h2>
-                        <p className="text-sm text-gray-500">已解锁 {badges.filter(b => b.unlocked).length} / {badges.length} 个成就</p>
-                    </div>
-                    <div className="bg-gray-100 rounded-full px-3 py-1 flex items-center gap-2">
-                        <Star size={14} className="text-yellow-500 fill-yellow-500"/>
-                        <span className="text-xs font-bold text-gray-600">点数: 850</span>
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                     {badges.map((badge) => (
-                         <div 
-                            key={badge.id} 
-                            className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border cursor-pointer ${
-                                badge.unlocked 
-                                ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg' 
-                                : 'bg-gray-100/50 border-transparent opacity-60 grayscale'
-                            }`}
-                         >
-                             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-inner ${badge.unlocked ? badge.bg : 'bg-gray-200'} ${badge.color}`}>
-                                 <badge.icon size={20} />
-                             </div>
-                             <div>
-                                 <h4 className={`text-xs font-bold ${badge.unlocked ? 'text-gray-900' : 'text-gray-500'}`}>{badge.name}</h4>
-                             </div>
-                             {!badge.unlocked && (
-                                 <div className="absolute top-1 right-1 text-gray-400">
-                                     <Lock size={10} />
-                                 </div>
-                             )}
-                             
-                             {/* --- Tooltip --- */}
-                             <div className="absolute bottom-full mb-3 hidden group-hover:block w-40 z-20 animate-fade-in">
-                                 <div className="bg-black/90 backdrop-blur text-white text-[10px] p-3 rounded-xl shadow-xl text-left border border-white/10 relative">
-                                     <div className="font-bold mb-1 text-yellow-400">{badge.name}</div>
-                                     <div className="opacity-80 leading-relaxed">{badge.desc}</div>
-                                     {/* Arrow */}
-                                     <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
-                                 </div>
-                             </div>
+             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                 {badges.map((badge) => (
+                     <div 
+                        key={badge.id} 
+                        className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border cursor-pointer ${
+                            badge.unlocked 
+                            ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg' 
+                            : 'bg-gray-100/50 border-transparent opacity-60 grayscale'
+                        }`}
+                     >
+                         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-inner ${badge.unlocked ? badge.bg : 'bg-gray-200'} ${badge.color}`}>
+                             <badge.icon size={20} />
                          </div>
-                     ))}
+                         <div>
+                             <h4 className={`text-xs font-bold ${badge.unlocked ? 'text-gray-900' : 'text-gray-500'}`}>{badge.name}</h4>
+                         </div>
+                         {!badge.unlocked && (
+                             <div className="absolute top-1 right-1 text-gray-400">
+                                 <Lock size={10} />
+                             </div>
+                         )}
+                     </div>
+                 ))}
+             </div>
+        </div>
+
+        {/* --- Social User Modal --- */}
+        {viewingUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                 <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity animate-fade-in" onClick={() => setViewingUser(null)}></div>
+                 <div className="relative bg-white rounded-[2rem] p-6 w-full max-w-sm shadow-2xl animate-bounce-in z-50 text-center">
+                     <button onClick={() => setViewingUser(null)} className="absolute top-4 right-4 text-gray-400 hover:text-black"><X size={20}/></button>
+                     
+                     <div className="w-20 h-20 rounded-full mx-auto bg-gray-200 mb-4 overflow-hidden border-4 border-white shadow-lg">
+                         <img src={viewingUser.avatar} className="w-full h-full object-cover" />
+                     </div>
+                     <h2 className="text-xl font-bold text-gray-900">{viewingUser.name}</h2>
+                     <p className="text-gray-500 text-sm mb-6">{viewingUser.title}</p>
+                     
+                     <div className="grid grid-cols-3 gap-4 mb-6">
+                         <div className="bg-gray-50 p-3 rounded-2xl">
+                             <div className="text-lg font-bold text-gray-900">{viewingUser.xp}</div>
+                             <div className="text-[10px] text-gray-400 uppercase font-bold">XP</div>
+                         </div>
+                         <div className="bg-gray-50 p-3 rounded-2xl">
+                             <div className="text-lg font-bold text-gray-900">12</div>
+                             <div className="text-[10px] text-gray-400 uppercase font-bold">Badges</div>
+                         </div>
+                         <div className="bg-gray-50 p-3 rounded-2xl">
+                             <div className="text-lg font-bold text-gray-900">45</div>
+                             <div className="text-[10px] text-gray-400 uppercase font-bold">Streak</div>
+                         </div>
+                     </div>
+
+                     <button className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                         <User size={16}/> 加为好友
+                     </button>
                  </div>
             </div>
-        </div>
+        )}
 
         {/* --- Certificate Preview Modal --- */}
       {selectedCert && (

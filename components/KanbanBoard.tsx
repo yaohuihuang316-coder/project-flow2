@@ -159,7 +159,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
     });
   }, [tasks, sprintDaysLeft]);
 
-  // --- 4. Persistence Helpers ---
+  // --- 4. Persistence Helpers & Activity Logging ---
   const saveTaskUpdate = async (updatedTask: Task) => {
       if (!currentUser) return; 
 
@@ -182,6 +182,25 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       if (error) {
           console.error("Failed to sync task:", error);
       }
+  };
+
+  // Activity Logger
+  const logActivity = async (task: Task) => {
+      if (!currentUser) return;
+      
+      // Insert into activity log
+      await supabase.from('app_activity_logs').insert({
+          user_id: currentUser.id,
+          action_type: 'complete_task',
+          points: task.points, // Points awarded for heatmap contribution
+          meta: { task_title: task.title },
+          created_at: new Date().toISOString()
+      });
+
+      // Update User XP (Simulation)
+      // In a real app, this would be a trigger or backend function
+      setNotification({ msg: `任务完成！获得 ${task.points} 贡献点`, type: 'success' });
+      setTimeout(() => setNotification(null), 3000);
   };
 
   const initDefaultTasks = async () => {
@@ -268,7 +287,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
 
         const updatedTask = { ...task, status: targetStatus };
         setTasks(prev => prev.map(t => t.id === draggedTaskId ? updatedTask : t));
-        saveTaskUpdate(updatedTask); 
+        saveTaskUpdate(updatedTask);
+        
+        // Log activity if moved to Done
+        if (targetStatus === 'Done' && task.status !== 'Done') {
+            logActivity(task);
+        }
     }
     setDraggedTaskId(null);
   };

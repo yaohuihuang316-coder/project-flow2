@@ -27,6 +27,8 @@ export interface UserProfile {
   avatar?: string;
   department?: string;
   joined_at?: string;
+  xp?: number; // Added XP
+  streak?: number; // Added Streak
 }
 
 export interface Course {
@@ -44,4 +46,20 @@ export interface Achievement {
   date: string;
   color: string;
   icon: string;
+}
+
+// New Interface for Data Integration
+export interface ActivityLog {
+  id: number;
+  user_id: string;
+  action_type: 'complete_task' | 'finish_chapter' | 'post_community' | 'login';
+  points: number;
+  created_at: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'ai';
+    content: string;
+    timestamp: Date;
 }

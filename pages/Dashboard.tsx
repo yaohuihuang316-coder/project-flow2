@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts';
-import { Calendar, Trophy, ArrowUpRight, Activity, Share2 } from 'lucide-react';
+import { Calendar, Trophy, ArrowUpRight, Activity, Share2, FileText, ChevronRight } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -17,41 +18,73 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
       completed: 0, // %
       xp: 0
   });
+  
+  // Notes State
+  const [recentNotes, setRecentNotes] = useState<any[]>([]);
 
   // Mock Date for Header
   const today = new Date();
   const dateStr = today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
 
-  // Fetch User Progress Stats
+  // Fetch User Progress Stats & Notes
   useEffect(() => {
-    const fetchProgress = async () => {
+    const fetchData = async () => {
         if (!currentUser) return;
 
-        // Fetch all progress records for this user
-        const { data } = await supabase
+        // 1. Fetch Stats
+        const { data: progressData } = await supabase
             .from('app_user_progress')
             .select('progress')
             .eq('user_id', currentUser.id);
 
-        if (data && data.length > 0) {
-            const totalItems = data.length;
-            const sumProgress = data.reduce((acc, curr) => acc + (curr.progress || 0), 0);
+        if (progressData && progressData.length > 0) {
+            const totalItems = progressData.length;
+            const sumProgress = progressData.reduce((acc, curr) => acc + (curr.progress || 0), 0);
             const avg = Math.round(sumProgress / totalItems);
             
-            // Strictly use real data or 0. No fallback simulation.
             setStats({
                 avgScore: avg,
-                totalTime: Math.round(data.length * 0.5), // Estimate 30m per active course if time tracking not implemented
+                totalTime: Math.round(progressData.length * 0.5), 
                 completed: avg,
-                xp: data.length * 10
+                xp: progressData.length * 10
             });
-        } else {
-            // New user defaults
-            setStats({ avgScore: 0, totalTime: 0, completed: 0, xp: 0 });
+        }
+
+        // 2. Fetch Recent Notes (Joining with Courses)
+        // Note: Supabase JS join syntax requires explicit relationship setup or raw querying. 
+        // Here we do a two-step fetch for simplicity if FKs aren't perfectly inferred by the client.
+        const { data: notesData } = await supabase
+            .from('app_user_progress')
+            .select('course_id, notes, last_accessed')
+            .eq('user_id', currentUser.id)
+            .not('notes', 'is', null) // Only where notes exist
+            .neq('notes', '')
+            .order('last_accessed', { ascending: false })
+            .limit(3);
+
+        if (notesData && notesData.length > 0) {
+            // Fetch Course Details for these notes
+            const courseIds = notesData.map(n => n.course_id);
+            const { data: coursesData } = await supabase
+                .from('app_courses')
+                .select('id, title, image')
+                .in('id', courseIds);
+            
+            const mergedNotes = notesData.map(note => {
+                const course = coursesData?.find(c => c.id === note.course_id);
+                return {
+                    courseId: note.course_id,
+                    noteSnippet: note.notes,
+                    date: new Date(note.last_accessed).toLocaleDateString(),
+                    courseTitle: course?.title || 'Unknown Course',
+                    courseImage: course?.image
+                };
+            });
+            setRecentNotes(mergedNotes);
         }
     };
 
-    fetchProgress();
+    fetchData();
   }, [currentUser]);
 
   const ringData = [
@@ -126,35 +159,60 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
             </div>
         </div>
 
-        {/* --- Top Right: Calendar & Daily Pick (Span 1) --- */}
+        {/* --- Top Right: Calendar & Notes (Span 1) --- */}
         <div className="md:col-span-1 flex flex-col gap-6">
             {/* Calendar Widget */}
             <div 
                 onClick={() => onNavigate(Page.SCHEDULE)}
-                className="flex-1 bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e] rounded-[2.5rem] p-6 shadow-xl text-white flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform"
+                className="h-40 bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e] rounded-[2.5rem] p-6 shadow-xl text-white flex flex-col justify-between relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform"
             >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                 <div className="flex justify-between items-start z-10">
                     <Calendar size={24} className="text-white/80" />
                     <span className="text-3xl font-thin tracking-tighter">{today.getDate()}</span>
                 </div>
-                <div className="z-10 mt-4">
-                    <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest">NEXT EVENT</p>
-                    <p className="font-semibold text-white mt-1 text-md truncate">团队代码评审</p>
+                <div className="z-10 mt-2">
+                    <p className="font-semibold text-white text-md truncate">团队代码评审</p>
                     <p className="text-blue-400 text-xs font-medium">14:00 PM</p>
                 </div>
             </div>
 
-            {/* Daily Pick Widget */}
-            <div 
-                onClick={() => onNavigate(Page.SIMULATION)}
-                className="h-32 bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-lg transition-all cursor-pointer group"
-            >
-                <div className="flex justify-between items-start">
-                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-md">实战挑战</span>
-                    <ArrowUpRight size={18} className="text-gray-400 group-hover:text-black transition-colors"/>
+            {/* NEW: Recent Notes Widget */}
+            <div className="flex-1 bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 flex flex-col overflow-hidden min-h-[160px]">
+                <div className="flex justify-between items-center mb-4">
+                     <span className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        <FileText size={16} className="text-blue-500"/> 学习笔记
+                     </span>
+                     {recentNotes.length > 0 && <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-500">{recentNotes.length}</span>}
                 </div>
-                <h4 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-blue-600 transition-colors">Sprint 4: 支付集成</h4>
+                
+                <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
+                    {recentNotes.length > 0 ? recentNotes.map((note, idx) => (
+                        <div 
+                            key={idx}
+                            onClick={() => onNavigate(Page.CLASSROOM, note.courseId)}
+                            className="p-3 bg-gray-50 rounded-xl hover:bg-blue-50 cursor-pointer transition-colors group border border-transparent hover:border-blue-100"
+                        >
+                            <div className="flex justify-between items-start mb-1">
+                                <h4 className="text-xs font-bold text-gray-800 line-clamp-1">{note.courseTitle}</h4>
+                                <ChevronRight size={12} className="text-gray-300 group-hover:text-blue-500"/>
+                            </div>
+                            <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">
+                                {note.noteSnippet}
+                            </p>
+                            <div className="mt-2 text-[8px] text-gray-400 font-medium text-right">
+                                {note.date}
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                <FileText size={14} className="opacity-50"/>
+                            </div>
+                            <span className="text-xs">暂无笔记</span>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 
