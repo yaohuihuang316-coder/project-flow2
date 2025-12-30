@@ -2,13 +2,22 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, MessageSquare, Heart, Share2, MoreHorizontal, 
-  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, ThumbsUp
+  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 interface CommunityProps {
     currentUser?: UserProfile | null;
+}
+
+interface Comment {
+    id: number;
+    user: string;
+    avatar?: string;
+    content: string;
+    time: string;
+    likes: number;
 }
 
 // Mock Topics for sidebar
@@ -26,8 +35,12 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     const [newPostContent, setNewPostContent] = useState('');
     const [activeTab, setActiveTab] = useState<'recommend' | 'latest' | 'following'>('recommend');
     const [isLoading, setIsLoading] = useState(true);
-    // Track liked posts locally for UI feedback
+    
+    // Interaction States
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+    const [expandedPostId, setExpandedPostId] = useState<number | null>(null);
+    const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({});
+    const [commentInput, setCommentInput] = useState('');
 
     const fetchPosts = async () => {
         setIsLoading(true);
@@ -42,7 +55,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             }
 
             if (data && data.length > 0) {
-                // Parse tags if stored as JSON string, map avatar
                 const formattedData = data.map(post => ({
                     ...post,
                     tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags || [],
@@ -80,20 +92,18 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     }, [searchQuery, posts]);
 
     const handleLike = async (postId: number, currentLikes: number) => {
-        // Optimistic UI update
         const isLiked = likedPosts.has(postId);
         const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
         
         const updatedPosts = posts.map(p => p.id === postId ? { ...p, likes: newLikes } : p);
         setPosts(updatedPosts);
-        setFilteredPosts(updatedPosts); // Sync filtered list too
+        setFilteredPosts(updatedPosts);
         
         const newLikedSet = new Set(likedPosts);
         if (isLiked) newLikedSet.delete(postId);
         else newLikedSet.add(postId);
         setLikedPosts(newLikedSet);
 
-        // DB Update (Fire and forget)
         await supabase.from('app_community_posts').update({ likes: newLikes }).eq('id', postId);
     };
 
@@ -105,7 +115,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         }
         
         const optimisticPost = {
-            id: Date.now(), // Temporary ID
+            id: Date.now(),
             user_id: currentUser.id,
             user_name: currentUser.name,
             user_avatar: currentUser.avatar,
@@ -123,53 +133,79 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         setFilteredPosts(updatedList);
         setNewPostContent('');
 
-        // Sync to DB
         const { error } = await supabase.from('app_community_posts').insert({
             user_id: currentUser.id,
             user_name: currentUser.name,
             user_avatar: currentUser.avatar,
             role: currentUser.role,
             content: newPostContent,
-            tags: JSON.stringify([]), // Store empty array as JSON
+            tags: JSON.stringify([]),
             likes: 0,
             comments: 0
         });
 
-        if (error) {
-            console.error("Post failed:", error);
-            // Revert state if needed in real app
+        if (error) console.error("Post failed:", error);
+        else fetchPosts();
+    };
+
+    // --- Comment Logic ---
+    const toggleComments = (postId: number) => {
+        if (expandedPostId === postId) {
+            setExpandedPostId(null);
         } else {
-            fetchPosts(); // Re-fetch to get real ID
+            setExpandedPostId(postId);
+            // Mock fetching comments if not exist
+            if (!commentsMap[postId]) {
+                setCommentsMap(prev => ({
+                    ...prev,
+                    [postId]: [
+                        { id: 1, user: 'Sarah Chen', avatar: 'https://i.pravatar.cc/150?u=1', content: '这个观点很有趣，我在上个项目中也遇到了类似情况。', time: '1h ago', likes: 5 },
+                        { id: 2, user: 'Mike Ross', avatar: 'https://i.pravatar.cc/150?u=2', content: '同意，尤其是关于 WBS 分解的那部分。', time: '30m ago', likes: 2 }
+                    ]
+                }));
+            }
         }
+    };
+
+    const handleSendComment = (postId: number) => {
+        if (!commentInput.trim() || !currentUser) return;
+
+        const newComment: Comment = {
+            id: Date.now(),
+            user: currentUser.name,
+            avatar: currentUser.avatar,
+            content: commentInput,
+            time: 'Just now',
+            likes: 0
+        };
+
+        setCommentsMap(prev => ({
+            ...prev,
+            [postId]: [...(prev[postId] || []), newComment]
+        }));
+        setCommentInput('');
+        
+        // Update comment count UI
+        const updatedPosts = posts.map(p => p.id === postId ? { ...p, comments: (p.comments || 0) + 1 } : p);
+        setPosts(updatedPosts);
+        setFilteredPosts(updatedPosts);
     };
 
     return (
         <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
-                {/* --- Left Sidebar: Navigation --- */}
+                {/* --- Left Sidebar --- */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
                     <div className="glass-card rounded-[2rem] p-6 space-y-2 sticky top-24">
-                        <button 
-                            onClick={() => setActiveTab('recommend')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'recommend' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
-                        >
-                            <TrendingUp size={20} />
-                            <span className="font-bold">推荐动态</span>
+                        <button onClick={() => setActiveTab('recommend')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'recommend' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}>
+                            <TrendingUp size={20} /><span className="font-bold">推荐动态</span>
                         </button>
-                        <button 
-                            onClick={() => setActiveTab('latest')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'latest' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
-                        >
-                            <Filter size={20} />
-                            <span className="font-bold">最新发布</span>
+                        <button onClick={() => setActiveTab('latest')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'latest' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}>
+                            <Filter size={20} /><span className="font-bold">最新发布</span>
                         </button>
-                        <button 
-                            onClick={() => setActiveTab('following')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'following' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
-                        >
-                            <Users size={20} />
-                            <span className="font-bold">我的关注</span>
+                        <button onClick={() => setActiveTab('following')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'following' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}>
+                            <Users size={20} /><span className="font-bold">我的关注</span>
                         </button>
 
                         <div className="pt-6 mt-4 border-t border-gray-100">
@@ -195,11 +231,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-shadow hover:shadow-md">
                         <div className="flex gap-4">
                             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
-                                {currentUser?.avatar ? (
-                                    <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" />
-                                ) : (
-                                    <Users size={24} className="text-gray-400"/>
-                                )}
+                                {currentUser?.avatar ? <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" /> : <Users size={24} className="text-gray-400"/>}
                             </div>
                             <div className="flex-1">
                                 <textarea 
@@ -229,7 +261,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     {/* Feed List */}
                     <div className="space-y-6 pb-20">
                         {isLoading ? (
-                            // Enhanced Skeleton Loader
                             [1, 2, 3].map(i => (
                                 <div key={i} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
                                     <div className="flex items-center gap-4 mb-4">
@@ -241,18 +272,13 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     </div>
                                     <div className="space-y-3">
                                         <div className="h-4 w-full bg-gray-100 rounded animate-pulse"></div>
-                                        <div className="h-4 w-5/6 bg-gray-100 rounded animate-pulse"></div>
                                         <div className="h-4 w-4/6 bg-gray-100 rounded animate-pulse"></div>
-                                    </div>
-                                    <div className="mt-6 flex gap-6">
-                                        <div className="h-8 w-16 bg-gray-100 rounded-full animate-pulse"></div>
-                                        <div className="h-8 w-16 bg-gray-100 rounded-full animate-pulse"></div>
                                     </div>
                                 </div>
                             ))
                         ) : filteredPosts.length > 0 ? (
                             filteredPosts.map(post => (
-                                <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 animate-fade-in-up">
+                                <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 animate-fade-in-up">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
                                             <img 
@@ -306,8 +332,11 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                             <span>{post.likes}</span>
                                         </button>
 
-                                        <button className="flex items-center gap-2 text-gray-400 hover:text-blue-500 transition-colors text-sm font-bold group">
-                                            <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                                        <button 
+                                            onClick={() => toggleComments(post.id)}
+                                            className={`flex items-center gap-2 text-sm font-bold transition-all group ${expandedPostId === post.id ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'}`}
+                                        >
+                                            <div className={`p-2 rounded-full group-hover:bg-blue-50 transition-colors ${expandedPostId === post.id ? 'bg-blue-50' : ''}`}>
                                                 <MessageSquare size={20} /> 
                                             </div>
                                             <span>{post.comments}</span>
@@ -319,12 +348,57 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                             </div>
                                         </button>
                                     </div>
+
+                                    {/* --- Collapsible Comment Section --- */}
+                                    {expandedPostId === post.id && (
+                                        <div className="mt-4 pt-4 border-t border-gray-50 bg-gray-50/50 -mx-6 px-6 pb-2 animate-fade-in rounded-b-[2rem]">
+                                            <div className="space-y-4 mb-4">
+                                                {commentsMap[post.id]?.map(comment => (
+                                                    <div key={comment.id} className="flex gap-3">
+                                                        <img 
+                                                            src={comment.avatar || `https://ui-avatars.com/api/?name=${comment.user}`} 
+                                                            className="w-8 h-8 rounded-full border border-white shadow-sm"
+                                                        />
+                                                        <div className="flex-1 bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
+                                                            <div className="flex justify-between items-baseline mb-1">
+                                                                <span className="text-xs font-bold text-gray-900">{comment.user}</span>
+                                                                <span className="text-[10px] text-gray-400">{comment.time}</span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-700">{comment.content}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {(!commentsMap[post.id] || commentsMap[post.id].length === 0) && (
+                                                    <p className="text-center text-xs text-gray-400 py-2">暂无评论，来抢沙发吧！</p>
+                                                )}
+                                            </div>
+
+                                            {/* Comment Input */}
+                                            <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder={currentUser ? "写下你的评论..." : "登录后发表评论"}
+                                                    value={commentInput}
+                                                    onChange={e => setCommentInput(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && handleSendComment(post.id)}
+                                                    disabled={!currentUser}
+                                                    className="flex-1 pl-4 text-sm outline-none bg-transparent"
+                                                />
+                                                <button 
+                                                    onClick={() => handleSendComment(post.id)}
+                                                    disabled={!commentInput.trim() || !currentUser}
+                                                    className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                                                >
+                                                    <CornerDownRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         ) : (
                             <div className="text-center py-20 text-gray-400">
                                 <p className="text-sm font-bold">没有找到相关动态</p>
-                                <p className="text-xs mt-2">试着搜索其他关键词或发布第一条内容</p>
                             </div>
                         )}
                     </div>
@@ -332,14 +406,12 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
                 {/* --- Right Sidebar --- */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
-                    
-                    {/* Search Widget */}
                     <div className="bg-white rounded-[1.5rem] p-2 border border-gray-100 shadow-sm sticky top-24 z-10">
                         <div className="relative">
                             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
                             <input 
                                 type="text"
-                                placeholder="搜索动态、标签或用户..."
+                                placeholder="搜索动态..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
@@ -347,7 +419,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                         </div>
                     </div>
 
-                    {/* Announcement Card */}
                     <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-500/20 sticky top-44">
                         <div className="flex items-center gap-2 mb-3 opacity-80">
                             <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
@@ -355,20 +426,11 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                         </div>
                         <h3 className="font-bold text-xl mb-3 leading-tight">ProjectFlow 社区公约 v2.0</h3>
                         <p className="text-blue-100 text-sm mb-6 leading-relaxed opacity-90">
-                            为了维护良好的技术交流氛围，请大家文明发言。欢迎分享实战经验、职场心得与技术难题。
+                            为了维护良好的技术交流氛围，请大家文明发言。
                         </p>
                         <button className="bg-white text-blue-600 px-5 py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors w-full shadow-lg">
                             阅读详情
                         </button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 text-center justify-center text-xs text-gray-400 leading-loose pt-4">
-                        <a href="#" className="hover:text-gray-600">Privacy</a>
-                        <span>•</span>
-                        <a href="#" className="hover:text-gray-600">Terms</a>
-                        <span>•</span>
-                        <a href="#" className="hover:text-gray-600">Cookies</a>
-                        <p className="w-full mt-2 opacity-50">&copy; 2024 ProjectFlow Enterprise</p>
                     </div>
                 </div>
             </div>

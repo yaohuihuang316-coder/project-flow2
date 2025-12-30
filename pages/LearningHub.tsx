@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
   PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, AlertTriangle, ArrowRight, RefreshCw
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -12,27 +13,31 @@ import { supabase } from '../lib/supabaseClient';
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
 type SubCategory = 'Course' | 'Cert' | 'Official';
+type LabCategory = 'Quantitative' | 'Strategic' | 'Toolkit';
 
 interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
     currentUser?: UserProfile | null;
 }
 
-// --- Data: 2. 进阶实验室 (Interactive Components remain hardcoded for now as they are tools) ---
-const ALGORITHMS = [
-    { id: 'cpm', name: '关键路径法 (CPM)', desc: '识别最长任务序列，确定最短工期', icon: Network },
-    { id: 'evm', name: '挣值管理 (EVM)', desc: '综合测量范围、进度、成本绩效', icon: BarChart3 },
-    { id: 'monte', name: '蒙特卡洛模拟', desc: '随机抽样评估风险概率分布', icon: TrendingUp },
-    { id: 'pert', name: 'PERT 估算技术', desc: '三点估算法(悲观/乐观/最可能)', icon: Activity },
-    { id: 'leveling', name: '资源平衡 (Leveling)', desc: '解决资源过度分配，优化利用率', icon: Layers },
-    { id: 'crashing', name: '赶工 (Crashing)', desc: '增加资源以最小成本压缩进度', icon: Zap },
-    { id: 'pareto', name: '帕累托图 (80/20)', desc: '识别造成大多数问题的少数原因', icon: PieChart },
-    { id: 'fishbone', name: '因果图 (鱼骨图)', desc: '根本原因分析 (RCA) 工具', icon: GitMerge },
-    { id: 'emv', name: '预期货币价值 (EMV)', desc: '决策树分析中的风险量化', icon: Database },
-    { id: 'burn', name: '燃尽图 (Burndown)', desc: '敏捷开发中剩余工作量可视化', icon: TrendingUp },
-];
+// --- Data: 2. 进阶实验室 Tools ---
+const LAB_TOOLS = {
+    Quantitative: [
+        { id: 'evm', name: 'EVM 挣值计算器', desc: '成本/进度绩效综合诊断', icon: BarChart3 },
+        { id: 'cpm', name: 'CPM 关键路径', desc: '工期推演与浮动时间计算', icon: Network },
+        { id: 'pert', name: 'PERT 三点估算', desc: '加权平均工期评估', icon: Activity },
+    ],
+    Strategic: [
+        { id: 'stakeholder', name: '相关方博弈', desc: '冲突解决与沟通模拟', icon: Users },
+        { id: 'risk', name: '风险决策树', desc: 'EMV 预期货币价值分析', icon: GitMerge },
+    ],
+    Toolkit: [
+        { id: 'wbs', name: 'WBS 拆解助手', desc: '结构化工作分解结构生成', icon: Layers },
+        { id: 'charter', name: '章程生成器', desc: '项目启动核心文档模板', icon: FileText },
+    ]
+};
 
-// --- Data: 3. 实战演练 (Interactive Components remain hardcoded for now as they are tools) ---
+// --- Data: 3. 实战演练 (Projects) ---
 const PROJECTS = [
     { id: 'p1', title: '企业级 ERP 重构', tech: ['Java', 'Spring Cloud', 'Docker'], desc: '遗留单体系统微服务化拆分与容器化部署。', color: 'from-blue-500 to-indigo-600', icon: Server },
     { id: 'p2', title: '跨境电商中台', tech: ['Vue 3', 'Node.js', 'Redis'], desc: '高并发秒杀系统设计与库存一致性解决方案。', color: 'from-orange-400 to-red-500', icon: Globe },
@@ -128,7 +133,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
             <div className="bg-gray-200/50 p-1.5 rounded-full flex relative backdrop-blur-md shadow-inner">
                 {[
                     { id: 'Foundation', label: '基础 (Foundation)', icon: Layout },
-                    { id: 'Advanced', label: '进阶 (Advanced)', icon: Cpu },
+                    { id: 'Advanced', label: 'PM实验室 (Labs)', icon: Cpu },
                     { id: 'Implementation', label: '实战 (Projects)', icon: Briefcase }
                 ].map((tab) => (
                     <button
@@ -249,10 +254,9 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
            </div>
          )}
          
-         {/* ... (Other views remain the same) ... */}
-         {/* --- View 2: Advanced (Labs) --- */}
+         {/* --- View 2: Advanced (Interactive PM Labs) --- */}
          {mainTab === 'Advanced' && !selectedItem && (
-            <AdvancedAlgorithmLab />
+            <AdvancedLabView />
          )}
 
          {/* --- View 3: Implementation (Projects) --- */}
@@ -320,73 +324,269 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
   );
 };
 
-const AdvancedAlgorithmLab = () => {
-    const [currentAlgoId, setCurrentAlgoId] = useState('cpm');
-    const [isCalculating, setIsCalculating] = useState(false);
+// --- Refactored: Advanced Lab View ---
+const AdvancedLabView = () => {
+    const [labCategory, setLabCategory] = useState<LabCategory>('Quantitative');
+    const [currentToolId, setCurrentToolId] = useState('evm');
 
     return (
-        <div className="flex flex-col lg:flex-row h-[700px] gap-6 animate-fade-in pb-10">
-            {/* Left: Algorithm Library List */}
-            <div className="w-full lg:w-80 bg-white rounded-[2rem] p-4 shadow-lg border border-gray-100 flex flex-col">
-                <div className="px-4 py-4 mb-2">
-                    <h3 className="text-lg font-bold text-gray-900">算法库 (Algorithm Lib)</h3>
-                    <p className="text-xs text-gray-400">Select model to simulate</p>
-                </div>
-                <div className="flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
-                    {ALGORITHMS.map(algo => (
-                        <button
-                            key={algo.id}
-                            onClick={() => setCurrentAlgoId(algo.id)}
-                            className={`w-full text-left p-4 rounded-xl transition-all duration-300 flex items-start gap-3 ${
-                                currentAlgoId === algo.id 
-                                ? 'bg-black text-white shadow-lg scale-[1.02]' 
-                                : 'hover:bg-gray-50 text-gray-600'
+        <div className="flex flex-col lg:flex-row min-h-[700px] gap-6 animate-fade-in pb-10">
+            {/* Left: Tool Navigator */}
+            <div className="w-full lg:w-80 flex flex-col gap-6">
+                
+                {/* Category Switcher */}
+                <div className="bg-gray-100 p-1.5 rounded-2xl flex">
+                    {[
+                        { id: 'Quantitative', icon: Calculator },
+                        { id: 'Strategic', icon: Users },
+                        { id: 'Toolkit', icon: FileText },
+                    ].map(cat => (
+                         <button
+                            key={cat.id}
+                            onClick={() => {
+                                setLabCategory(cat.id as LabCategory);
+                                setCurrentToolId(LAB_TOOLS[cat.id as LabCategory][0].id);
+                            }}
+                            className={`flex-1 py-2 rounded-xl flex items-center justify-center transition-all ${
+                                labCategory === cat.id ? 'bg-white shadow-sm text-black' : 'text-gray-400 hover:text-gray-600'
                             }`}
                         >
-                            <algo.icon size={20} className={`shrink-0 ${currentAlgoId === algo.id ? 'text-blue-400' : 'text-gray-400'}`} />
-                            <div>
-                                <div className="font-bold text-sm leading-tight">{algo.name}</div>
-                                <div className={`text-[10px] mt-1 leading-tight ${currentAlgoId === algo.id ? 'text-gray-400' : 'text-gray-400'}`}>{algo.desc}</div>
-                            </div>
+                            <cat.icon size={18} />
                         </button>
                     ))}
                 </div>
+
+                {/* Tool List */}
+                <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-gray-100 flex flex-col flex-1">
+                    <div className="px-4 py-4 mb-2">
+                        <h3 className="text-lg font-bold text-gray-900">
+                            {labCategory === 'Quantitative' ? '量化模型' : labCategory === 'Strategic' ? '决策沙盘' : '文档工坊'}
+                        </h3>
+                        <p className="text-xs text-gray-400">Select a tool to start</p>
+                    </div>
+                    <div className="flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+                        {LAB_TOOLS[labCategory].map(tool => (
+                            <button
+                                key={tool.id}
+                                onClick={() => setCurrentToolId(tool.id)}
+                                className={`w-full text-left p-4 rounded-xl transition-all duration-300 flex items-start gap-3 ${
+                                    currentToolId === tool.id 
+                                    ? 'bg-black text-white shadow-lg scale-[1.02]' 
+                                    : 'hover:bg-gray-50 text-gray-600'
+                                }`}
+                            >
+                                <tool.icon size={20} className={`shrink-0 ${currentToolId === tool.id ? 'text-blue-400' : 'text-gray-400'}`} />
+                                <div>
+                                    <div className="font-bold text-sm leading-tight">{tool.name}</div>
+                                    <div className={`text-[10px] mt-1 leading-tight ${currentToolId === tool.id ? 'text-gray-400' : 'text-gray-400'}`}>{tool.desc}</div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
-            {/* Center: Interactive Canvas */}
-            <div className="flex-1 bg-white rounded-[2rem] p-6 shadow-lg border border-gray-100 flex flex-col relative overflow-hidden">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-2">
-                        <Activity size={20} className="text-blue-600"/>
-                        <span className="font-bold text-gray-900">
-                            {ALGORITHMS.find(a => a.id === currentAlgoId)?.name} 演示画布
-                        </span>
+            {/* Right: Interactive Workspace */}
+            <div className="flex-1 bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+                {currentToolId === 'evm' ? (
+                    <EvmCalculator />
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                        <Cpu size={48} className="mb-4 opacity-20" />
+                        <h3 className="text-lg font-bold text-gray-500">
+                            {LAB_TOOLS[labCategory].find(t => t.id === currentToolId)?.name}
+                        </h3>
+                        <p className="text-sm">该模块正在开发中...</p>
                     </div>
-                    <button 
-                        onClick={() => {
-                            setIsCalculating(true);
-                            setTimeout(() => {
-                                setIsCalculating(false);
-                            }, 800);
-                        }}
-                        disabled={isCalculating}
-                        className={`flex items-center gap-2 px-5 py-2 rounded-full font-bold text-sm transition-all shadow-md ${
-                            isCalculating 
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                            : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
-                        }`}
-                    >
-                        {isCalculating ? <span className="animate-spin">⏳</span> : <Play size={16} fill="currentColor"/>}
-                        {isCalculating ? '计算中...' : '执行计算'}
-                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- EVM Calculator Component ---
+const EvmCalculator = () => {
+    const [inputs, setInputs] = useState({
+        pv: 1000, // Planned Value
+        ev: 850,  // Earned Value
+        ac: 920,  // Actual Cost
+        bac: 5000 // Budget at Completion
+    });
+
+    const [results, setResults] = useState<any>(null);
+
+    useEffect(() => {
+        // Calculate EVM metrics
+        const sv = inputs.ev - inputs.pv;
+        const cv = inputs.ev - inputs.ac;
+        const spi = inputs.pv === 0 ? 0 : Number((inputs.ev / inputs.pv).toFixed(2));
+        const cpi = inputs.ac === 0 ? 0 : Number((inputs.ev / inputs.ac).toFixed(2));
+        
+        // Predictions
+        const eac = cpi === 0 ? 0 : Math.round(inputs.bac / cpi); // Estimate at Completion
+        const etc = eac - inputs.ac; // Estimate to Complete
+        const vac = inputs.bac - eac; // Variance at Completion
+
+        setResults({ sv, cv, spi, cpi, eac, etc, vac });
+    }, [inputs]);
+
+    const getStatusColor = (val: number, type: 'idx' | 'var') => {
+        if (type === 'idx') return val >= 1 ? 'text-green-600' : 'text-red-500';
+        return val >= 0 ? 'text-green-600' : 'text-red-500';
+    };
+
+    const getStatusBadge = (idx: number) => {
+        if (idx >= 1) return <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold">Healthy</span>;
+        if (idx >= 0.8) return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-bold">Warning</span>;
+        return <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold">Critical</span>;
+    };
+
+    return (
+        <div className="flex flex-col h-full animate-fade-in">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        <BarChart3 className="text-blue-600"/> 挣值管理 (EVM)
+                    </h2>
+                    <p className="text-xs text-gray-500">输入项目当前快照数据，自动生成绩效诊断。</p>
+                </div>
+                <button 
+                    onClick={() => setInputs({ pv: 1000, ev: 850, ac: 920, bac: 5000 })}
+                    className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Reset Defaults"
+                >
+                    <RefreshCw size={18} />
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1">
+                {/* Left: Input Panel */}
+                <div className="lg:col-span-1 bg-gray-50 p-6 rounded-3xl border border-gray-100 h-fit">
+                    <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wider flex items-center gap-2">
+                        <Terminal size={14}/> 输入参数 (Input)
+                    </h3>
+                    <div className="space-y-4">
+                        {[
+                            { id: 'pv', label: '计划价值 (PV)', desc: '计划完成工作的预算价值' },
+                            { id: 'ev', label: '挣值 (EV)', desc: '实际完成工作的预算价值' },
+                            { id: 'ac', label: '实际成本 (AC)', desc: '已完成工作的实际花费' },
+                            { id: 'bac', label: '完工预算 (BAC)', desc: '项目总预算' },
+                        ].map(field => (
+                            <div key={field.id}>
+                                <div className="flex justify-between mb-1">
+                                    <label className="text-xs font-bold text-gray-600">{field.label}</label>
+                                    <span className="text-[10px] text-gray-400 cursor-help" title={field.desc}>?</span>
+                                </div>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
+                                    <input 
+                                        type="number"
+                                        value={(inputs as any)[field.id]}
+                                        onChange={e => setInputs({...inputs, [field.id]: Number(e.target.value)})}
+                                        className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-gray-200 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Visualization Area */}
-                <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 relative overflow-hidden flex items-center justify-center p-6">
-                    <div className="absolute inset-0 opacity-10" 
-                        style={{backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '20px 20px'}}
-                    ></div>
-                    <div className="text-gray-400 text-sm">Interactive Canvas (Simplified for Demo)</div>
+                {/* Right: Dashboard */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Top KPIs */}
+                    <div className="grid grid-cols-2 gap-4">
+                         {/* SPI Card */}
+                         <div className="bg-white border border-gray-100 shadow-lg shadow-blue-500/5 rounded-2xl p-5 relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                 <Activity size={60} />
+                             </div>
+                             <div className="flex justify-between items-start mb-2">
+                                 <span className="text-xs text-gray-500 font-bold uppercase">进度绩效 (SPI)</span>
+                                 {getStatusBadge(results?.spi)}
+                             </div>
+                             <div className={`text-4xl font-bold ${getStatusColor(results?.spi, 'idx')}`}>
+                                 {results?.spi}
+                             </div>
+                             <p className="text-xs text-gray-400 mt-2">
+                                 {results?.spi >= 1 ? '项目进度提前' : '项目进度滞后'}
+                             </p>
+                             {/* Progress Bar */}
+                             <div className="w-full bg-gray-100 h-1.5 rounded-full mt-4 overflow-hidden">
+                                 <div className={`h-full rounded-full transition-all duration-700 ${results?.spi >= 1 ? 'bg-green-500' : 'bg-red-500'}`} style={{width: `${Math.min(results?.spi * 100, 100)}%`}}></div>
+                             </div>
+                         </div>
+
+                         {/* CPI Card */}
+                         <div className="bg-white border border-gray-100 shadow-lg shadow-purple-500/5 rounded-2xl p-5 relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                 <Database size={60} />
+                             </div>
+                             <div className="flex justify-between items-start mb-2">
+                                 <span className="text-xs text-gray-500 font-bold uppercase">成本绩效 (CPI)</span>
+                                 {getStatusBadge(results?.cpi)}
+                             </div>
+                             <div className={`text-4xl font-bold ${getStatusColor(results?.cpi, 'idx')}`}>
+                                 {results?.cpi}
+                             </div>
+                             <p className="text-xs text-gray-400 mt-2">
+                                 {results?.cpi >= 1 ? '成本低于预算 (节约)' : '成本超出预算 (超支)'}
+                             </p>
+                             {/* Progress Bar */}
+                             <div className="w-full bg-gray-100 h-1.5 rounded-full mt-4 overflow-hidden">
+                                 <div className={`h-full rounded-full transition-all duration-700 ${results?.cpi >= 1 ? 'bg-green-500' : 'bg-red-500'}`} style={{width: `${Math.min(results?.cpi * 100, 100)}%`}}></div>
+                             </div>
+                         </div>
+                    </div>
+
+                    {/* Variances Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between border border-gray-100">
+                            <div>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase block">进度偏差 (SV)</span>
+                                <span className={`text-lg font-bold ${getStatusColor(results?.sv, 'var')}`}>
+                                    {results?.sv > 0 ? '+' : ''}{results?.sv}
+                                </span>
+                            </div>
+                            <div className={`p-2 rounded-full ${results?.sv >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                                {results?.sv >= 0 ? <TrendingUp size={16} /> : <AlertTriangle size={16} />}
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between border border-gray-100">
+                            <div>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase block">成本偏差 (CV)</span>
+                                <span className={`text-lg font-bold ${getStatusColor(results?.cv, 'var')}`}>
+                                    {results?.cv > 0 ? '+' : ''}{results?.cv}
+                                </span>
+                            </div>
+                            <div className={`p-2 rounded-full ${results?.cv >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                                {results?.cv >= 0 ? <TrendingUp size={16} /> : <AlertTriangle size={16} />}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Predictions Area */}
+                    <div className="bg-black text-white p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex-1">
+                            <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">预测 (Forecast)</h4>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                                基于当前的绩效指标 CPI {results?.cpi}，项目预计完工时的总成本将达到：
+                            </p>
+                        </div>
+                        <div className="flex gap-8">
+                            <div className="text-right">
+                                <span className="block text-[10px] font-bold text-gray-500 uppercase">完工估算 (EAC)</span>
+                                <span className="text-2xl font-mono font-bold text-blue-400">${results?.eac.toLocaleString()}</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="block text-[10px] font-bold text-gray-500 uppercase">完工偏差 (VAC)</span>
+                                <span className={`text-2xl font-mono font-bold ${results?.vac >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {results?.vac > 0 ? '+' : ''}{results?.vac.toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -403,7 +603,13 @@ const IdeView = ({ title }: { title: string }) => {
                 </button>
             </div>
             <div className="flex-1 bg-[#1e1e1e] p-6 overflow-auto">
-                <p>Loading code environment...</p>
+                <div className="text-green-400 mb-2">➜  ~ project-init {title}</div>
+                <div className="text-gray-500">Initializing environment...</div>
+                <div className="text-gray-500">Loading dependencies...</div>
+                <div className="text-blue-400 mt-2">✔ Environment Ready.</div>
+                <div className="mt-4 opacity-50 text-sm">
+                    // Editor placeholder...
+                </div>
             </div>
         </div>
     );

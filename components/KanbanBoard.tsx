@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   MoreHorizontal, Plus, CheckCircle2, Clock, 
-  AlertTriangle, Loader2, Save
+  AlertTriangle, Loader2, Save, XCircle
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
@@ -42,7 +43,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [sprintDaysLeft] = useState(10);
   const [burndownData, setBurndownData] = useState<{ day: number; remaining: number }[]>([]);
-  const [notification, setNotification] = useState<{ msg: string; type: 'info' | 'error' } | null>(null);
+  const [notification, setNotification] = useState<{ msg: string; type: 'info' | 'error' | 'success' } | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   // --- 1. Load Data from DB ---
@@ -64,8 +65,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
           if (!error && data && data.length > 0) {
               setTasks(data);
           } else if (data && data.length === 0) {
-              // Option to seed? Let's keep it empty or user can add. 
-              // Or auto-seed for better UX first time.
               setTasks([]); 
           } else {
               console.error("Error loading tasks:", error);
@@ -76,7 +75,65 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       fetchTasks();
   }, [currentUser]);
 
-  // --- 2. Burndown Logic ---
+  // --- 2. Simulation Engine (Random Events) ---
+  useEffect(() => {
+    // Only run simulation if user is active (has tasks)
+    if (!tasks.length) return;
+
+    const interval = setInterval(() => {
+        // 10% chance every 15 seconds to trigger an event
+        if (Math.random() > 0.9) { 
+             triggerRandomEvent();
+        }
+    }, 15000); 
+
+    return () => clearInterval(interval);
+  }, [tasks]);
+
+  const triggerRandomEvent = () => {
+      const eventTypes = [
+          { type: 'SCOPE_CREEP', msg: '🚨 客户变更了需求！新增紧急任务到 Backlog。', severity: 'error' },
+          { type: 'BUG_FOUND', msg: '🐛 测试环境发现严重 Bug，请优先修复！', severity: 'error' },
+          { type: 'TEAM_HELP', msg: '🤝 团队成员完成了部分工作，效率提升！', severity: 'success' },
+          { type: 'SERVER_DOWN', msg: '🔥 开发服务器宕机，所有进行中任务受阻。', severity: 'error' }
+      ];
+      
+      const evt = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+      setNotification({ msg: evt.msg, type: evt.severity as any });
+      setTimeout(() => setNotification(null), 5000);
+
+      // Effect Logic
+      if (evt.type === 'SCOPE_CREEP') {
+          const newTask: Task = {
+              id: `urgent-${Date.now()}`,
+              title: '紧急：客户需求变更 #' + Math.floor(Math.random() * 100),
+              tag: 'Change',
+              points: 5,
+              status: 'Backlog',
+              priority: 'Critical',
+              assignee: 'Unassigned'
+          };
+          setTasks(prev => [newTask, ...prev]);
+      } 
+      else if (evt.type === 'SERVER_DOWN') {
+          setTasks(prev => prev.map(t => 
+              t.status === 'In Progress' ? { ...t, isBlocked: true } : t
+          ));
+      }
+      else if (evt.type === 'TEAM_HELP') {
+           // Auto move one task to done
+           setTasks(prev => {
+               const candidates = prev.filter(t => t.status === 'In Progress' && !t.isBlocked);
+               if (candidates.length > 0) {
+                   const luckyTask = candidates[0];
+                   return prev.map(t => t.id === luckyTask.id ? { ...t, status: 'Review' } : t);
+               }
+               return prev;
+           });
+      }
+  };
+
+  // --- 3. Burndown Logic ---
   useEffect(() => {
     const totalPoints = tasks.reduce((acc, t) => acc + (t.points || 0), 0);
     const donePoints = tasks.filter(t => t.status === 'Done').reduce((acc, t) => acc + (t.points || 0), 0);
@@ -89,9 +146,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
     });
   }, [tasks, sprintDaysLeft]);
 
-  // --- 3. Persistence Helpers ---
+  // --- 4. Persistence Helpers ---
   const saveTaskUpdate = async (updatedTask: Task) => {
-      if (!currentUser) return; // Guest mode changes are local only
+      if (!currentUser) return; 
 
       const { error } = await supabase
           .from('app_kanban_tasks')
@@ -108,7 +165,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       
       if (error) {
           console.error("Failed to sync task:", error);
-          setNotification({ msg: '同步失败', type: 'error' });
       }
   };
 
@@ -117,7 +173,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       setIsLoading(true);
       const tasksToInsert = SEED_TASKS.map(t => ({
           ...t,
-          id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate new IDs
+          id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, 
           user_id: currentUser.id,
           created_at: new Date().toISOString()
       }));
@@ -126,6 +182,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       if (!error) {
           setTasks(tasksToInsert);
           setNotification({ msg: '已初始化示例任务', type: 'info' });
+          setTimeout(() => setNotification(null), 3000);
       } else {
           setNotification({ msg: '初始化失败，请检查数据库', type: 'error' });
       }
@@ -174,7 +231,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
     const task = tasks.find(t => t.id === draggedTaskId);
     if (task && task.status !== targetStatus) {
         if (task.isBlocked) {
-            setNotification({ msg: '🚫 无法移动受阻的任务！', type: 'error' });
+            setNotification({ msg: '🚫 无法移动受阻的任务！请先解决阻塞问题。', type: 'error' });
             setTimeout(() => setNotification(null), 2000);
             setDraggedTaskId(null);
             return;
@@ -182,7 +239,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
 
         const updatedTask = { ...task, status: targetStatus };
         setTasks(prev => prev.map(t => t.id === draggedTaskId ? updatedTask : t));
-        saveTaskUpdate(updatedTask); // Persist change
+        saveTaskUpdate(updatedTask); 
     }
     setDraggedTaskId(null);
   };
@@ -242,7 +299,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
         {/* --- Notification Toast --- */}
         {notification && (
             <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm animate-bounce-in ${
-                notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-600 text-white'
+                notification.type === 'error' ? 'bg-red-500 text-white' : 
+                notification.type === 'success' ? 'bg-green-600 text-white' :
+                'bg-blue-600 text-white'
             }`}>
                 {notification.type === 'error' ? <AlertTriangle size={16}/> : <CheckCircle2 size={16}/>}
                 {notification.msg}
@@ -293,12 +352,21 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, task.id)}
                                         className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-blue-300 transition-all relative group ${
-                                            task.isBlocked ? 'opacity-70 grayscale border-red-200' : ''
+                                            task.isBlocked ? 'opacity-80 bg-red-50 border-red-200' : ''
                                         }`}
                                     >
                                         {task.isBlocked && (
-                                            <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-sm z-10">
-                                                <AlertTriangle size={12} />
+                                            <div 
+                                                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-sm z-10 cursor-pointer"
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // prevent drag start on click
+                                                    if (confirm("是否解决此阻塞问题？")) {
+                                                        setTasks(prev => prev.map(t => t.id === task.id ? {...t, isBlocked: false} : t));
+                                                    }
+                                                }}
+                                                title="点击解决阻塞"
+                                            >
+                                                <XCircle size={14} />
                                             </div>
                                         )}
 
