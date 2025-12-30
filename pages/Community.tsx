@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, MessageSquare, Heart, Share2, MoreHorizontal, 
-  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, Loader2
+  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
