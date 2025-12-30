@@ -18,6 +18,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  
+  // We use two refs: one for the scaled preview, one for the invisible full-res print version
   const printRef = useRef<HTMLDivElement>(null);
 
   // --- Fetch Achievements ---
@@ -80,7 +82,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               setCertificates(mappedCerts);
           } else {
               // Fallback to demo certs if DB empty for current user (even if logged in as 777)
-              // to ensure "Alex Chen" sees data
               if (currentUser.email === '777@projectflow.com') {
                    setCertificates([
                       {
@@ -136,7 +137,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
     { subject: '敏捷 (Agile)', A: 130, fullMark: 150 },
   ];
 
-  // --- Mock Data: Leaderboard (Rich Data for Alex) ---
+  // --- Mock Data: Leaderboard ---
   const leaderboard = [
       { rank: 1, name: currentUser?.name || 'Alex Chen', xp: '18,450', avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=777', isMe: true },
       { rank: 2, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1' },
@@ -152,7 +153,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       { rank: 12, name: 'Chris Evans', xp: '4,500', avatar: 'https://i.pravatar.cc/150?u=12' },
   ];
 
-  // --- Mock Data: Badges (>10 items) ---
+  // --- Mock Data: Badges ---
   const badges = [
       { id: 1, name: 'PMP大师', desc: '通过 PMP 认证考试', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
       { id: 2, name: '早起鸟', desc: '连续7天在8点前打卡', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
@@ -174,14 +175,19 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       setIsGeneratingPdf(true);
 
       try {
+          // Capture the "Phantom" full-resolution element
           const canvas = await html2canvas(printRef.current, {
-              scale: 2, 
+              scale: 1, // Already full size
               useCORS: true,
               logging: false,
-              backgroundColor: '#ffffff'
+              backgroundColor: '#ffffff',
+              width: 1123,
+              height: 794,
+              windowWidth: 1200, // Ensure context considers a large window
           });
 
           const imgData = canvas.toDataURL('image/png');
+          // A4 Landscape: 297mm x 210mm
           const pdf = new jsPDF('l', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -196,6 +202,85 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           setIsGeneratingPdf(false);
       }
   };
+
+  // Shared Certificate Component for both Preview and Print
+  const CertificateTemplate = ({ data }: { data: any }) => (
+    <div 
+        className="w-[1123px] h-[794px] bg-white relative flex flex-col items-center text-center justify-between p-24 text-slate-900"
+        style={{
+            backgroundImage: 'radial-gradient(circle at center, #fff 60%, #f3f4f6 100%)',
+            fontFamily: '"Times New Roman", serif',
+            boxSizing: 'border-box'
+        }}
+    >
+        {/* Ornamental Borders */}
+        <div className="absolute inset-5 border-[3px] border-double border-[#CA8A04]/30 pointer-events-none"></div>
+        <div className="absolute inset-7 border border-[#CA8A04]/10 pointer-events-none"></div>
+        
+        {/* Corner Decors */}
+        <div className="absolute top-10 left-10 w-24 h-24 border-t-4 border-l-4 border-[#CA8A04]/40 rounded-tl-lg pointer-events-none"></div>
+        <div className="absolute top-10 right-10 w-24 h-24 border-t-4 border-r-4 border-[#CA8A04]/40 rounded-tr-lg pointer-events-none"></div>
+        <div className="absolute bottom-10 left-10 w-24 h-24 border-b-4 border-l-4 border-[#CA8A04]/40 rounded-bl-lg pointer-events-none"></div>
+        <div className="absolute bottom-10 right-10 w-24 h-24 border-b-4 border-r-4 border-[#CA8A04]/40 rounded-br-lg pointer-events-none"></div>
+
+        {/* Header */}
+        <div className="z-10 mt-6 w-full flex flex-col items-center">
+            <div className="mb-6 relative">
+               <Award size={90} className="text-[#CA8A04] drop-shadow-sm opacity-90" strokeWidth={1} />
+               <div className="absolute inset-0 bg-[#CA8A04]/10 blur-xl rounded-full"></div>
+            </div>
+            <h1 className="text-6xl font-serif font-bold text-slate-900 tracking-[0.15em] uppercase mb-4 drop-shadow-sm">Certificate</h1>
+            <div className="flex items-center gap-4 w-full justify-center">
+                <div className="h-[1px] w-24 bg-gradient-to-r from-transparent to-[#CA8A04]"></div>
+                <p className="text-2xl font-serif text-[#CA8A04] tracking-[0.3em] uppercase font-light">Of Completion</p>
+                <div className="h-[1px] w-24 bg-gradient-to-l from-transparent to-[#CA8A04]"></div>
+            </div>
+        </div>
+
+        {/* Body */}
+        <div className="z-10 w-full flex-1 flex flex-col justify-center items-center">
+            <p className="text-xl text-slate-500 italic mb-8 font-serif">This is to certify that</p>
+            
+            <h2 className="text-7xl font-bold text-slate-900 mb-6 border-b-2 border-slate-100 inline-block px-12 pb-4 font-sans tracking-tight">
+                {data.user}
+            </h2>
+            
+            <p className="text-xl text-slate-500 italic mt-4 mb-2 font-serif">has successfully completed the comprehensive course</p>
+            <h3 className="text-4xl font-bold text-slate-800 font-sans tracking-wide max-w-4xl leading-tight">{data.title}</h3>
+            <p className="text-lg text-slate-400 mt-2 font-sans tracking-wider uppercase font-medium">({data.titleEn})</p>
+        </div>
+
+        {/* Footer */}
+        <div className="w-full flex justify-between items-end px-12 z-10 mb-6">
+            <div className="text-center w-64">
+                <div className="border-b border-slate-300 mb-3 pb-1">
+                    <p className="font-mono text-xl text-slate-600">{data.date}</p>
+                </div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Date Issued</p>
+            </div>
+
+            {/* Seal */}
+            <div className="relative -mb-2 mx-8">
+                <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#FDE047] via-[#EAB308] to-[#A16207] shadow-xl flex items-center justify-center p-1.5 ring-4 ring-[#FEF08A]/50">
+                    <div className="w-full h-full rounded-full border-[2px] border-dashed border-white/40 flex items-center justify-center bg-[#CA8A04]/10">
+                        <div className="text-center text-white drop-shadow-md">
+                                <div className="text-[10px] font-bold uppercase tracking-widest mb-1 opacity-90">ProjectFlow</div>
+                                <div className="text-3xl font-serif font-bold">Verified</div>
+                                <div className="text-[10px] font-bold uppercase mt-1 opacity-80 tracking-widest">Certification</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="text-center w-64">
+                <div className="border-b border-slate-300 mb-3 pb-1 flex justify-center items-end h-10">
+                    <span className="font-serif italic text-3xl text-slate-800 opacity-80 -rotate-2 transform translate-y-1">Alex P.</span>
+                </div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Director of Education</p>
+            </div>
+        </div>
+    </div>
+  );
 
   return (
     <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen space-y-6">
@@ -441,97 +526,34 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     </div>
                 </div>
 
-                {/* 
-                   Fix: Use a dedicated container for scaling visuals in UI, 
-                   while the PrintRef points to a FIXED pixel size element.
-                */}
-                <div className="flex-1 bg-[#2C2C2E] p-4 md:p-8 flex items-center justify-center overflow-auto">
+                {/* Preview Viewport */}
+                <div className="flex-1 bg-[#2C2C2E] p-4 md:p-8 flex items-center justify-center overflow-auto relative">
                     
-                    {/* The Scale Wrapper - Scales the certificate to fit the modal visually */}
+                    {/* The Scale Wrapper for Visual Preview */}
                     <div 
                         className="shadow-2xl origin-center transition-transform"
                         style={{
-                            // Simple responsive scaling for preview only
+                            // Responsive visual scaling (does not affect capture)
                             transform: 'scale(0.6)', 
-                            // Ensure the wrapper has the same dimensions as the cert
                             width: '1123px', 
                             height: '794px' 
                         }}
                     >
-                        {/* 
-                           The Certificate Element: Fixed A4 Landscape (1123x794px at ~96dpi)
-                           This is what html2canvas captures.
-                        */}
-                        <div 
-                            ref={printRef}
-                            className="w-[1123px] h-[794px] bg-white relative flex flex-col items-center text-center justify-between p-24 text-slate-900"
-                            style={{
-                                backgroundImage: 'radial-gradient(circle at center, #fff 50%, #fcfcfc 100%)',
-                                fontFamily: '"Times New Roman", serif'
-                            }}
-                        >
-                            {/* Ornamental Border */}
-                            <div className="absolute inset-4 border-[4px] border-double border-yellow-600/40"></div>
-                            <div className="absolute inset-6 border border-yellow-600/20"></div>
-                            
-                            {/* Corner Decorations */}
-                            <div className="absolute top-8 left-8 w-32 h-32 border-t-[6px] border-l-[6px] border-yellow-600/30 rounded-tl-lg"></div>
-                            <div className="absolute top-8 right-8 w-32 h-32 border-t-[6px] border-r-[6px] border-yellow-600/30 rounded-tr-lg"></div>
-                            <div className="absolute bottom-8 left-8 w-32 h-32 border-b-[6px] border-l-[6px] border-yellow-600/30 rounded-bl-lg"></div>
-                            <div className="absolute bottom-8 right-8 w-32 h-32 border-b-[6px] border-r-[6px] border-yellow-600/30 rounded-br-lg"></div>
+                        <CertificateTemplate data={selectedCert} />
+                    </div>
 
-                            {/* Header */}
-                            <div className="z-10 mt-8 w-full">
-                                <Award size={100} className="mx-auto text-yellow-600 mb-8 drop-shadow-sm opacity-90" strokeWidth={1} />
-                                <h1 className="text-7xl font-serif font-bold text-slate-900 tracking-widest uppercase mb-4">Certificate</h1>
-                                <p className="text-3xl font-serif text-yellow-600 tracking-[0.4em] uppercase font-light">Of Completion</p>
-                            </div>
-
-                            {/* Body */}
-                            <div className="z-10 w-full flex-1 flex flex-col justify-center">
-                                <p className="text-2xl text-slate-500 italic mb-8 font-serif">This is to certify that</p>
-                                
-                                <h2 className="text-7xl font-bold text-slate-900 mb-4 border-b-2 border-slate-100 inline-block px-16 pb-6 font-sans">
-                                    {selectedCert.user}
-                                </h2>
-                                
-                                <p className="text-2xl text-slate-500 italic mt-8 mb-4 font-serif">has successfully completed the course</p>
-                                <h3 className="text-5xl font-bold text-slate-800 font-sans tracking-tight">{selectedCert.title}</h3>
-                                <p className="text-xl text-slate-400 mt-3 font-sans tracking-wider uppercase">({selectedCert.titleEn})</p>
-                            </div>
-
-                            {/* Footer & Seal */}
-                            <div className="w-full flex justify-between items-end px-16 z-10 mb-8">
-                                <div className="text-center w-64">
-                                    <div className="border-b border-slate-400 mb-4 pb-1">
-                                        <p className="font-mono text-xl text-slate-600">{selectedCert.date}</p>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Date Issued</p>
-                                </div>
-
-                                {/* Gold Seal */}
-                                <div className="relative -mb-4 mx-8">
-                                    <div className="w-48 h-48 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 shadow-2xl flex items-center justify-center p-1.5">
-                                        <div className="w-full h-full rounded-full border-[3px] border-dashed border-white/40 flex items-center justify-center bg-yellow-600/10">
-                                            <div className="text-center text-white drop-shadow-md">
-                                                 <div className="text-sm font-bold uppercase tracking-widest mb-1 opacity-90">ProjectFlow</div>
-                                                 <div className="text-4xl font-serif font-bold">Verified</div>
-                                                 <div className="text-xs font-bold uppercase mt-2 opacity-80 tracking-widest">Certification</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="absolute top-4 right-0 bg-blue-700 text-white text-xs px-3 py-1 rounded shadow-lg font-sans font-bold uppercase tracking-wider">Valid</div>
-                                </div>
-
-                                <div className="text-center w-64">
-                                    <div className="border-b border-slate-400 mb-4 pb-1 flex justify-center items-end h-10">
-                                       <span className="font-serif italic text-4xl text-slate-800 opacity-80 -rotate-3">Alex P.</span>
-                                    </div>
-                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Director of Education</p>
-                                </div>
-                            </div>
+                    {/* 
+                        HIDDEN CAPTURE CONTAINER
+                        This is physically in the DOM but hidden from view.
+                        html2canvas will capture THIS element at full resolution.
+                        Position absolute off-screen to avoid scrollbars but ensure rendering.
+                    */}
+                    <div style={{ position: 'fixed', top: '-9999px', left: '-9999px' }}>
+                        <div ref={printRef}>
+                            <CertificateTemplate data={selectedCert} />
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>

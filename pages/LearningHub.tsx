@@ -5,7 +5,7 @@ import {
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
   GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle, CloudLightning, Box
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle, CloudLightning, Box, Plus, Trash2
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -24,15 +24,15 @@ interface LearningHubProps {
 const LAB_TOOLS = {
     Quantitative: [
         { id: 'evm', name: 'EVM 挣值计算器', desc: '成本/进度绩效综合诊断 (CPI/SPI)', icon: BarChart3 },
+        { id: 'pert', name: 'PERT 估算器', desc: '三点估算法计算工期预期与标准差', icon: Activity },
         { id: 'cpm', name: 'CPM 关键路径', desc: '工期推演与浮动时间计算', icon: Network },
-        { id: 'pert', name: 'PERT 三点估算', desc: '加权平均工期评估 (Beta分布)', icon: Activity },
         { id: 'roi', name: 'ROI/NPV 投资回报', desc: '项目财务可行性分析模型', icon: Calculator },
         { id: 'burn', name: '燃尽图模拟器', desc: '敏捷冲刺剩余工作量预测', icon: FlameIcon },
     ],
     Strategic: [
+        { id: 'swot', name: 'SWOT 战略分析', desc: '优势/劣势/机会/威胁矩阵', icon: Shield },
         { id: 'stakeholder', name: '相关方博弈矩阵', desc: '权力/利益方格分析与策略生成', icon: Users },
         { id: 'risk', name: '风险决策树 (EMV)', desc: '不确定性条件下的量化决策', icon: GitMerge },
-        { id: 'swot', name: 'SWOT 战略分析', desc: '优势/劣势/机会/威胁矩阵', icon: Shield },
         { id: 'okr', name: 'OKR 目标对齐', desc: '企业战略与关键结果拆解', icon: TargetIcon },
     ],
     Toolkit: [
@@ -341,6 +341,23 @@ const AdvancedLabView = () => {
     const [labCategory, setLabCategory] = useState<LabCategory>('Quantitative');
     const [currentToolId, setCurrentToolId] = useState('evm');
 
+    const renderTool = () => {
+        switch(currentToolId) {
+            case 'evm': return <EvmCalculator />;
+            case 'swot': return <SwotBoard />;
+            case 'pert': return <PertCalculator />;
+            default: return (
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                    <Cpu size={48} className="mb-4 opacity-20" />
+                    <h3 className="text-lg font-bold text-gray-500">
+                        {LAB_TOOLS[labCategory].find(t => t.id === currentToolId)?.name}
+                    </h3>
+                    <p className="text-sm">该模块即将上线...</p>
+                </div>
+            );
+        }
+    };
+
     return (
         <div className="flex flex-col lg:flex-row min-h-[700px] gap-6 animate-fade-in pb-10">
             {/* Left: Tool Navigator */}
@@ -400,23 +417,129 @@ const AdvancedLabView = () => {
 
             {/* Right: Interactive Workspace */}
             <div className="flex-1 bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
-                {currentToolId === 'evm' ? (
-                    <EvmCalculator />
-                ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-                        <Cpu size={48} className="mb-4 opacity-20" />
-                        <h3 className="text-lg font-bold text-gray-500">
-                            {LAB_TOOLS[labCategory].find(t => t.id === currentToolId)?.name}
-                        </h3>
-                        <p className="text-sm">该模块正在开发中...</p>
-                    </div>
-                )}
+                {renderTool()}
             </div>
         </div>
     );
 };
 
-// --- EVM Calculator Component ---
+// --- New Tool: SWOT Board ---
+const SwotBoard = () => {
+    const quadrants = [
+        { id: 's', title: 'Strengths (优势)', color: 'bg-green-50 border-green-200 text-green-800' },
+        { id: 'w', title: 'Weaknesses (劣势)', color: 'bg-orange-50 border-orange-200 text-orange-800' },
+        { id: 'o', title: 'Opportunities (机会)', color: 'bg-blue-50 border-blue-200 text-blue-800' },
+        { id: 't', title: 'Threats (威胁)', color: 'bg-red-50 border-red-200 text-red-800' },
+    ];
+
+    const [items, setItems] = useState<Record<string, string[]>>({
+        s: ['技术团队经验丰富', '资金流充足'],
+        w: ['市场品牌知名度低', '缺乏高端销售'],
+        o: ['AI 行业爆发式增长', '政策扶持数字化'],
+        t: ['竞争对手价格战', '数据安全法规收紧']
+    });
+
+    const addItem = (type: string) => {
+        const text = prompt("Add new item:");
+        if (text) setItems({...items, [type]: [...items[type], text]});
+    };
+
+    const removeItem = (type: string, idx: number) => {
+        setItems({...items, [type]: items[type].filter((_, i) => i !== idx)});
+    };
+
+    return (
+        <div className="flex flex-col h-full animate-fade-in">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Shield className="text-blue-600"/> SWOT 战略分析
+                </h2>
+                <button onClick={() => setItems({s:[],w:[],o:[],t:[]})} className="text-xs text-gray-400 hover:text-red-500">Clear Board</button>
+            </div>
+            
+            <div className="flex-1 grid grid-cols-2 gap-4 h-full">
+                {quadrants.map(q => (
+                    <div key={q.id} className={`rounded-2xl border p-4 flex flex-col ${q.color}`}>
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-bold text-sm uppercase">{q.title}</h3>
+                            <button onClick={() => addItem(q.id)} className="p-1 hover:bg-white/50 rounded"><Plus size={16}/></button>
+                        </div>
+                        <ul className="space-y-2 flex-1 overflow-y-auto">
+                            {items[q.id].map((item, idx) => (
+                                <li key={idx} className="flex justify-between items-start text-sm bg-white/60 p-2 rounded-lg group">
+                                    <span>{item}</span>
+                                    <button onClick={() => removeItem(q.id, idx)} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 size={12} />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// --- New Tool: PERT Calculator ---
+const PertCalculator = () => {
+    const [vals, setVals] = useState({ o: 10, m: 15, p: 25 });
+    const e = (vals.o + 4 * vals.m + vals.p) / 6;
+    const sd = (vals.p - vals.o) / 6;
+
+    return (
+        <div className="flex flex-col h-full animate-fade-in max-w-2xl mx-auto justify-center">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-8">
+                <Activity className="text-purple-600"/> PERT 三点估算
+            </h2>
+
+            <div className="grid grid-cols-3 gap-6 mb-12">
+                {[
+                    { id: 'o', label: '乐观时间 (Optimistic)', color: 'text-green-600' },
+                    { id: 'm', label: '最可能时间 (Most Likely)', color: 'text-blue-600' },
+                    { id: 'p', label: '悲观时间 (Pessimistic)', color: 'text-red-600' }
+                ].map(field => (
+                    <div key={field.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <label className={`block text-xs font-bold uppercase mb-2 ${field.color}`}>{field.label}</label>
+                        <input 
+                            type="number" 
+                            className="w-full text-2xl font-bold bg-transparent outline-none border-b border-gray-300 focus:border-black transition-colors"
+                            value={(vals as any)[field.id]}
+                            onChange={e => setVals({...vals, [field.id]: Number(e.target.value)})}
+                        />
+                        <span className="text-xs text-gray-400 mt-1 block">Days</span>
+                    </div>
+                ))}
+            </div>
+
+            <div className="bg-black text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
+                <div className="relative z-10 flex justify-between items-center">
+                    <div>
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">预期工期 (Expected Duration)</p>
+                        <div className="text-5xl font-mono font-bold">{e.toFixed(1)} <span className="text-lg text-gray-500">days</span></div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">标准差 (Standard Deviation)</p>
+                        <div className="text-3xl font-mono text-gray-300">± {sd.toFixed(2)}</div>
+                    </div>
+                </div>
+                
+                {/* Visual Bell Curve Decoration */}
+                <div className="absolute bottom-0 left-0 right-0 h-16 opacity-20 pointer-events-none">
+                     <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="w-full h-full">
+                         <path d="M0,20 Q50,-20 100,20" fill="white" />
+                     </svg>
+                </div>
+            </div>
+            
+            <p className="text-xs text-center text-gray-400 mt-6">
+                Formula: TE = (O + 4M + P) / 6
+            </p>
+        </div>
+    );
+};
+
+// --- EVM Calculator Component (Existing) ---
 const EvmCalculator = () => {
     const [inputs, setInputs] = useState({
         pv: 1000, // Planned Value
