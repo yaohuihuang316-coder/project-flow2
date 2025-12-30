@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, MessageSquare, Heart, Share2, MoreHorizontal, 
-  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send
+  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, ThumbsUp
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -11,12 +11,12 @@ interface CommunityProps {
     currentUser?: UserProfile | null;
 }
 
-// Mock Topics
+// Mock Topics for sidebar (static for now)
 const TRENDING_TOPICS = [
     { id: 1, name: 'PMP 备考冲刺', count: 1240 },
     { id: 2, name: '敏捷转型实战', count: 856 },
     { id: 3, name: 'DevOps 工具链', count: 632 },
-    { id: 4, name: '职场软技能', count: 420 },
+    { id: 4, name: 'AI 辅助项目管理', count: 420 },
 ];
 
 const Community: React.FC<CommunityProps> = ({ currentUser }) => {
@@ -24,97 +24,96 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     const [newPostContent, setNewPostContent] = useState('');
     const [activeTab, setActiveTab] = useState<'recommend' | 'latest' | 'following'>('recommend');
     const [isLoading, setIsLoading] = useState(true);
+    // Track liked posts locally for UI feedback
+    const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
 
-    // Mock Fetch Data
-    useEffect(() => {
-        const fetchPosts = async () => {
-            setIsLoading(true);
-            try {
-                // Mock SQL: SELECT * FROM app_community_posts ORDER BY created_at DESC
-                const { data, error } = await supabase
-                    .from('app_community_posts')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (data && data.length > 0) {
-                    setPosts(data);
-                } else {
-                    // Fallback Mock Data if table empty or missing
-                    setPosts([
-                        {
-                            id: 1,
-                            user_name: 'Sarah Chen',
-                            user_avatar: 'https://i.pravatar.cc/150?u=1',
-                            role: 'Senior PM',
-                            content: '刚刚完成了《敏捷实战》课程，对于 Scrum 中的 Story Point 估算有了新的理解。大家平时是用斐波那契数列还是 T-shirt Size？🤔',
-                            tags: ['Agile', 'Scrum'],
-                            likes: 45,
-                            comments: 12,
-                            time: '2 hours ago',
-                            image: 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80'
-                        },
-                        {
-                            id: 2,
-                            user_name: 'David Zhang',
-                            user_avatar: 'https://i.pravatar.cc/150?u=5',
-                            role: 'Tech Lead',
-                            content: '分享一个好用的架构图工具，画微服务拓扑图非常顺手。链接放评论区了 👇',
-                            tags: ['Tools', 'Architecture'],
-                            likes: 128,
-                            comments: 34,
-                            time: '5 hours ago',
-                            image: null
-                        },
-                        {
-                            id: 3,
-                            user_name: 'Mike Ross',
-                            user_avatar: 'https://i.pravatar.cc/150?u=2',
-                            role: 'Product Owner',
-                            content: '下周要进行 PMP 考试了，有点紧张，有没有前辈分享一下重点复习区域？🙏',
-                            tags: ['PMP', 'Exam'],
-                            likes: 23,
-                            comments: 56,
-                            time: '1 day ago',
-                            image: null
-                        }
-                    ]);
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setIsLoading(false);
+    const fetchPosts = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('app_community_posts')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (data && data.length > 0) {
+                // Parse tags if stored as JSON string, map avatar
+                const formattedData = data.map(post => ({
+                    ...post,
+                    tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags || [],
+                }));
+                setPosts(formattedData);
+            } else {
+                setPosts([]); // Handle empty state gracefully
             }
-        };
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchPosts();
     }, []);
 
+    const handleLike = async (postId: number, currentLikes: number) => {
+        // Optimistic UI update
+        const isLiked = likedPosts.has(postId);
+        const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
+        
+        setPosts(posts.map(p => p.id === postId ? { ...p, likes: newLikes } : p));
+        
+        const newLikedSet = new Set(likedPosts);
+        if (isLiked) newLikedSet.delete(postId);
+        else newLikedSet.add(postId);
+        setLikedPosts(newLikedSet);
+
+        // DB Update (Fire and forget)
+        await supabase.from('app_community_posts').update({ likes: newLikes }).eq('id', postId);
+    };
+
     const handlePost = async () => {
         if (!newPostContent.trim()) return;
+        if (!currentUser) {
+            alert("请先登录");
+            return;
+        }
         
-        const newPost = {
-            id: Date.now(),
-            user_name: currentUser?.name || 'Guest User',
-            user_avatar: currentUser?.avatar || null,
-            role: currentUser?.role || 'Student',
+        const optimisticPost = {
+            id: Date.now(), // Temporary ID
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            user_avatar: currentUser.avatar,
+            role: currentUser.role,
             content: newPostContent,
             tags: [],
             likes: 0,
             comments: 0,
-            time: 'Just now',
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            image: null
         };
 
-        setPosts([newPost, ...posts]);
+        setPosts([optimisticPost, ...posts]);
         setNewPostContent('');
 
-        // Try syncing to DB if user is logged in
-        if (currentUser) {
-            await supabase.from('app_community_posts').insert({
-                user_id: currentUser.id,
-                content: newPostContent,
-                user_name: currentUser.name,
-                user_avatar: currentUser.avatar
-            });
+        // Sync to DB
+        const { error } = await supabase.from('app_community_posts').insert({
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            user_avatar: currentUser.avatar,
+            role: currentUser.role,
+            content: newPostContent,
+            tags: JSON.stringify([]), // Store empty array as JSON
+            likes: 0,
+            comments: 0
+        });
+
+        if (error) {
+            console.error("Post failed:", error);
+            // Revert state if needed, or show error toast
+        } else {
+            // Re-fetch to get real ID and formatted time if needed
+            fetchPosts(); 
         }
     };
 
@@ -122,7 +121,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
-                {/* --- Left Sidebar: Navigation (Span 3) --- */}
+                {/* --- Left Sidebar: Navigation --- */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
                     <div className="glass-card rounded-[2rem] p-6 space-y-2 sticky top-24">
                         <button 
@@ -164,32 +163,37 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     </div>
                 </div>
 
-                {/* --- Center: Feed (Span 6) --- */}
+                {/* --- Center: Feed --- */}
                 <div className="col-span-1 lg:col-span-6 space-y-6">
                     {/* Compose Box */}
-                    <div className="bg-white rounded-[2rem] p-4 shadow-sm border border-gray-100">
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
                         <div className="flex gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                                {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full rounded-full"/> : <Users size={20} className="text-gray-400"/>}
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                {currentUser?.avatar ? (
+                                    <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Users size={24} className="text-gray-400"/>
+                                )}
                             </div>
                             <div className="flex-1">
                                 <textarea 
-                                    placeholder="分享你的学习心得..." 
+                                    placeholder={currentUser ? `分享你的想法, ${currentUser.name}...` : "请先登录以发布动态..."}
                                     value={newPostContent}
                                     onChange={(e) => setNewPostContent(e.target.value)}
-                                    className="w-full h-24 bg-gray-50 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none"
+                                    disabled={!currentUser}
+                                    className="w-full h-24 bg-gray-50 rounded-2xl p-4 text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none font-medium placeholder:text-gray-400"
                                 />
-                                <div className="flex justify-between items-center mt-3">
+                                <div className="flex justify-between items-center mt-4">
                                     <div className="flex gap-2 text-gray-400">
-                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ImageIcon size={18}/></button>
-                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Hash size={18}/></button>
+                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ImageIcon size={20}/></button>
+                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Hash size={20}/></button>
                                     </div>
                                     <button 
                                         onClick={handlePost}
-                                        disabled={!newPostContent.trim()}
-                                        className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        disabled={!newPostContent.trim() || !currentUser}
+                                        className="bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-gray-200"
                                     >
-                                        发布 <Send size={14}/>
+                                        发布动态 <Send size={14}/>
                                     </button>
                                 </div>
                             </div>
@@ -197,50 +201,73 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     </div>
 
                     {/* Feed List */}
-                    <div className="space-y-6">
+                    <div className="space-y-6 pb-20">
                         {posts.map(post => (
-                            <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow animate-fade-in-up">
+                            <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 animate-fade-in-up">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-3">
-                                        <img src={post.user_avatar || `https://ui-avatars.com/api/?name=${post.user_name}&background=random`} className="w-10 h-10 rounded-full bg-gray-100 object-cover" />
+                                        <img 
+                                            src={post.user_avatar || `https://ui-avatars.com/api/?name=${post.user_name}&background=random`} 
+                                            className="w-12 h-12 rounded-full bg-gray-100 object-cover border-2 border-white shadow-sm" 
+                                            alt={post.user_name}
+                                        />
                                         <div>
-                                            <h4 className="font-bold text-gray-900 text-sm">{post.user_name}</h4>
-                                            <p className="text-xs text-gray-500">{post.role} • {post.time}</p>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-gray-900 text-sm">{post.user_name}</h4>
+                                                {post.role === 'Manager' || post.role === 'SuperAdmin' ? (
+                                                    <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-bold">Official</span>
+                                                ) : null}
+                                            </div>
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                                {post.role} • {new Date(post.created_at).toLocaleDateString()}
+                                            </p>
                                         </div>
                                     </div>
-                                    <button className="text-gray-300 hover:text-gray-600"><MoreHorizontal size={20}/></button>
+                                    <button className="text-gray-300 hover:text-black transition-colors p-2 hover:bg-gray-50 rounded-full">
+                                        <MoreHorizontal size={20}/>
+                                    </button>
                                 </div>
 
-                                <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap mb-4">
+                                <p className="text-gray-800 text-sm leading-7 whitespace-pre-wrap mb-4 font-medium">
                                     {post.content}
                                 </p>
 
                                 {post.image && (
-                                    <div className="mb-4 rounded-2xl overflow-hidden">
-                                        <img src={post.image} className="w-full object-cover max-h-[300px]" alt="Post attachment"/>
+                                    <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                                        <img src={post.image} className="w-full object-cover max-h-[400px] hover:scale-105 transition-transform duration-700" alt="Post attachment"/>
                                     </div>
                                 )}
 
                                 {post.tags && post.tags.length > 0 && (
-                                    <div className="flex gap-2 mb-4">
+                                    <div className="flex flex-wrap gap-2 mb-5">
                                         {post.tags.map((tag: string) => (
-                                            <span key={tag} className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">#{tag}</span>
+                                            <span key={tag} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors">#{tag}</span>
                                         ))}
                                     </div>
                                 )}
 
                                 <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
-                                    <button className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors text-sm font-medium group">
-                                        <Heart size={18} className="group-hover:fill-current"/> 
-                                        {post.likes}
+                                    <button 
+                                        onClick={() => handleLike(post.id, post.likes)}
+                                        className={`flex items-center gap-2 text-sm font-bold transition-colors group ${likedPosts.has(post.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                    >
+                                        <div className={`p-2 rounded-full group-hover:bg-red-50 transition-colors ${likedPosts.has(post.id) ? 'bg-red-50' : ''}`}>
+                                            <Heart size={20} className={`transition-transform group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current' : ''}`}/> 
+                                        </div>
+                                        <span>{post.likes}</span>
                                     </button>
-                                    <button className="flex items-center gap-2 text-gray-400 hover:text-blue-500 transition-colors text-sm font-medium">
-                                        <MessageSquare size={18} /> 
-                                        {post.comments}
+
+                                    <button className="flex items-center gap-2 text-gray-400 hover:text-blue-500 transition-colors text-sm font-bold group">
+                                        <div className="p-2 rounded-full group-hover:bg-blue-50 transition-colors">
+                                            <MessageSquare size={20} /> 
+                                        </div>
+                                        <span>{post.comments}</span>
                                     </button>
-                                    <button className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm font-medium ml-auto">
-                                        <Share2 size={18} /> 
-                                        分享
+                                    
+                                    <button className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm font-bold ml-auto group">
+                                        <div className="p-2 rounded-full group-hover:bg-gray-100 transition-colors">
+                                            <Share2 size={20} /> 
+                                        </div>
                                     </button>
                                 </div>
                             </div>
@@ -248,22 +275,30 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     </div>
                 </div>
 
-                {/* --- Right Sidebar: Events & Footer (Span 3) --- */}
+                {/* --- Right Sidebar --- */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
                     {/* Announcement Card */}
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-lg sticky top-24">
-                        <h3 className="font-bold text-lg mb-2">社区公约 v2.0</h3>
-                        <p className="text-blue-100 text-sm mb-4 leading-relaxed">
-                            为了维护良好的技术交流氛围，请大家文明发言，不仅限于技术讨论，也欢迎职场经验分享。
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-500/20 sticky top-24">
+                        <div className="flex items-center gap-2 mb-3 opacity-80">
+                            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                            <span className="text-xs font-bold uppercase tracking-widest">Notice</span>
+                        </div>
+                        <h3 className="font-bold text-xl mb-3 leading-tight">ProjectFlow 社区公约 v2.0</h3>
+                        <p className="text-blue-100 text-sm mb-6 leading-relaxed opacity-90">
+                            为了维护良好的技术交流氛围，请大家文明发言。欢迎分享实战经验、职场心得与技术难题。
                         </p>
-                        <button className="bg-white text-blue-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors w-full">
-                            查看详情
+                        <button className="bg-white text-blue-600 px-5 py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors w-full shadow-lg">
+                            阅读详情
                         </button>
                     </div>
 
-                    <div className="text-center text-xs text-gray-400 leading-loose">
-                        <p>&copy; 2024 ProjectFlow Enterprise</p>
-                        <p>Privacy Policy • Terms of Service</p>
+                    <div className="flex flex-wrap gap-4 text-center justify-center text-xs text-gray-400 leading-loose pt-4">
+                        <a href="#" className="hover:text-gray-600">Privacy</a>
+                        <span>•</span>
+                        <a href="#" className="hover:text-gray-600">Terms</a>
+                        <span>•</span>
+                        <a href="#" className="hover:text-gray-600">Cookies</a>
+                        <p className="w-full mt-2 opacity-50">&copy; 2024 ProjectFlow Enterprise</p>
                     </div>
                 </div>
             </div>

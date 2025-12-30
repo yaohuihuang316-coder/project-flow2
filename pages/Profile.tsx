@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield } from 'lucide-react';
@@ -28,12 +29,13 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               const mappedCerts = data.map(item => ({
                   id: item.id.toString(),
                   title: item.title,
-                  titleEn: item.title_en || 'Certificate',
-                  issuer: item.issuer || 'ProjectFlow',
-                  date: item.date_awarded,
+                  titleEn: item.title_en || 'Professional Certificate',
+                  issuer: item.issuer || 'ProjectFlow Institute',
+                  date: new Date(item.date_awarded).toLocaleDateString(),
                   user: currentUser.name,
-                  bgGradient: item.meta_data?.bg || 'bg-gradient-to-br from-blue-400 to-blue-600',
-                  sealColor: item.meta_data?.seal || 'border-white text-white'
+                  // Visual randomization based on ID if metadata missing
+                  bgGradient: item.meta_data?.bg || (parseInt(item.id) % 2 === 0 ? 'bg-gradient-to-br from-gray-900 to-black' : 'bg-gradient-to-br from-blue-600 to-indigo-700'),
+                  sealColor: item.meta_data?.seal || (parseInt(item.id) % 2 === 0 ? 'border-yellow-500 text-yellow-500' : 'border-white text-white')
               }));
               setCertificates(mappedCerts);
           } else {
@@ -60,20 +62,19 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
   // --- Mock Data: Skills Radar ---
   const skillsData = [
-    { subject: '规划', A: 120, fullMark: 150 },
-    { subject: '执行', A: 98, fullMark: 150 },
-    { subject: '预算', A: 110, fullMark: 150 },
-    { subject: '风险', A: 99, fullMark: 150 },
+    { subject: '规划', A: 135, fullMark: 150 },
+    { subject: '执行', A: 110, fullMark: 150 },
+    { subject: '预算', A: 125, fullMark: 150 },
+    { subject: '风险', A: 140, fullMark: 150 },
     { subject: '领导力', A: 130, fullMark: 150 },
-    { subject: '敏捷', A: 85, fullMark: 150 },
+    { subject: '敏捷', A: 115, fullMark: 150 },
   ];
 
   // --- Mock Data: Leaderboard ---
   const leaderboard = [
-      { rank: 1, name: 'Sarah Chen', xp: '12,450', avatar: 'https://i.pravatar.cc/150?u=1' },
-      { rank: 2, name: 'Mike Ross', xp: '11,200', avatar: 'https://i.pravatar.cc/150?u=2' },
-      // Inject current user into leaderboard dynamically
-      { rank: 3, name: currentUser?.name || 'Me', xp: '9,850', avatar: '', isMe: true }, 
+      { rank: 1, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1' },
+      { rank: 2, name: currentUser?.name || 'Me', xp: '14,200', avatar: currentUser?.avatar || '', isMe: true },
+      { rank: 3, name: 'Mike Ross', xp: '11,200', avatar: 'https://i.pravatar.cc/150?u=2' }, 
       { rank: 4, name: 'Jennie Kim', xp: '8,400', avatar: 'https://i.pravatar.cc/150?u=4' },
       { rank: 5, name: 'David Zhang', xp: '7,230', avatar: 'https://i.pravatar.cc/150?u=5' },
   ];
@@ -89,11 +90,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   ];
 
   const handleDownload = (certTitle: string) => {
-      const link = document.createElement('a');
-      link.href = 'data:text/plain;charset=utf-8,Certificate Placeholder';
-      link.download = `${certTitle}.pdf`;
-      link.click();
-      alert(`正在下载 ${certTitle} 高清 PDF...`);
+      alert(`正在生成 ${certTitle} 高清证书 PDF，请稍候...`);
   };
 
   const getHeatmapColor = (level: number) => {
@@ -113,21 +110,21 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
         {/* --- 0. User Info Card (Dynamic) --- */}
         <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-up">
             <div className="flex items-center gap-6 w-full">
-                <div className="w-24 h-24 rounded-full bg-black text-white flex items-center justify-center text-3xl font-bold shadow-2xl">
-                    {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                <div className="w-24 h-24 rounded-full bg-black text-white flex items-center justify-center text-3xl font-bold shadow-2xl overflow-hidden">
+                    {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 text-center md:text-left">
                     <h1 className="text-3xl font-bold text-gray-900">{currentUser?.name || 'Guest User'}</h1>
-                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500 font-medium">
+                    <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-sm text-gray-500 font-medium">
                          <span className="flex items-center gap-1.5"><Mail size={16}/> {currentUser?.email || 'guest@example.com'}</span>
                          <span className="flex items-center gap-1.5"><Shield size={16}/> {currentUser?.role || 'Student'}</span>
-                         <span className="flex items-center gap-1.5"><Calendar size={16}/> Joined {currentUser?.joined_at ? new Date(currentUser.joined_at).toLocaleDateString() : 'Just now'}</span>
+                         <span className="flex items-center gap-1.5"><Calendar size={16}/> Member since 2024</span>
                     </div>
                 </div>
             </div>
             <button 
                 onClick={onLogout}
-                className="w-full md:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                className="w-full md:w-auto px-6 py-3 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-600 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
             >
                 <LogOut size={16}/> 退出登录
             </button>
@@ -164,12 +161,12 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-200">
             
             {/* Left: Capability Radar (Col Span 8) */}
-            <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-6 relative flex flex-col justify-between">
+            <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-6 relative flex flex-col justify-between min-h-[400px]">
                 <div className="mb-4">
                     <h2 className="text-xl font-bold text-gray-900">能力雷达</h2>
                     <p className="text-sm text-gray-500">基于实战演练与课程测验数据的综合评估</p>
                 </div>
-                <div className="h-[300px] w-full relative z-10">
+                <div className="flex-1 w-full relative z-10">
                      <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={skillsData}>
                             <PolarGrid stroke="#e5e7eb" strokeDasharray="3 3"/>
@@ -190,7 +187,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     </ResponsiveContainer>
                     {/* Floating Badge */}
                     <div className="absolute top-0 right-0 bg-blue-50/80 backdrop-blur border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                        Total Score: 642
+                        Total Score: 755
                     </div>
                 </div>
             </div>
@@ -224,7 +221,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                     {user.rank <= 3 ? <Medal size={14}/> : user.rank}
                                 </div>
                                 {user.avatar ? (
-                                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-white/20" />
+                                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-white/20 object-cover" />
                                 ) : (
                                     <div className="w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center text-xs text-white font-bold">
                                         {user.name.charAt(0)}
@@ -232,7 +229,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                 )}
                                 <div>
                                     <p className="text-sm font-bold leading-none">{user.name}</p>
-                                    <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? 'Current User' : 'Senior PM'}</p>
+                                    <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? '我' : 'PM 专家'}</p>
                                 </div>
                             </div>
                             <div className="text-xs font-mono font-bold opacity-90">{user.xp} XP</div>
@@ -258,22 +255,22 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                             <div
                                 key={cert.id}
                                 onClick={() => setSelectedCert(cert)}
-                                className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
+                                className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
                                 style={{
-                                    top: `${index * 50}px`,
-                                    transform: `scale(${1 - index * 0.05}) translateZ(${index * -10}px)`,
+                                    top: `${index * 60}px`,
+                                    transform: `scale(${1 - index * 0.05}) translateZ(${index * -20}px)`,
                                     zIndex: certificates.length - index,
-                                    opacity: 1 - index * 0.1,
+                                    opacity: index > 2 ? 0 : 1 - index * 0.1,
                                 }}
                             >
-                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] rounded-3xl"></div>
                                 <div className="relative z-10 flex justify-between items-start">
                                     <Award className="opacity-80"/>
-                                    <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">{cert.id}</span>
+                                    <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">No. {cert.id}</span>
                                 </div>
                                 <div className="relative z-10">
-                                    <h3 className="font-bold text-lg leading-tight">{cert.title}</h3>
-                                    <p className="text-[10px] opacity-80">{cert.issuer}</p>
+                                    <h3 className="font-bold text-lg leading-tight line-clamp-2">{cert.title}</h3>
+                                    <p className="text-[10px] opacity-80 mt-1">{cert.issuer} • {cert.date}</p>
                                 </div>
                             </div>
                         ))}
@@ -329,15 +326,15 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
         </div>
 
-      {/* Certificate Preview Modal (Existing Logic) */}
+      {/* Certificate Preview Modal */}
       {selectedCert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in" 
                 onClick={() => setSelectedCert(null)}
             ></div>
             
-            <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-fade-in-up">
+            <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-bounce-in">
                 {/* Toolbar */}
                 <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50">
                     <div>
@@ -361,8 +358,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                 </div>
 
                 {/* Realistic Certificate Paper View */}
-                <div className="p-10 md:p-16 bg-[#FDFBF7] flex justify-center overflow-y-auto max-h-[70vh]">
-                    <div className="relative w-full max-w-3xl aspect-[1.414/1] bg-white border-[20px] border-double border-[#E5E0D8] shadow-lg p-12 flex flex-col items-center text-center justify-between">
+                <div className="p-8 md:p-12 bg-[#FDFBF7] flex justify-center overflow-y-auto max-h-[70vh]">
+                    <div className="relative w-full max-w-3xl aspect-[1.414/1] bg-white border-[20px] border-double border-[#E5E0D8] shadow-lg p-8 md:p-12 flex flex-col items-center text-center justify-between">
                         {/* Decorative Corners */}
                         <div className="absolute top-4 left-4 w-16 h-16 border-t-4 border-l-4 border-yellow-600/20"></div>
                         <div className="absolute top-4 right-4 w-16 h-16 border-t-4 border-r-4 border-yellow-600/20"></div>
@@ -370,37 +367,37 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         <div className="absolute bottom-4 right-4 w-16 h-16 border-b-4 border-r-4 border-yellow-600/20"></div>
                         
                         {/* Content */}
-                        <div className="space-y-6">
-                            <div className="flex justify-center mb-4 text-yellow-600">
-                                <Award size={64} />
+                        <div className="space-y-4 md:space-y-6">
+                            <div className="flex justify-center mb-2 text-yellow-600">
+                                <Award size={56} />
                             </div>
                             
-                            <h2 className="text-4xl font-serif font-bold text-gray-900 tracking-wide uppercase">Certificate of Completion</h2>
+                            <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 tracking-wide uppercase">Certificate of Completion</h2>
                             
-                            <p className="text-gray-500 font-serif italic text-lg">This is to certify that</p>
+                            <p className="text-gray-500 font-serif italic text-base md:text-lg">This is to certify that</p>
                             
-                            <h1 className="text-5xl font-cursive text-blue-900 py-4 font-bold border-b-2 border-gray-100 inline-block px-12">
+                            <h1 className="text-4xl md:text-5xl font-mono text-blue-900 py-2 md:py-4 font-bold border-b-2 border-gray-100 inline-block px-12">
                                 {selectedCert.user}
                             </h1>
                             
-                            <p className="text-gray-500 font-serif italic text-lg">has successfully completed the course</p>
+                            <p className="text-gray-500 font-serif italic text-base md:text-lg">has successfully completed the course</p>
                             
-                            <h3 className="text-3xl font-bold text-gray-800">{selectedCert.title}</h3>
-                            <p className="text-gray-400 font-medium">({selectedCert.titleEn})</p>
+                            <h3 className="text-2xl md:text-3xl font-bold text-gray-800">{selectedCert.title}</h3>
+                            <p className="text-gray-400 font-medium text-sm">({selectedCert.titleEn})</p>
                         </div>
 
                         {/* Footer */}
-                        <div className="w-full flex justify-between items-end mt-12 px-8">
+                        <div className="w-full flex justify-between items-end mt-8 md:mt-12 px-4 md:px-8">
                             <div className="text-center">
-                                <div className="h-px w-40 bg-gray-400 mb-2"></div>
+                                <div className="h-px w-32 md:w-40 bg-gray-400 mb-2"></div>
                                 <p className="text-xs font-bold text-gray-500 uppercase">Date Issued</p>
                                 <p className="font-mono text-sm">{selectedCert.date}</p>
                             </div>
 
                             {/* Seal */}
                             <div className="relative group cursor-pointer">
-                                <div className={`w-24 h-24 rounded-full border-4 border-double ${selectedCert.sealColor} flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform duration-500 bg-white`}>
-                                    <div className={`w-20 h-20 rounded-full border border-dashed ${selectedCert.sealColor} flex items-center justify-center p-2 text-center`}>
+                                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-double ${selectedCert.sealColor} flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform duration-500 bg-white`}>
+                                    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border border-dashed ${selectedCert.sealColor} flex items-center justify-center p-2 text-center`}>
                                         <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400 leading-tight">
                                             Verified<br/>ProjectFlow<br/>System
                                         </span>
@@ -412,7 +409,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                             </div>
 
                             <div className="text-center">
-                                <div className="h-px w-40 bg-gray-400 mb-2"></div>
+                                <div className="h-px w-32 md:w-40 bg-gray-400 mb-2"></div>
                                 <p className="text-xs font-bold text-gray-500 uppercase">{selectedCert.issuer}</p>
                                 <p className="font-serif italic text-sm">Director of Education</p>
                             </div>
