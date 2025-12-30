@@ -4,8 +4,8 @@ import {
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
-  PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, AlertTriangle, ArrowRight, RefreshCw
+  GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
