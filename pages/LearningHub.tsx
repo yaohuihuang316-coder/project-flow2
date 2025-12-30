@@ -1,16 +1,17 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, 
   GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
   Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, CloudLightning, Box, Plus, Trash2,
-  ArrowRight, DollarSign, Target, Save, X, Award
+  ArrowRight, DollarSign, Target, Save, X, Award, Mail, Send, Bot, AlertTriangle, CheckCircle2, MessageSquare
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, Legend, ScatterChart, Scatter, Cell } from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { GoogleGenAI } from "@google/genai";
 
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
@@ -52,12 +53,6 @@ const PROJECTS = [
     { id: 'p4', title: '物联网监控平台', tech: ['Go', 'MQTT', 'InfluxDB'], desc: '百万级设备接入与实时数据可视化大屏。', color: 'from-cyan-400 to-blue-500', icon: Zap },
     { id: 'p5', title: '低代码开发引擎', tech: ['TypeScript', 'AST', 'Render'], desc: '可视化拖拽生成企业级 CRUD 后台系统。', color: 'from-emerald-400 to-green-600', icon: Code },
     { id: 'p6', title: '区块链供应链溯源', tech: ['Solidity', 'Web3', 'Next.js'], desc: '基于智能合约的物流透明化与防伪追踪。', color: 'from-slate-600 to-slate-800', icon: Layers },
-    { id: 'p7', title: '金融风控中台', tech: ['Scala', 'Spark', 'Kafka'], desc: '实时反欺诈交易流处理与规则引擎。', color: 'from-red-500 to-rose-600', icon: Shield },
-    { id: 'p8', title: '移动端协作 App', tech: ['Flutter', 'Dart', 'Firebase'], desc: '跨平台即时通讯与任务管理应用实战。', color: 'from-indigo-400 to-purple-500', icon: Smartphone },
-    { id: 'p9', title: 'DevOps 自动化平台', tech: ['K8s', 'Jenkins', 'Ansible'], desc: 'CI/CD 流水线搭建与多环境自动发布。', color: 'from-blue-600 to-cyan-600', icon: Terminal },
-    { id: 'p10', title: 'AI 知识库问答', tech: ['LangChain', 'OpenAI', 'VectorDB'], desc: '基于 RAG 架构的企业私有数据问答助手。', color: 'from-teal-400 to-emerald-500', icon: FileJson },
-    { id: 'p11', title: '智慧物流调度', tech: ['Python', 'Gurobi', 'Leaflet'], desc: '基于运筹优化的路径规划与车辆调度系统。', color: 'from-yellow-500 to-orange-600', icon: Box },
-    { id: 'p12', title: 'HR 绩效考评系统', tech: ['C#', '.NET Core', 'SQL Server'], desc: '360度评估与薪酬自动计算管理平台。', color: 'from-pink-500 to-rose-500', icon: Users },
 ];
 
 // Helper Icons
@@ -117,53 +112,55 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
   useEffect(() => { setSelectedItem(null); }, [mainTab, subTab]);
 
   return (
-    <div className="pt-28 pb-12 px-6 sm:px-10 max-w-7xl mx-auto min-h-screen">
-      {/* Header & Tabs */}
-      <div className={`flex flex-col gap-6 mb-10 transition-all duration-500 ${selectedItem ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100'}`}>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-                <h1 className="text-4xl font-bold text-gray-900 tracking-tight">学海无涯</h1>
-                <p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">书山有路勤为径</p>
-            </div>
-            <div className="bg-gray-200/50 p-1.5 rounded-full flex relative backdrop-blur-md shadow-inner">
-                {[
-                    { id: 'Foundation', label: '基础 (Foundation)', icon: Layout },
-                    { id: 'Advanced', label: 'PM实验室 (Labs)', icon: Cpu },
-                    { id: 'Implementation', label: '实战 (Projects)', icon: Briefcase }
-                ].map((tab) => (
-                    <button
-                    key={tab.id}
-                    onClick={() => setMainTab(tab.id as MainCategory)}
-                    className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${
-                        mainTab === tab.id ? 'bg-white text-black shadow-md scale-100' : 'text-gray-500 hover:text-gray-800 scale-95'
-                    }`}
-                    >
-                    <tab.icon size={16} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                    </button>
-                ))}
-            </div>
-        </div>
-
-        {mainTab === 'Foundation' && (
-            <div className="flex gap-4 animate-fade-in pl-1">
-                {[{ id: 'Course', label: '体系课程' }, { id: 'Cert', label: '认证冲刺' }, { id: 'Official', label: '官方必修' }].map((sub) => (
-                    <button
-                        key={sub.id}
-                        onClick={() => setSubTab(sub.id as SubCategory)}
-                        className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                            subTab === sub.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+    <div className={`pt-28 pb-12 px-6 sm:px-10 max-w-7xl mx-auto min-h-screen transition-all ${selectedItem?.type === 'simulation' ? 'max-w-full px-0 pt-0 pb-0' : ''}`}>
+      {/* Header & Tabs (Hidden when in Simulation Mode) */}
+      {!selectedItem && (
+          <div className={`flex flex-col gap-6 mb-10 transition-all duration-500 opacity-100`}>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h1 className="text-4xl font-bold text-gray-900 tracking-tight">学海无涯</h1>
+                    <p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">书山有路勤为径</p>
+                </div>
+                <div className="bg-gray-200/50 p-1.5 rounded-full flex relative backdrop-blur-md shadow-inner">
+                    {[
+                        { id: 'Foundation', label: '基础 (Foundation)', icon: Layout },
+                        { id: 'Advanced', label: 'PM实验室 (Labs)', icon: Cpu },
+                        { id: 'Implementation', label: '实战 (Projects)', icon: Briefcase }
+                    ].map((tab) => (
+                        <button
+                        key={tab.id}
+                        onClick={() => setMainTab(tab.id as MainCategory)}
+                        className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-full transition-all duration-300 ${
+                            mainTab === tab.id ? 'bg-white text-black shadow-md scale-100' : 'text-gray-500 hover:text-gray-800 scale-95'
                         }`}
-                    >
-                        {sub.label}
-                    </button>
-                ))}
+                        >
+                        <tab.icon size={16} />
+                        <span className="hidden sm:inline">{tab.label}</span>
+                        <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
-        )}
-      </div>
 
-      <div className="animate-fade-in-up">
+            {mainTab === 'Foundation' && (
+                <div className="flex gap-4 animate-fade-in pl-1">
+                    {[{ id: 'Course', label: '体系课程' }, { id: 'Cert', label: '认证冲刺' }, { id: 'Official', label: '官方必修' }].map((sub) => (
+                        <button
+                            key={sub.id}
+                            onClick={() => setSubTab(sub.id as SubCategory)}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                                subTab === sub.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                            {sub.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+          </div>
+      )}
+
+      <div className="animate-fade-in-up w-full">
          {mainTab === 'Foundation' && !selectedItem && (
            <div className="min-h-[300px]">
              {isLoading ? (
@@ -235,11 +232,12 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                 {PROJECTS.map(project => (
                   <div 
                       key={project.id}
-                      onClick={() => setSelectedItem({ type: 'ide', id: project.id, title: project.title })}
+                      onClick={() => setSelectedItem({ type: 'simulation', id: project.id, title: project.title, desc: project.desc })}
                       className="group bg-[#1e1e1e] p-0 rounded-[2.5rem] overflow-hidden cursor-pointer hover:shadow-2xl transition-all hover:-translate-y-1 border border-gray-800 flex flex-col h-[280px]"
                   >
                       <div className="h-10 bg-[#2d2d2d] flex items-center gap-2 px-6 border-b border-black/50 shrink-0">
                           <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500"/><div className="w-3 h-3 rounded-full bg-yellow-500"/><div className="w-3 h-3 rounded-full bg-green-500"/></div>
+                          <span className="ml-auto text-[10px] text-gray-500 font-mono flex items-center gap-1"><Terminal size={10}/> SIMULATION</span>
                       </div>
                       <div className="p-8 flex flex-col justify-between flex-1 relative overflow-hidden">
                           <div className={`absolute -right-10 -bottom-10 w-40 h-40 bg-gradient-to-br ${project.color} blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity duration-500`}></div>
@@ -250,27 +248,278 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                             <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
                             <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">{project.desc}</p>
                           </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-white/50 group-hover:text-white transition-colors">
+                              <Play size={14} className="fill-current"/> 启动实战模拟 (Start Simulation)
+                          </div>
                       </div>
                   </div>
                 ))}
             </div>
          )}
 
-         {selectedItem && (
-             <div className="animate-fade-in">
-                 <button onClick={() => setSelectedItem(null)} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-black transition-colors group font-medium">
-                    <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform"><ChevronLeft size={18} /></div>
-                    <span>返回列表</span>
-                  </button>
-                  {selectedItem.type === 'ide' && <IdeView title={selectedItem.title} />}
-             </div>
+         {selectedItem?.type === 'simulation' && (
+             <ProjectSimulationView 
+                project={selectedItem} 
+                onClose={() => setSelectedItem(null)} 
+             />
          )}
       </div>
     </div>
   );
 };
 
-// --- Advanced Lab Main View ---
+// --- Project Simulation View (New AI-Driven Component) ---
+interface SimProject {
+    id: string;
+    title: string;
+    desc: string;
+}
+
+const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onClose: () => void }) => {
+    const [phase, setPhase] = useState<'briefing' | 'workspace' | 'review'>('briefing');
+    const [scenario, setScenario] = useState<any>(null);
+    const [loadingScenario, setLoadingScenario] = useState(true);
+    const [messages, setMessages] = useState<any[]>([]);
+    const [docContent, setDocContent] = useState('');
+    const [aiFeedback, setAiFeedback] = useState<string | null>(null);
+    const [aiThinking, setAiThinking] = useState(false);
+    
+    // Stats
+    const [stats, setStats] = useState({ budget: 100, time: 100, morale: 90 });
+
+    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+
+    // 1. Generate Scenario on Mount
+    useEffect(() => {
+        const initScenario = async () => {
+            if (!apiKey) {
+                // Fallback demo scenario
+                setTimeout(() => {
+                    setScenario({
+                        sender: 'CEO Office',
+                        subject: 'URGENT: Budget Cut for ' + project.title,
+                        body: `Hi Team,\n\nDue to the recent market volatility, the board has decided to cut the budget for project "${project.title}" by 30%. However, the launch deadline remains unchanged.\n\nI need you to draft a revised Project Charter and Risk Response Plan immediately. Focus on what features we can cut while keeping the core value.\n\nBest,\nCEO`,
+                        objective: 'Draft a revised plan handling 30% budget cut.'
+                    });
+                    setLoadingScenario(false);
+                }, 1500);
+                return;
+            }
+
+            try {
+                const ai = new GoogleGenAI({ apiKey });
+                const prompt = `Generate a high-pressure, realistic corporate email scenario for a project manager leading "${project.title}". 
+                The email should come from a stakeholder (CEO, CTO, or Client).
+                It must introduce a major constraint (e.g., budget cut, deadline move, scope creep, tech stack change).
+                Return ONLY JSON with keys: sender, subject, body, objective.`;
+                
+                const resp = await ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    config: { responseMimeType: 'application/json' }
+                });
+                
+                const json = JSON.parse(resp.response.text());
+                setScenario(json);
+            } catch (e) {
+                console.error("AI Error", e);
+                setScenario({
+                    sender: 'System',
+                    subject: 'Connection Error',
+                    body: 'Could not connect to AI HQ. Proceeding with standard protocols.',
+                    objective: 'Proceed with project setup.'
+                });
+            } finally {
+                setLoadingScenario(false);
+            }
+        };
+        initScenario();
+    }, []);
+
+    // 2. Start Project -> Initialize Workspace
+    const handleStart = () => {
+        setPhase('workspace');
+        // Initial simulated messages
+        setMessages([
+            { id: 1, sender: 'System', text: 'Project Workspace Initialized.', type: 'system', time: 'Now' },
+            { id: 2, sender: 'Alice (Product)', text: `Did you see the email about ${project.title}? This is going to be tough.`, type: 'team', time: 'Now' },
+            { id: 3, sender: 'Bob (Dev Lead)', text: 'I can cut the testing environment costs, but we need to drop the "Advanced Analytics" feature.', type: 'team', time: 'Now' }
+        ]);
+    };
+
+    // 3. AI Assist (Copilot)
+    const handleAiAssist = async (action: string) => {
+        setAiThinking(true);
+        try {
+            const ai = new GoogleGenAI({ apiKey });
+            let prompt = "";
+            if (action === 'optimize') {
+                prompt = `You are a Senior Project Manager. Review the following draft plan for "${project.title}" and suggest 3 specific improvements based on PMBOK standards. Draft: ${docContent}`;
+            } else if (action === 'expand') {
+                prompt = `Expand this draft section with professional corporate language suitable for a Project Charter. Draft: ${docContent}`;
+            }
+
+            const resp = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+
+            // Append response to chat or feedback area
+            const advice = resp.response.text();
+            setMessages(prev => [...prev, { id: Date.now(), sender: 'AI Copilot', text: advice, type: 'ai', time: 'Now' }]);
+        } catch (e) {
+            setMessages(prev => [...prev, { id: Date.now(), sender: 'System', text: 'AI Connection Failed.', type: 'system', time: 'Now' }]);
+        } finally {
+            setAiThinking(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-[#F5F5F7] flex flex-col animate-fade-in">
+            {/* Top Bar */}
+            <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+                <div className="flex items-center gap-4">
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><X size={20}/></button>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-bold text-gray-900">{project.title}</span>
+                        <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            LIVE SIMULATION • {phase.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                        <Activity size={14} className="text-blue-500"/> Health: {stats.morale}%
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                        <DollarSign size={14} className="text-green-500"/> Budget: {stats.budget}%
+                    </div>
+                </div>
+            </div>
+
+            {/* --- PHASE 1: BRIEFING (Email Overlay) --- */}
+            {phase === 'briefing' && (
+                <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
+                    {/* Background Blur Effect */}
+                    <div className="absolute inset-0 bg-gray-200" style={{backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '30px 30px'}}></div>
+                    
+                    {loadingScenario ? (
+                        <div className="bg-white/80 backdrop-blur-xl p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+                            <Loader2 size={40} className="animate-spin text-blue-600"/>
+                            <p className="text-sm font-bold text-gray-600">Generating Scenario...</p>
+                        </div>
+                    ) : (
+                        <div className="bg-white max-w-2xl w-full rounded-3xl shadow-2xl overflow-hidden animate-bounce-in relative">
+                            <div className="h-2 bg-red-500 w-full"></div>
+                            <div className="p-8">
+                                <div className="flex items-center gap-4 mb-6 border-b border-gray-100 pb-4">
+                                    <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                                        <Mail size={24}/>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900">{scenario.subject}</h2>
+                                        <p className="text-sm text-gray-500">From: <span className="font-bold text-gray-800">{scenario.sender}</span></p>
+                                    </div>
+                                    <div className="ml-auto text-xs font-bold bg-red-50 text-red-600 px-2 py-1 rounded">URGENT</div>
+                                </div>
+                                <div className="prose prose-sm text-gray-700 leading-relaxed whitespace-pre-line mb-8">
+                                    {scenario.body}
+                                </div>
+                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
+                                    <h4 className="text-xs font-bold text-blue-600 uppercase mb-1 flex items-center gap-1"><Target size={12}/> Mission Objective</h4>
+                                    <p className="text-sm font-bold text-gray-800">{scenario.objective}</p>
+                                </div>
+                                <button 
+                                    onClick={handleStart}
+                                    className="w-full py-4 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                                >
+                                    Accept Challenge <ArrowRight size={16}/>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* --- PHASE 2: WORKSPACE --- */}
+            {phase === 'workspace' && (
+                <div className="flex-1 flex overflow-hidden">
+                    {/* Left: Team Comms */}
+                    <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+                        <div className="p-4 border-b border-gray-100 bg-gray-50">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                <Users size={14}/> Team Channel
+                            </h3>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#F9FAFB]">
+                            {messages.map((msg) => (
+                                <div key={msg.id} className={`flex flex-col ${msg.type === 'user' ? 'items-end' : 'items-start'}`}>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[10px] font-bold text-gray-400">{msg.sender}</span>
+                                        <span className="text-[10px] text-gray-300">{msg.time}</span>
+                                    </div>
+                                    <div className={`p-3 rounded-2xl max-w-[90%] text-sm ${
+                                        msg.type === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 
+                                        msg.type === 'ai' ? 'bg-purple-100 text-purple-900 border border-purple-200' :
+                                        'bg-white border border-gray-200 text-gray-700 rounded-bl-sm shadow-sm'
+                                    }`}>
+                                        {msg.text}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-3 border-t border-gray-200 bg-white">
+                            <div className="flex gap-2">
+                                <input className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-xs outline-none" placeholder="Message team..."/>
+                                <button className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300"><Send size={14}/></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Middle: Document Editor */}
+                    <div className="flex-1 flex flex-col bg-white relative">
+                        <div className="h-10 bg-gray-50 border-b border-gray-200 flex items-center justify-between px-4">
+                            <span className="text-xs font-bold text-gray-500 flex items-center gap-2">
+                                <FileText size={14}/> Project_Charter_Draft_v1.docx
+                            </span>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleAiAssist('expand')} className="text-[10px] font-bold bg-white border px-2 py-1 rounded hover:bg-purple-50 hover:text-purple-600 flex items-center gap-1">
+                                    <Bot size={10}/> AI Expand
+                                </button>
+                                <button onClick={() => handleAiAssist('optimize')} className="text-[10px] font-bold bg-white border px-2 py-1 rounded hover:bg-purple-50 hover:text-purple-600 flex items-center gap-1">
+                                    <Zap size={10}/> AI Review
+                                </button>
+                            </div>
+                        </div>
+                        <textarea 
+                            className="flex-1 w-full p-8 outline-none resize-none font-mono text-sm leading-relaxed text-gray-800"
+                            placeholder="Type your project plan here... (e.g., 1. Executive Summary...)"
+                            value={docContent}
+                            onChange={(e) => setDocContent(e.target.value)}
+                        />
+                        {/* Floating Action Button */}
+                        <div className="absolute bottom-6 right-6">
+                            <button className="bg-green-600 text-white px-6 py-3 rounded-full font-bold shadow-xl hover:bg-green-700 hover:scale-105 transition-all flex items-center gap-2">
+                                <CheckCircle2 size={18}/> Submit for Approval
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Right: AI Copilot / Stats (Collapsible or Fixed) */}
+                    {aiThinking && (
+                        <div className="absolute top-16 right-6 bg-white p-4 rounded-xl shadow-xl border border-purple-100 flex items-center gap-3 animate-bounce-in">
+                            <Loader2 size={20} className="animate-spin text-purple-600"/>
+                            <span className="text-xs font-bold text-purple-700">AI Copilot is thinking...</span>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Advanced Lab Main View (Existing) ---
 const AdvancedLabView = () => {
     const [labCategory, setLabCategory] = useState<LabCategory>('Quantitative');
     const [currentToolId, setCurrentToolId] = useState('evm');
@@ -331,7 +580,7 @@ const AdvancedLabView = () => {
     );
 };
 
-/* ================== TOOLS IMPLEMENTATION ================== */
+/* ================== TOOLS IMPLEMENTATION (Existing tools kept for compatibility) ================== */
 
 // 1. CPM Tool
 const CpmTool = () => {
@@ -983,19 +1232,5 @@ const SwotBoard = () => {
         </div>
     );
 };
-
-const IdeView = ({ title }: { title: string }) => (
-    <div className="bg-[#1e1e1e] rounded-[2rem] shadow-2xl overflow-hidden border border-gray-700 flex flex-col h-[700px] text-gray-300 font-mono animate-fade-in-up">
-        <div className="h-12 bg-[#2d2d2d] flex items-center justify-between px-4 border-b border-black">
-            <span className="text-sm opacity-60">ProjectFlow IDE - {title}</span>
-            <button className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors"><Play size={12} fill="currentColor"/> Run</button>
-        </div>
-        <div className="flex-1 bg-[#1e1e1e] p-6 overflow-auto">
-            <div className="text-green-400 mb-2">➜  ~ init {title}</div>
-            <div className="text-gray-500">Loading modules... Done.</div>
-            <div className="text-blue-400 mt-2">✔ System Ready.</div>
-        </div>
-    </div>
-);
 
 export default LearningHub;
