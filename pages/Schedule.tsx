@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Video, Play, Pause, X, CloudRain, Coffee, Zap, Plus, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Play, Pause, X, CloudRain, Coffee, Zap, Plus, Loader2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -58,7 +58,7 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
             return;
         }
 
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('app_events')
             .select('*')
             .eq('user_id', currentUser.id)
@@ -207,7 +207,12 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
                         )}
 
                         <div className="space-y-8 flex-1">
-                            {events.length > 0 ? events.map((event) => (
+                            {isLoading ? (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                                    <Loader2 className="animate-spin mb-2" size={32} />
+                                    <p className="text-sm">正在同步日程...</p>
+                                </div>
+                            ) : events.length > 0 ? events.map((event) => (
                                 <div key={event.id} className="flex group">
                                     {/* Time Column */}
                                     <div className="w-24 pt-2 text-right pr-6 relative">

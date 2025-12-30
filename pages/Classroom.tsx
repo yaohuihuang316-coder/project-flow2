@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, Play, 
-  Minimize2, Maximize2, FileText, Download, CheckCircle, Send, Loader2, AlertCircle, Save, Check
+  Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
@@ -37,7 +37,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         
         try {
             // Fetch Course
-            let { data: courseData, error: courseError } = await supabase
+            let { data: courseData } = await supabase
                 .from('app_courses')
                 .select('*')
                 .eq('id', courseId)

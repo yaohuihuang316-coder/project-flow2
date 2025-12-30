@@ -6,11 +6,6 @@ import {
   PieChart, GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
   Layout, Cpu, Briefcase
 } from 'lucide-react';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  ScatterChart, Scatter, ZAxis, Legend, Cell,
-  BarChart, Bar, AreaChart, Area
-} from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -317,7 +312,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                     <span>返回列表</span>
                   </button>
                   
-                  {selectedItem.type === 'ide' && <IdeView id={selectedItem.id} title={selectedItem.title} />}
+                  {selectedItem.type === 'ide' && <IdeView title={selectedItem.title} />}
              </div>
          )}
       </div>
@@ -325,31 +320,10 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
   );
 };
 
-// ... (Rest of component remains unchanged: AdvancedAlgorithmLab, IdeView, etc.)
-// Re-including dependent components to ensure valid XML replacement
-
 const AdvancedAlgorithmLab = () => {
-    // ... Same content as before ...
     const [currentAlgoId, setCurrentAlgoId] = useState('cpm');
     const [isCalculating, setIsCalculating] = useState(false);
-    const [result, setResult] = useState<any>(null);
 
-    const evmData = [
-        { month: 'Jan', pv: 100, ev: 100, ac: 90 },
-        { month: 'Feb', pv: 200, ev: 180, ac: 180 },
-        { month: 'Mar', pv: 300, ev: 250, ac: 280 },
-        { month: 'Apr', pv: 400, ev: 320, ac: 380 },
-        { month: 'May', pv: 500, ev: 450, ac: 500 },
-    ];
-    // ... (Omitting full detailed code for brevity where logic hasn't changed, but providing full file structure in reality)
-    // To ensure build passes, providing a simplified working return.
-    
-    // ... (Keeping logic same as previous version but abbreviated here for response limit check)
-    // Actually, I must provide full content to avoid breaking the file.
-    
-    // ... (re-inserting full component logic) ...
-    // Since I cannot abbreviate in the XML, I will provide the full file content above in the first XML block.
-    // Wait, the previous block I wrote handles the full file.
     return (
         <div className="flex flex-col lg:flex-row h-[700px] gap-6 animate-fade-in pb-10">
             {/* Left: Algorithm Library List */}
@@ -362,7 +336,7 @@ const AdvancedAlgorithmLab = () => {
                     {ALGORITHMS.map(algo => (
                         <button
                             key={algo.id}
-                            onClick={() => { setCurrentAlgoId(algo.id); setResult(null); }}
+                            onClick={() => setCurrentAlgoId(algo.id)}
                             className={`w-full text-left p-4 rounded-xl transition-all duration-300 flex items-start gap-3 ${
                                 currentAlgoId === algo.id 
                                 ? 'bg-black text-white shadow-lg scale-[1.02]' 
@@ -391,10 +365,8 @@ const AdvancedAlgorithmLab = () => {
                     <button 
                         onClick={() => {
                             setIsCalculating(true);
-                            setResult(null);
                             setTimeout(() => {
                                 setIsCalculating(false);
-                                setResult({ generic: { metric: '98.5%' } });
                             }, 800);
                         }}
                         disabled={isCalculating}
@@ -421,7 +393,7 @@ const AdvancedAlgorithmLab = () => {
     );
 };
 
-const IdeView = ({ id, title }: { id: string, title: string }) => {
+const IdeView = ({ title }: { title: string }) => {
     return (
         <div className="bg-[#1e1e1e] rounded-[2rem] shadow-2xl overflow-hidden border border-gray-700 flex flex-col h-[700px] text-gray-300 font-mono animate-fade-in-up">
             <div className="h-12 bg-[#2d2d2d] flex items-center justify-between px-4 border-b border-black">
