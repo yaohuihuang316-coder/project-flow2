@@ -5,7 +5,7 @@ import {
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
   GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle, CloudLightning, Box, Workflow, Rocket
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle, CloudLightning, Box
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Feather, Hexagon } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Feather, Hexagon } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -328,6 +328,90 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         </div>
                     ))}
                 </div>
+            </div>
+        </div>
+
+        {/* --- 3. Certificates & Badges --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-300">
+            
+            {/* Left: Certificate Stack */}
+            <div className="lg:col-span-4 flex flex-col gap-4">
+                 <div className="flex items-center justify-between px-2">
+                    <h2 className="text-xl font-bold text-gray-900">荣誉证书</h2>
+                    <button className="text-xs text-blue-600 font-bold hover:underline">查看全部</button>
+                 </div>
+                 
+                 {certificates.length > 0 ? (
+                     <div className="relative h-[320px] w-full flex justify-center pt-6 perspective-1000 group">
+                        {certificates.map((cert, index) => (
+                            <div
+                                key={cert.id}
+                                onClick={() => setSelectedCert(cert)}
+                                className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
+                                style={{
+                                    top: `${index * 60}px`,
+                                    transform: `scale(${1 - index * 0.05}) translateZ(${index * -20}px)`,
+                                    zIndex: certificates.length - index,
+                                    opacity: index > 2 ? 0 : 1 - index * 0.1,
+                                }}
+                            >
+                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] rounded-3xl"></div>
+                                <div className="relative z-10 flex justify-between items-start">
+                                    <Award className="opacity-80"/>
+                                    <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">No. {cert.id}</span>
+                                </div>
+                                <div className="relative z-10">
+                                    <h3 className="font-bold text-lg leading-tight line-clamp-2">{cert.title}</h3>
+                                    <p className="text-[10px] opacity-80 mt-1">{cert.issuer} • {cert.date}</p>
+                                </div>
+                            </div>
+                        ))}
+                     </div>
+                 ) : (
+                     <div className="h-[200px] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+                         <Award size={32} className="opacity-50 mb-2"/>
+                         <p className="text-xs font-bold">暂无证书</p>
+                     </div>
+                 )}
+            </div>
+
+            {/* Right: Badge Wall */}
+            <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-8">
+                 <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">徽章收藏馆</h2>
+                        <p className="text-sm text-gray-500">已解锁 {badges.filter(b => b.unlocked).length} / {badges.length} 个成就</p>
+                    </div>
+                    <div className="bg-gray-100 rounded-full px-3 py-1 flex items-center gap-2">
+                        <Star size={14} className="text-yellow-500 fill-yellow-500"/>
+                        <span className="text-xs font-bold text-gray-600">点数: 850</span>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                     {badges.map((badge) => (
+                         <div 
+                            key={badge.id} 
+                            className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border ${
+                                badge.unlocked 
+                                ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg' 
+                                : 'bg-gray-100/50 border-transparent opacity-60 grayscale'
+                            }`}
+                         >
+                             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-inner ${badge.unlocked ? badge.bg : 'bg-gray-200'} ${badge.color}`}>
+                                 <badge.icon size={20} />
+                             </div>
+                             <div>
+                                 <h4 className={`text-xs font-bold ${badge.unlocked ? 'text-gray-900' : 'text-gray-500'}`}>{badge.name}</h4>
+                             </div>
+                             {!badge.unlocked && (
+                                 <div className="absolute top-1 right-1 text-gray-400">
+                                     <Lock size={10} />
+                                 </div>
+                             )}
+                         </div>
+                     ))}
+                 </div>
             </div>
         </div>
 
