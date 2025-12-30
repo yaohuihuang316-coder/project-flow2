@@ -20,12 +20,20 @@ interface Comment {
     likes: number;
 }
 
-// Mock Topics for sidebar
+// Mock Topics for sidebar (>10 items)
 const TRENDING_TOPICS = [
     { id: 1, name: 'PMP 备考冲刺', count: 1240 },
     { id: 2, name: '敏捷转型实战', count: 856 },
     { id: 3, name: 'DevOps 工具链', count: 632 },
     { id: 4, name: 'AI 辅助项目管理', count: 420 },
+    { id: 5, name: 'WBS 最佳实践', count: 315 },
+    { id: 6, name: '相关方管理吐槽大会', count: 290 },
+    { id: 7, name: 'OKR 目标设定', count: 210 },
+    { id: 8, name: '远程协作效率', count: 185 },
+    { id: 9, name: '产品经理 vs 项目经理', count: 175 },
+    { id: 10, name: 'Jira 高级技巧', count: 150 },
+    { id: 11, name: '风险应对策略', count: 130 },
+    { id: 12, name: 'PMO 职场生存指南', count: 120 },
 ];
 
 const Community: React.FC<CommunityProps> = ({ currentUser }) => {

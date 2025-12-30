@@ -21,13 +21,15 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
         const myChart = echarts.init(chartRef.current);
         chartInstance.current = myChart;
 
-        // Mock Data for Knowledge Graph (Chinese)
+        // Mock Data for Knowledge Graph (>10 Nodes)
         const categories = [
             { name: '核心概念' }, { name: '十大知识领域' }, { name: '过程/工具' }, { name: '输出/文档' }
         ];
 
         const nodes = [
+            // Core
             { id: '0', name: '项目整合管理', symbolSize: 80, category: 0, value: 100 },
+            // Knowledge Areas
             { id: '1', name: '范围管理', symbolSize: 60, category: 1, value: 80 },
             { id: '2', name: '进度管理', symbolSize: 60, category: 1, value: 80 },
             { id: '3', name: '成本管理', symbolSize: 60, category: 1, value: 80 },
@@ -37,11 +39,16 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
             { id: '7', name: '风险管理', symbolSize: 60, category: 1, value: 80 },
             { id: '8', name: '采购管理', symbolSize: 60, category: 1, value: 80 },
             { id: '9', name: '干系人管理', symbolSize: 60, category: 1, value: 80 },
-            // Sub nodes
-            { id: '10', name: 'WBS (工作分解)', symbolSize: 45, category: 3, value: 60 },
+            // Tools & Techniques
+            { id: '10', name: 'WBS (工作分解)', symbolSize: 45, category: 2, value: 60 },
             { id: '11', name: 'CPM (关键路径)', symbolSize: 45, category: 2, value: 60 },
             { id: '12', name: 'EVM (挣值分析)', symbolSize: 45, category: 2, value: 60 },
+            { id: '14', name: 'SWOT 分析', symbolSize: 40, category: 2, value: 50 },
+            { id: '15', name: '蒙特卡洛模拟', symbolSize: 40, category: 2, value: 50 },
+            // Outputs
             { id: '13', name: '项目章程', symbolSize: 45, category: 3, value: 60 },
+            { id: '16', name: '风险登记册', symbolSize: 40, category: 3, value: 50 },
+            { id: '17', name: '变更日志', symbolSize: 40, category: 3, value: 50 },
         ];
 
         const links = [
@@ -54,6 +61,10 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
             { source: '0', target: '13' }, // Integration -> Charter
             { source: '2', target: '3' }, // Schedule <-> Cost
             { source: '5', target: '2' }, // Resource -> Schedule
+            { source: '7', target: '14' }, // Risk -> SWOT
+            { source: '7', target: '15' }, // Risk -> Monte Carlo
+            { source: '7', target: '16' }, // Risk -> Register
+            { source: '0', target: '17' }, // Integration -> Change Log
         ];
 
         const option: any = {
@@ -266,7 +277,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
                         <h2 className="text-2xl font-bold mb-4">{selectedNode.name}</h2>
                         <div className="overflow-y-auto pb-10">
                              <p className="text-sm text-gray-300 leading-relaxed mb-4">{details?.def}</p>
-                             {/* Mobile content simplified */}
                         </div>
                      </div>
                 )}

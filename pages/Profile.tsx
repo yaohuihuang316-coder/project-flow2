@@ -1,7 +1,7 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2 } from 'lucide-react';
+import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Feather, Hexagon } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -18,11 +18,48 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [certificates, setCertificates] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
-  // --- Fetch Real Achievements ---
+  // --- Fetch Achievements ---
   useEffect(() => {
       const fetchAchievements = async () => {
-          if (!currentUser) return;
+          if (!currentUser) {
+              // Mock for guest/demo if DB empty
+              setCertificates([
+                  {
+                      id: 'cert-001',
+                      title: 'PMP 项目管理专业人士',
+                      titleEn: 'Project Management Professional',
+                      issuer: 'PMI Institute',
+                      date: '2023-12-10',
+                      user: 'Alex Chen', // Demo user name
+                      bgGradient: 'bg-gradient-to-br from-gray-900 to-black',
+                      sealColor: 'border-yellow-500 text-yellow-500'
+                  },
+                  {
+                      id: 'cert-002',
+                      title: 'ACP 敏捷认证从业者',
+                      titleEn: 'Agile Certified Practitioner',
+                      issuer: 'PMI Institute',
+                      date: '2024-03-15',
+                      user: 'Alex Chen',
+                      bgGradient: 'bg-gradient-to-br from-blue-600 to-indigo-700',
+                      sealColor: 'border-white text-white'
+                  },
+                  {
+                      id: 'cert-003',
+                      title: 'Scrum Master 认证',
+                      titleEn: 'Certified ScrumMaster (CSM)',
+                      issuer: 'Scrum Alliance',
+                      date: '2024-05-20',
+                      user: 'Alex Chen',
+                      bgGradient: 'bg-gradient-to-br from-orange-500 to-red-600',
+                      sealColor: 'border-white text-white'
+                  }
+              ]);
+              return;
+          }
+
           const { data } = await supabase
               .from('app_achievements')
               .select('*')
@@ -30,7 +67,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               .order('date_awarded', { ascending: false });
           
           if (data && data.length > 0) {
-              // Map DB data to UI Model
               const mappedCerts = data.map(item => ({
                   id: item.id.toString(),
                   title: item.title,
@@ -38,13 +74,39 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                   issuer: item.issuer || 'ProjectFlow Institute',
                   date: new Date(item.date_awarded).toLocaleDateString(),
                   user: currentUser.name,
-                  // Visual randomization based on ID if metadata missing
-                  bgGradient: item.meta_data?.bg || (parseInt(item.id) % 2 === 0 ? 'bg-gradient-to-br from-gray-900 to-black' : 'bg-gradient-to-br from-blue-600 to-indigo-700'),
-                  sealColor: item.meta_data?.seal || (parseInt(item.id) % 2 === 0 ? 'border-yellow-500 text-yellow-500' : 'border-white text-white')
+                  bgGradient: item.meta_data?.bg || 'bg-gradient-to-br from-gray-900 to-black',
+                  sealColor: item.meta_data?.seal || 'border-yellow-500 text-yellow-500'
               }));
               setCertificates(mappedCerts);
           } else {
-              setCertificates([]);
+              // Fallback to demo certs if DB empty for current user (even if logged in as 777)
+              // to ensure "Alex Chen" sees data
+              if (currentUser.email === '777@projectflow.com') {
+                   setCertificates([
+                      {
+                          id: 'cert-pmp',
+                          title: 'PMP 项目管理专业人士',
+                          titleEn: 'Project Management Professional',
+                          issuer: 'PMI Institute',
+                          date: '2023-12-10',
+                          user: currentUser.name,
+                          bgGradient: 'bg-gradient-to-br from-gray-900 to-black',
+                          sealColor: 'border-yellow-500 text-yellow-500'
+                      },
+                      {
+                          id: 'cert-acp',
+                          title: 'ACP 敏捷认证从业者',
+                          titleEn: 'Agile Certified Practitioner',
+                          issuer: 'PMI Institute',
+                          date: '2024-01-20',
+                          user: currentUser.name,
+                          bgGradient: 'bg-gradient-to-br from-blue-600 to-indigo-700',
+                          sealColor: 'border-white text-white'
+                      }
+                   ]);
+              } else {
+                  setCertificates([]);
+              }
           }
       };
 
@@ -53,11 +115,10 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
   // --- Mock Data: Contribution Heatmap ---
   const heatmapData = useMemo(() => {
-    // Generate 52 weeks * 7 days of data
     return Array.from({ length: 364 }, (_, i) => {
         const random = Math.random();
         let level = 0;
-        if (random > 0.8) level = 4; // High
+        if (random > 0.8) level = 4;
         else if (random > 0.6) level = 3;
         else if (random > 0.4) level = 2;
         else if (random > 0.2) level = 1;
@@ -67,59 +128,64 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
   // --- Mock Data: Skills Radar ---
   const skillsData = [
-    { subject: '规划', A: 135, fullMark: 150 },
-    { subject: '执行', A: 110, fullMark: 150 },
-    { subject: '预算', A: 125, fullMark: 150 },
-    { subject: '风险', A: 140, fullMark: 150 },
-    { subject: '领导力', A: 130, fullMark: 150 },
-    { subject: '敏捷', A: 115, fullMark: 150 },
+    { subject: '规划 (Plan)', A: 145, fullMark: 150 },
+    { subject: '执行 (Exec)', A: 125, fullMark: 150 },
+    { subject: '预算 (Cost)', A: 135, fullMark: 150 },
+    { subject: '风险 (Risk)', A: 148, fullMark: 150 },
+    { subject: '领导力 (Lead)', A: 140, fullMark: 150 },
+    { subject: '敏捷 (Agile)', A: 130, fullMark: 150 },
   ];
 
-  // --- Mock Data: Leaderboard ---
+  // --- Mock Data: Leaderboard (Rich Data for Alex) ---
   const leaderboard = [
-      { rank: 1, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1' },
-      { rank: 2, name: currentUser?.name || 'Me', xp: '14,200', avatar: currentUser?.avatar || '', isMe: true },
-      { rank: 3, name: 'Mike Ross', xp: '11,200', avatar: 'https://i.pravatar.cc/150?u=2' }, 
-      { rank: 4, name: 'Jennie Kim', xp: '8,400', avatar: 'https://i.pravatar.cc/150?u=4' },
-      { rank: 5, name: 'David Zhang', xp: '7,230', avatar: 'https://i.pravatar.cc/150?u=5' },
+      { rank: 1, name: currentUser?.name || 'Alex Chen', xp: '18,450', avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=777', isMe: true },
+      { rank: 2, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1' },
+      { rank: 3, name: 'Mike Ross', xp: '14,200', avatar: 'https://i.pravatar.cc/150?u=2' }, 
+      { rank: 4, name: 'Jennie Kim', xp: '12,400', avatar: 'https://i.pravatar.cc/150?u=4' },
+      { rank: 5, name: 'David Zhang', xp: '11,230', avatar: 'https://i.pravatar.cc/150?u=5' },
+      { rank: 6, name: 'Alex Wong', xp: '9,900', avatar: 'https://i.pravatar.cc/150?u=6' },
+      { rank: 7, name: 'Lisa Ray', xp: '8,500', avatar: 'https://i.pravatar.cc/150?u=7' },
+      { rank: 8, name: 'Tom Hiddleston', xp: '7,200', avatar: 'https://i.pravatar.cc/150?u=8' },
+      { rank: 9, name: 'Emma Stone', xp: '6,800', avatar: 'https://i.pravatar.cc/150?u=9' },
+      { rank: 10, name: 'Ryan Gosling', xp: '5,400', avatar: 'https://i.pravatar.cc/150?u=10' },
+      { rank: 11, name: 'Scarlett J', xp: '4,900', avatar: 'https://i.pravatar.cc/150?u=11' },
+      { rank: 12, name: 'Chris Evans', xp: '4,500', avatar: 'https://i.pravatar.cc/150?u=12' },
   ];
 
-  // --- Mock Data: Badges ---
+  // --- Mock Data: Badges (>10 items) ---
   const badges = [
-      { id: 1, name: '早起鸟', desc: '连续7天在8点前打卡', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-100' },
-      { id: 2, name: '全能王', desc: '完成所有基础课程', icon: Crown, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100' },
-      { id: 3, name: '连胜大师', desc: '连续学习30天', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
-      { id: 4, name: 'Bug猎手', desc: '在实战中修复10个Bug', icon: Bug, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 5, name: '完美主义', desc: '单个测验获得100分', icon: Target, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 6, name: '高产似母猪', desc: '一周提交20次代码', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 1, name: 'PMP大师', desc: '通过 PMP 认证考试', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
+      { id: 2, name: '早起鸟', desc: '连续7天在8点前打卡', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+      { id: 3, name: '全能王', desc: '完成所有基础课程', icon: Trophy, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100' },
+      { id: 4, name: '连胜大师', desc: '连续学习30天', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
+      { id: 5, name: 'Bug猎手', desc: '在实战中修复10个Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100' },
+      { id: 6, name: '完美主义', desc: '单个测验获得100分', icon: Target, unlocked: true, color: 'text-red-500', bg: 'bg-red-100' },
+      { id: 7, name: '高产似母猪', desc: '一周提交20次代码', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 8, name: '文档专家', desc: '编写超过 5000 字的文档', icon: Feather, unlocked: true, color: 'text-blue-600', bg: 'bg-blue-100' },
+      { id: 9, name: '社区之星', desc: '帖子获得 100 个赞', icon: Hexagon, unlocked: true, color: 'text-indigo-500', bg: 'bg-indigo-100' },
+      { id: 10, name: '夜猫子', desc: '凌晨 2 点提交作业', icon: Lock, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 11, name: '团队核心', desc: '在协作项目中贡献度第一', icon: Trophy, unlocked: true, color: 'text-teal-500', bg: 'bg-teal-100' },
+      { id: 12, name: '敏捷先锋', desc: '完成所有敏捷模块', icon: Zap, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 13, name: '终身学习', desc: '累计学习时长 100 小时', icon: Calendar, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
   ];
 
   const handleDownload = async (certTitle: string) => {
-      if (isGeneratingPdf) return;
+      if (isGeneratingPdf || !printRef.current) return;
       setIsGeneratingPdf(true);
 
       try {
-          const element = document.getElementById('certificate-print-area');
-          if (!element) {
-              throw new Error("Certificate element not found");
-          }
-
-          // Use html2canvas to take a snapshot
-          const canvas = await html2canvas(element, {
-              scale: 2, // Higher scale for better resolution
-              useCORS: true, // Handle cross-origin images if any
+          const canvas = await html2canvas(printRef.current, {
+              scale: 2, 
+              useCORS: true,
               logging: false,
               backgroundColor: '#ffffff'
           });
 
           const imgData = canvas.toDataURL('image/png');
-          
-          // A4 Landscape dimensions
           const pdf = new jsPDF('l', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = pdf.internal.pageSize.getHeight();
           
-          // Center the image
           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
           pdf.save(`${certTitle.replace(/\s+/g, '_')}_Certificate.pdf`);
 
@@ -131,21 +197,10 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       }
   };
 
-  const getHeatmapColor = (level: number) => {
-      switch(level) {
-          case 0: return 'bg-gray-100';
-          case 1: return 'bg-emerald-200';
-          case 2: return 'bg-emerald-300';
-          case 3: return 'bg-emerald-400';
-          case 4: return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]';
-          default: return 'bg-gray-100';
-      }
-  };
-
   return (
     <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen space-y-6">
         
-        {/* --- 0. User Info Card (Dynamic) --- */}
+        {/* --- 0. User Info Card --- */}
         <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-up">
             <div className="flex items-center gap-6 w-full">
                 <div className="w-24 h-24 rounded-full bg-black text-white flex items-center justify-center text-3xl font-bold shadow-2xl overflow-hidden">
@@ -156,7 +211,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2 text-sm text-gray-500 font-medium">
                          <span className="flex items-center gap-1.5"><Mail size={16}/> {currentUser?.email || 'guest@example.com'}</span>
                          <span className="flex items-center gap-1.5"><Shield size={16}/> {currentUser?.role || 'Student'}</span>
-                         <span className="flex items-center gap-1.5"><Calendar size={16}/> Member since 2024</span>
+                         <span className="flex items-center gap-1.5"><Calendar size={16}/> Joined 2024</span>
                     </div>
                 </div>
             </div>
@@ -168,11 +223,11 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             </button>
         </div>
 
-        {/* --- 1. Top Section: Contribution Heatmap --- */}
-        <div className="glass-card rounded-[2rem] p-6 animate-fade-in-up delay-100">
+        {/* --- 1. Heatmap --- */}
+        <div className="glass-card rounded-[2rem] p-6 animate-fade-in-up delay-100 hidden md:block">
             <div className="flex justify-between items-end mb-4">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900">学习活跃度 (Activity)</h2>
+                    <h2 className="text-xl font-bold text-gray-900">学习活跃度</h2>
                     <p className="text-xs text-gray-500">过去一年</p>
                 </div>
                 <div className="text-right">
@@ -180,14 +235,18 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">年度活跃</p>
                 </div>
             </div>
-            
-            {/* Grid Container */}
             <div className="w-full overflow-x-auto pb-2 custom-scrollbar">
                 <div className="grid grid-rows-7 grid-flow-col gap-1 w-fit min-w-full">
                     {heatmapData.map((day, i) => (
                         <div 
                             key={i} 
-                            className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-[3px] transition-all hover:scale-125 hover:z-10 cursor-default ${getHeatmapColor(day.level)}`}
+                            className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-[3px] transition-all hover:scale-125 hover:z-10 cursor-default ${
+                                day.level === 0 ? 'bg-gray-100' :
+                                day.level === 1 ? 'bg-emerald-200' :
+                                day.level === 2 ? 'bg-emerald-300' :
+                                day.level === 3 ? 'bg-emerald-400' :
+                                'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
+                            }`}
                             title={`Activity Level: ${day.level}`}
                         ></div>
                     ))}
@@ -195,14 +254,13 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
             </div>
         </div>
 
-        {/* --- 2. Middle Section: Radar & Leaderboard --- */}
+        {/* --- 2. Radar & Leaderboard --- */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-200">
-            
-            {/* Left: Capability Radar (Col Span 8) */}
+            {/* Left: Capability Radar */}
             <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-6 relative flex flex-col justify-between min-h-[400px]">
                 <div className="mb-4">
                     <h2 className="text-xl font-bold text-gray-900">能力雷达</h2>
-                    <p className="text-sm text-gray-500">基于实战演练与课程测验数据的综合评估</p>
+                    <p className="text-sm text-gray-500">综合能力评估</p>
                 </div>
                 <div className="flex-1 w-full relative z-10">
                      <ResponsiveContainer width="100%" height="100%">
@@ -217,21 +275,17 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                 fill="#3b82f6"
                                 fillOpacity={0.2}
                             />
-                            <Tooltip 
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                itemStyle={{ color: '#2563eb', fontWeight: 'bold' }}
-                            />
+                            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                         </RadarChart>
                     </ResponsiveContainer>
-                    {/* Floating Badge */}
                     <div className="absolute top-0 right-0 bg-blue-50/80 backdrop-blur border border-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                        Total Score: 755
+                        Score: 828
                     </div>
                 </div>
             </div>
 
-            {/* Right: Leaderboard (Col Span 4) */}
-            <div className="lg:col-span-4 bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 flex flex-col h-full">
+            {/* Right: Leaderboard */}
+            <div className="lg:col-span-4 bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 flex flex-col h-[500px]">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                         <Trophy size={20} className="text-yellow-500"/> 排行榜
@@ -267,198 +321,130 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                 )}
                                 <div>
                                     <p className="text-sm font-bold leading-none">{user.name}</p>
-                                    <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? '我' : 'PM 专家'}</p>
+                                    <p className={`text-[10px] mt-0.5 font-medium opacity-70`}>{user.isMe ? '我' : 'Level ' + Math.floor(parseInt(user.xp.replace(',',''))/1000)}</p>
                                 </div>
                             </div>
-                            <div className="text-xs font-mono font-bold opacity-90">{user.xp} XP</div>
+                            <div className="text-xs font-mono font-bold opacity-90">{user.xp}</div>
                         </div>
                     ))}
                 </div>
             </div>
         </div>
 
-        {/* --- 3. Bottom Section: Certificates & Badges --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up delay-300">
-            
-            {/* Left: Certificate Stack (Col Span 4) */}
-            <div className="lg:col-span-4 flex flex-col gap-4">
-                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-bold text-gray-900">荣誉证书</h2>
-                    <button className="text-xs text-blue-600 font-bold hover:underline">查看全部</button>
-                 </div>
-                 
-                 {certificates.length > 0 ? (
-                     <div className="relative h-[320px] w-full flex justify-center pt-6 perspective-1000 group">
-                        {certificates.map((cert, index) => (
-                            <div
-                                key={cert.id}
-                                onClick={() => setSelectedCert(cert)}
-                                className={`absolute w-full max-w-[90%] h-48 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] p-6 text-white flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer group-hover:shadow-2xl ${cert.bgGradient}`}
-                                style={{
-                                    top: `${index * 60}px`,
-                                    transform: `scale(${1 - index * 0.05}) translateZ(${index * -20}px)`,
-                                    zIndex: certificates.length - index,
-                                    opacity: index > 2 ? 0 : 1 - index * 0.1,
-                                }}
-                            >
-                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] rounded-3xl"></div>
-                                <div className="relative z-10 flex justify-between items-start">
-                                    <Award className="opacity-80"/>
-                                    <span className="text-[10px] font-mono opacity-60 border border-white/30 px-1 rounded">No. {cert.id}</span>
-                                </div>
-                                <div className="relative z-10">
-                                    <h3 className="font-bold text-lg leading-tight line-clamp-2">{cert.title}</h3>
-                                    <p className="text-[10px] opacity-80 mt-1">{cert.issuer} • {cert.date}</p>
-                                </div>
-                            </div>
-                        ))}
-                     </div>
-                 ) : (
-                     <div className="h-[200px] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
-                         <Award size={32} className="opacity-50 mb-2"/>
-                         <p className="text-xs font-bold">暂无证书</p>
-                     </div>
-                 )}
-            </div>
-
-            {/* Right: Badge Wall (Col Span 8) */}
-            <div className="lg:col-span-8 glass-card rounded-[2.5rem] p-8">
-                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">徽章收藏馆</h2>
-                        <p className="text-sm text-gray-500">已解锁 {badges.filter(b => b.unlocked).length} / {badges.length} 个成就</p>
-                    </div>
-                    <div className="bg-gray-100 rounded-full px-3 py-1 flex items-center gap-2">
-                        <Star size={14} className="text-yellow-500 fill-yellow-500"/>
-                        <span className="text-xs font-bold text-gray-600">总成就点: 450</span>
-                    </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                     {badges.map((badge) => (
-                         <div 
-                            key={badge.id} 
-                            className={`relative group rounded-2xl p-4 flex flex-col items-center text-center gap-3 transition-all border ${
-                                badge.unlocked 
-                                ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg' 
-                                : 'bg-gray-100/50 border-transparent opacity-60 grayscale'
-                            }`}
-                         >
-                             <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${badge.unlocked ? badge.bg : 'bg-gray-200'} ${badge.color}`}>
-                                 <badge.icon size={28} />
-                             </div>
-                             <div>
-                                 <h4 className={`text-sm font-bold ${badge.unlocked ? 'text-gray-900' : 'text-gray-500'}`}>{badge.name}</h4>
-                                 <p className="text-[10px] text-gray-400 mt-1 line-clamp-2">{badge.desc}</p>
-                             </div>
-                             
-                             {!badge.unlocked && (
-                                 <div className="absolute top-2 right-2 text-gray-400">
-                                     <Lock size={12} />
-                                 </div>
-                             )}
-                         </div>
-                     ))}
-                 </div>
-            </div>
-
-        </div>
-
-      {/* Certificate Preview Modal - FIXED CENTERING & DOWNLOAD */}
+        {/* --- Certificate Preview Modal --- */}
       {selectedCert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div 
-                className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-fade-in" 
-                onClick={() => setSelectedCert(null)}
-            ></div>
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-fade-in" onClick={() => setSelectedCert(null)}></div>
             
-            {/* Modal Content */}
-            <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-bounce-in z-50">
-                {/* Toolbar */}
-                <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50 shrink-0">
+            <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden animate-bounce-in z-50">
+                <div className="flex justify-between items-center p-4 md:p-6 border-b border-gray-100 bg-gray-50/50 shrink-0">
                     <div>
                         <h3 className="text-lg font-bold text-gray-900">证书预览</h3>
-                        <p className="text-xs text-gray-500">验证编号: {selectedCert.id}</p>
+                        <p className="text-xs text-gray-500">验证 ID: {selectedCert.id}</p>
                     </div>
                     <div className="flex gap-3">
                         <button 
                             onClick={() => handleDownload(selectedCert.title)}
                             disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-colors shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isGeneratingPdf ? <Loader2 size={16} className="animate-spin"/> : <Download size={16} />} 
-                            {isGeneratingPdf ? '生成中...' : '下载 PDF'}
+                            {isGeneratingPdf ? '生成 PDF...' : '下载高清证书'}
                         </button>
-                        <button 
-                            onClick={() => setSelectedCert(null)}
-                            className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors"
-                        >
+                        <button onClick={() => setSelectedCert(null)} className="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">
                             <X size={20} />
                         </button>
                     </div>
                 </div>
 
-                {/* Preview Area (Scrollable if needed, but flex-centered) */}
-                <div className="flex-1 bg-[#F5F5F7] p-4 md:p-8 flex items-center justify-center overflow-auto">
-                    {/* The Certificate Element for Capture */}
+                {/* 
+                   Fix: Use a dedicated container for scaling visuals in UI, 
+                   while the PrintRef points to a FIXED pixel size element.
+                */}
+                <div className="flex-1 bg-[#2C2C2E] p-4 md:p-8 flex items-center justify-center overflow-auto">
+                    
+                    {/* The Scale Wrapper - Scales the certificate to fit the modal visually */}
                     <div 
-                        id="certificate-print-area"
-                        className="relative w-full max-w-[900px] aspect-[1.414/1] bg-white border-[20px] border-double border-[#E5E0D8] shadow-2xl p-8 md:p-16 flex flex-col items-center text-center justify-between"
-                        style={{ minHeight: '600px' }} // Ensure height for PDF logic
+                        className="shadow-2xl origin-center transition-transform"
+                        style={{
+                            // Simple responsive scaling for preview only
+                            transform: 'scale(0.6)', 
+                            // Ensure the wrapper has the same dimensions as the cert
+                            width: '1123px', 
+                            height: '794px' 
+                        }}
                     >
-                        {/* Decorative Corners */}
-                        <div className="absolute top-4 left-4 w-16 h-16 border-t-4 border-l-4 border-yellow-600/20"></div>
-                        <div className="absolute top-4 right-4 w-16 h-16 border-t-4 border-r-4 border-yellow-600/20"></div>
-                        <div className="absolute bottom-4 left-4 w-16 h-16 border-b-4 border-l-4 border-yellow-600/20"></div>
-                        <div className="absolute bottom-4 right-4 w-16 h-16 border-b-4 border-r-4 border-yellow-600/20"></div>
-                        
-                        {/* Content */}
-                        <div className="space-y-6 flex flex-col items-center w-full">
-                            <div className="text-yellow-600 mb-4">
-                                <Award size={64} strokeWidth={1.5} />
-                            </div>
+                        {/* 
+                           The Certificate Element: Fixed A4 Landscape (1123x794px at ~96dpi)
+                           This is what html2canvas captures.
+                        */}
+                        <div 
+                            ref={printRef}
+                            className="w-[1123px] h-[794px] bg-white relative flex flex-col items-center text-center justify-between p-24 text-slate-900"
+                            style={{
+                                backgroundImage: 'radial-gradient(circle at center, #fff 50%, #fcfcfc 100%)',
+                                fontFamily: '"Times New Roman", serif'
+                            }}
+                        >
+                            {/* Ornamental Border */}
+                            <div className="absolute inset-4 border-[4px] border-double border-yellow-600/40"></div>
+                            <div className="absolute inset-6 border border-yellow-600/20"></div>
                             
-                            <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 tracking-wide uppercase">Certificate of Completion</h2>
-                            
-                            <p className="text-gray-500 font-serif italic text-xl mt-4">This is to certify that</p>
-                            
-                            <h1 className="text-5xl md:text-6xl font-mono text-blue-900 py-4 font-bold border-b-2 border-gray-100 inline-block px-12 mb-2">
-                                {selectedCert.user}
-                            </h1>
-                            
-                            <p className="text-gray-500 font-serif italic text-xl">has successfully completed the course</p>
-                            
-                            <h3 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2">{selectedCert.title}</h3>
-                            <p className="text-gray-400 font-medium text-lg">({selectedCert.titleEn})</p>
-                        </div>
+                            {/* Corner Decorations */}
+                            <div className="absolute top-8 left-8 w-32 h-32 border-t-[6px] border-l-[6px] border-yellow-600/30 rounded-tl-lg"></div>
+                            <div className="absolute top-8 right-8 w-32 h-32 border-t-[6px] border-r-[6px] border-yellow-600/30 rounded-tr-lg"></div>
+                            <div className="absolute bottom-8 left-8 w-32 h-32 border-b-[6px] border-l-[6px] border-yellow-600/30 rounded-bl-lg"></div>
+                            <div className="absolute bottom-8 right-8 w-32 h-32 border-b-[6px] border-r-[6px] border-yellow-600/30 rounded-br-lg"></div>
 
-                        {/* Footer */}
-                        <div className="w-full flex justify-between items-end mt-12 px-8">
-                            <div className="text-center">
-                                <div className="h-px w-48 bg-gray-400 mb-3"></div>
-                                <p className="text-sm font-bold text-gray-500 uppercase">Date Issued</p>
-                                <p className="font-mono text-base">{selectedCert.date}</p>
+                            {/* Header */}
+                            <div className="z-10 mt-8 w-full">
+                                <Award size={100} className="mx-auto text-yellow-600 mb-8 drop-shadow-sm opacity-90" strokeWidth={1} />
+                                <h1 className="text-7xl font-serif font-bold text-slate-900 tracking-widest uppercase mb-4">Certificate</h1>
+                                <p className="text-3xl font-serif text-yellow-600 tracking-[0.4em] uppercase font-light">Of Completion</p>
                             </div>
 
-                            {/* Seal */}
-                            <div className="relative group">
-                                <div className={`w-32 h-32 rounded-full border-4 border-double ${selectedCert.sealColor} flex items-center justify-center bg-white shadow-sm`}>
-                                    <div className={`w-28 h-28 rounded-full border border-dashed ${selectedCert.sealColor} flex items-center justify-center p-2 text-center`}>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-tight">
-                                            Verified<br/>ProjectFlow<br/>System
-                                        </span>
+                            {/* Body */}
+                            <div className="z-10 w-full flex-1 flex flex-col justify-center">
+                                <p className="text-2xl text-slate-500 italic mb-8 font-serif">This is to certify that</p>
+                                
+                                <h2 className="text-7xl font-bold text-slate-900 mb-4 border-b-2 border-slate-100 inline-block px-16 pb-6 font-sans">
+                                    {selectedCert.user}
+                                </h2>
+                                
+                                <p className="text-2xl text-slate-500 italic mt-8 mb-4 font-serif">has successfully completed the course</p>
+                                <h3 className="text-5xl font-bold text-slate-800 font-sans tracking-tight">{selectedCert.title}</h3>
+                                <p className="text-xl text-slate-400 mt-3 font-sans tracking-wider uppercase">({selectedCert.titleEn})</p>
+                            </div>
+
+                            {/* Footer & Seal */}
+                            <div className="w-full flex justify-between items-end px-16 z-10 mb-8">
+                                <div className="text-center w-64">
+                                    <div className="border-b border-slate-400 mb-4 pb-1">
+                                        <p className="font-mono text-xl text-slate-600">{selectedCert.date}</p>
                                     </div>
+                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Date Issued</p>
                                 </div>
-                                <div className="absolute -bottom-3 -right-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-white">
-                                    <CheckCircle size={12} /> Validated
-                                </div>
-                            </div>
 
-                            <div className="text-center">
-                                <div className="h-px w-48 bg-gray-400 mb-3"></div>
-                                <p className="text-sm font-bold text-gray-500 uppercase">{selectedCert.issuer}</p>
-                                <p className="font-serif italic text-base">Director of Education</p>
+                                {/* Gold Seal */}
+                                <div className="relative -mb-4 mx-8">
+                                    <div className="w-48 h-48 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-700 shadow-2xl flex items-center justify-center p-1.5">
+                                        <div className="w-full h-full rounded-full border-[3px] border-dashed border-white/40 flex items-center justify-center bg-yellow-600/10">
+                                            <div className="text-center text-white drop-shadow-md">
+                                                 <div className="text-sm font-bold uppercase tracking-widest mb-1 opacity-90">ProjectFlow</div>
+                                                 <div className="text-4xl font-serif font-bold">Verified</div>
+                                                 <div className="text-xs font-bold uppercase mt-2 opacity-80 tracking-widest">Certification</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="absolute top-4 right-0 bg-blue-700 text-white text-xs px-3 py-1 rounded shadow-lg font-sans font-bold uppercase tracking-wider">Valid</div>
+                                </div>
+
+                                <div className="text-center w-64">
+                                    <div className="border-b border-slate-400 mb-4 pb-1 flex justify-center items-end h-10">
+                                       <span className="font-serif italic text-4xl text-slate-800 opacity-80 -rotate-3">Alex P.</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Director of Education</p>
+                                </div>
                             </div>
                         </div>
                     </div>

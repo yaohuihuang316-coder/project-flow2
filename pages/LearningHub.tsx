@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
   Network, BarChart3, TrendingUp,
   GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle, CloudLightning, Box, Workflow, Rocket
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -19,24 +20,30 @@ interface LearningHubProps {
     currentUser?: UserProfile | null;
 }
 
-// --- Data: 2. 进阶实验室 Tools ---
+// --- Data: 2. 进阶实验室 Tools (>10 Items Total) ---
 const LAB_TOOLS = {
     Quantitative: [
-        { id: 'evm', name: 'EVM 挣值计算器', desc: '成本/进度绩效综合诊断', icon: BarChart3 },
+        { id: 'evm', name: 'EVM 挣值计算器', desc: '成本/进度绩效综合诊断 (CPI/SPI)', icon: BarChart3 },
         { id: 'cpm', name: 'CPM 关键路径', desc: '工期推演与浮动时间计算', icon: Network },
-        { id: 'pert', name: 'PERT 三点估算', desc: '加权平均工期评估', icon: Activity },
+        { id: 'pert', name: 'PERT 三点估算', desc: '加权平均工期评估 (Beta分布)', icon: Activity },
+        { id: 'roi', name: 'ROI/NPV 投资回报', desc: '项目财务可行性分析模型', icon: Calculator },
+        { id: 'burn', name: '燃尽图模拟器', desc: '敏捷冲刺剩余工作量预测', icon: FlameIcon },
     ],
     Strategic: [
-        { id: 'stakeholder', name: '相关方博弈', desc: '冲突解决与沟通模拟', icon: Users },
-        { id: 'risk', name: '风险决策树', desc: 'EMV 预期货币价值分析', icon: GitMerge },
+        { id: 'stakeholder', name: '相关方博弈矩阵', desc: '权力/利益方格分析与策略生成', icon: Users },
+        { id: 'risk', name: '风险决策树 (EMV)', desc: '不确定性条件下的量化决策', icon: GitMerge },
+        { id: 'swot', name: 'SWOT 战略分析', desc: '优势/劣势/机会/威胁矩阵', icon: Shield },
+        { id: 'okr', name: 'OKR 目标对齐', desc: '企业战略与关键结果拆解', icon: TargetIcon },
     ],
     Toolkit: [
         { id: 'wbs', name: 'WBS 拆解助手', desc: '结构化工作分解结构生成', icon: Layers },
-        { id: 'charter', name: '章程生成器', desc: '项目启动核心文档模板', icon: FileText },
+        { id: 'charter', name: '章程生成器', desc: '项目启动核心文档模板 (Project Charter)', icon: FileText },
+        { id: 'retro', name: '回顾会议板', desc: 'KISS/Start-Stop-Continue 模板', icon: RefreshCw },
+        { id: 'userstory', name: '用户故事拆分', desc: 'INVEST 原则检查与切分建议', icon: BookOpen },
     ]
 };
 
-// --- Data: 3. 实战演练 (Projects) ---
+// --- Data: 3. 实战演练 (Projects) (>10 Items) ---
 const PROJECTS = [
     { id: 'p1', title: '企业级 ERP 重构', tech: ['Java', 'Spring Cloud', 'Docker'], desc: '遗留单体系统微服务化拆分与容器化部署。', color: 'from-blue-500 to-indigo-600', icon: Server },
     { id: 'p2', title: '跨境电商中台', tech: ['Vue 3', 'Node.js', 'Redis'], desc: '高并发秒杀系统设计与库存一致性解决方案。', color: 'from-orange-400 to-red-500', icon: Globe },
@@ -48,7 +55,13 @@ const PROJECTS = [
     { id: 'p8', title: '移动端协作 App', tech: ['Flutter', 'Dart', 'Firebase'], desc: '跨平台即时通讯与任务管理应用实战。', color: 'from-indigo-400 to-purple-500', icon: Smartphone },
     { id: 'p9', title: 'DevOps 自动化平台', tech: ['K8s', 'Jenkins', 'Ansible'], desc: 'CI/CD 流水线搭建与多环境自动发布。', color: 'from-blue-600 to-cyan-600', icon: Terminal },
     { id: 'p10', title: 'AI 知识库问答', tech: ['LangChain', 'OpenAI', 'VectorDB'], desc: '基于 RAG 架构的企业私有数据问答助手。', color: 'from-teal-400 to-emerald-500', icon: FileJson },
+    { id: 'p11', title: '智慧物流调度', tech: ['Python', 'Gurobi', 'Leaflet'], desc: '基于运筹优化的路径规划与车辆调度系统。', color: 'from-yellow-500 to-orange-600', icon: Box },
+    { id: 'p12', title: 'HR 绩效考评系统', tech: ['C#', '.NET Core', 'SQL Server'], desc: '360度评估与薪酬自动计算管理平台。', color: 'from-pink-500 to-rose-500', icon: Users },
 ];
+
+// Helper Icons
+function FlameIcon(props:any) { return <CloudLightning {...props} />; }
+function TargetIcon(props:any) { return <Activity {...props} />; }
 
 const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) => {
   // Navigation State

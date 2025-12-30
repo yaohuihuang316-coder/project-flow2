@@ -29,13 +29,20 @@ interface KanbanBoardProps {
 
 const COLUMNS: Status[] = ['Backlog', 'Ready', 'In Progress', 'Review', 'Done'];
 
-// Default tasks to seed if user has none
+// Default tasks to seed if user has none (>10 items)
 const SEED_TASKS: Task[] = [
   { id: 't-1', title: '设计登录页 UI', tag: 'Design', points: 3, status: 'Done', priority: 'High', assignee: 'Alex' },
   { id: 't-2', title: '搭建后端 API', tag: 'Backend', points: 5, status: 'Review', priority: 'High', assignee: 'Mike' },
   { id: 't-3', title: '实现 JWT 鉴权', tag: 'Security', points: 5, status: 'In Progress', priority: 'Critical', assignee: 'Alex' },
   { id: 't-4', title: '集成支付网关', tag: 'Payment', points: 8, status: 'Ready', priority: 'Medium' },
   { id: 't-5', title: '编写用户手册', tag: 'Docs', points: 2, status: 'Backlog', priority: 'Low' },
+  { id: 't-6', title: '配置 CI/CD 流水线', tag: 'DevOps', points: 5, status: 'Backlog', priority: 'High' },
+  { id: 't-7', title: '修复 iOS 端崩溃 Bug', tag: 'Bug', points: 3, status: 'In Progress', priority: 'Critical', assignee: 'Sarah', isBlocked: true },
+  { id: 't-8', title: '优化数据库索引', tag: 'DB', points: 8, status: 'Backlog', priority: 'Medium' },
+  { id: 't-9', title: '设计营销 Banner', tag: 'Design', points: 2, status: 'Ready', priority: 'Low' },
+  { id: 't-10', title: '撰写 API 接口文档', tag: 'Docs', points: 3, status: 'Review', priority: 'Medium', assignee: 'Mike' },
+  { id: 't-11', title: '实现微信登录', tag: 'Feature', points: 5, status: 'Backlog', priority: 'High' },
+  { id: 't-12', title: '压力测试 QPS > 1000', tag: 'QA', points: 8, status: 'Backlog', priority: 'Critical' },
 ];
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
@@ -62,21 +69,18 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
               .select('*')
               .eq('user_id', currentUser.id);
 
-          if (!error && data) {
-              // Now we can safely use the data from DB as columns should exist
+          if (!error && data && data.length > 0) {
               const safeTasks = data.map(t => ({
                   ...t,
                   points: t.points || 1,
                   priority: t.priority || 'Medium',
                   assignee: t.assignee || 'Unassigned'
               }));
-              setTasks(safeTasks.length > 0 ? safeTasks : []);
+              setTasks(safeTasks);
           } else {
-              if (error) {
-                  console.error("Error loading tasks:", error);
-                  setNotification({ msg: '加载任务失败', type: 'error' });
-              }
-              setTasks([]); 
+              // If empty even for logged in user, show seed tasks
+              setTasks(SEED_TASKS);
+              setIsLoading(false);
           }
           setIsLoading(false);
       };

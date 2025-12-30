@@ -49,7 +49,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             }, 800);
         } else {
             // User does not exist (or error finding them) -> Go to Step 2 (Register)
-            // Note: PGRST116 is the code for "0 rows" from .single()
             setIsNewUser(true);
             setStep('details');
             setIsLoading(false);
@@ -57,7 +56,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     } catch (err: any) {
         console.error(err);
         // If table doesn't exist or network error, let user register anyway (handled in step 2)
-        // or strictly show error. Here we allow flow to proceed to step 2 to try insert.
         if (err.code === 'PGRST116' || (err.details && err.details.includes('0 rows'))) {
              setIsNewUser(true);
              setStep('details');
@@ -90,7 +88,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           const { error } = await supabase.from('app_users').insert(newUser);
           
           if (error) {
-              // If table missing, throw specific error
               throw error;
           }
 
@@ -113,13 +110,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   // Fallback: Demo Login (Auto-syncs to DB)
   const handleDemoLogin = async () => {
       const demoUser = {
-          id: 'demo-user',
-          email: 'demo@projectflow.com',
-          name: 'Demo Admin',
-          role: 'SuperAdmin',
+          id: 'u-777', // Fixed ID for stability
+          email: '777@projectflow.com',
+          name: 'Alex Chen',
+          role: 'Manager',
           status: '正常',
-          department: 'System',
-          avatar: 'https://i.pravatar.cc/150?u=demo',
+          department: 'Project Management Office',
+          avatar: 'https://i.pravatar.cc/150?u=777',
           created_at: new Date().toISOString()
       };
 
@@ -231,7 +228,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 onClick={handleDemoLogin}
                 className="text-xs font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2"
               >
-                  <Database size={12}/> 数据库未连接？试用演示账号
+                  <Database size={12}/> 数据库未连接？试用演示账号 (Alex Chen)
               </button>
           )}
         </div>

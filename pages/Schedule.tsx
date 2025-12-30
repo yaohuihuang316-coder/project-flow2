@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Play, Pause, X, CloudRain, Coffee, Zap, Plus, Loader2 } from 'lucide-react';
 import { UserProfile } from '../types';
@@ -49,10 +50,19 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
     const fetchEvents = async () => {
         setIsLoading(true);
         if (!currentUser) {
-            // Mock data for guests
+            // Mock data for guests (>10 items)
             setEvents([
-                { id: 1, time: '09:00 AM', title: '每日站会 (Daily Standup)', type: 'meeting', duration: '15min' },
-                { id: 2, time: '10:30 AM', title: '敏捷项目管理课程 - Module 2', type: 'learning', duration: '45min' },
+                { id: 1, time: '07:30 AM', title: '晨间冥想 (Meditation)', type: 'self', duration: '30min' },
+                { id: 2, time: '09:00 AM', title: '每日站会 (Daily Standup)', type: 'meeting', duration: '15min' },
+                { id: 3, time: '10:00 AM', title: '产品需求评审 (PRD Review)', type: 'work', duration: '1h' },
+                { id: 4, time: '11:30 AM', title: '敏捷项目管理课程 - Module 2', type: 'learning', duration: '45min' },
+                { id: 5, time: '01:00 PM', title: '午餐 & 休息', type: 'self', duration: '1h' },
+                { id: 6, time: '02:30 PM', title: '前端架构设计研讨', type: 'work', duration: '1.5h' },
+                { id: 7, time: '04:00 PM', title: '代码走查 (Code Review)', type: 'work', duration: '1h' },
+                { id: 8, time: '05:30 PM', title: '健身房 (Gym)', type: 'self', duration: '1h' },
+                { id: 9, time: '07:00 PM', title: 'PMP 备考刷题', type: 'learning', duration: '45min' },
+                { id: 10, time: '08:00 PM', title: '阅读：人月神话', type: 'learning', duration: '30min' },
+                { id: 11, time: '09:00 PM', title: '总结与明日规划', type: 'self', duration: '15min' },
             ]);
             setIsLoading(false);
             return;
@@ -64,7 +74,12 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: true });
 
-        if (data) setEvents(data);
+        if (data && data.length > 0) {
+            setEvents(data);
+        } else {
+             // If DB empty for user, show empty state or fallback. Here we show empty.
+             setEvents([]);
+        }
         setIsLoading(false);
     };
 
