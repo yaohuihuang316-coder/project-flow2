@@ -41,9 +41,6 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [error, setError] = useState<string | null>(null);
 
   // Gemini Client Init
-  // Accessing Vite env vars. Strictly per instructions we must use the key from environment.
-  // Using import.meta.env for Vite compatibility, falling back to process.env if needed.
-  // NOTE: In Vite, env vars MUST start with VITE_ to be exposed to the client.
   const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.API_KEY;
   
   // 1. Fetch Course Data
@@ -266,9 +263,9 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         const ai = new GoogleGenAI({ apiKey: apiKey });
         
         // Use Streaming
-        // Changed model to 'gemini-2.0-flash-exp' to fix 404 error
+        // Switched to 'gemini-1.5-flash' for stability and better quota management
         const responseStream = await ai.models.generateContentStream({
-            model: 'gemini-2.0-flash-exp', 
+            model: 'gemini-1.5-flash', 
             contents: [
                 { role: 'user', parts: [{ text: `Context: User is learning the course "${data?.title}".` }] },
                 { role: 'user', parts: [{ text: currentInput }] }
@@ -298,6 +295,8 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
               errorMsg = "⚠️ 错误：未配置 API Key。请在项目根目录创建 .env 文件并添加 VITE_GEMINI_API_KEY。";
           } else if (err.message.includes("404")) {
               errorMsg = "⚠️ 模型未找到。请联系开发者检查模型名称配置 (Model Not Found)。";
+          } else if (err.message.includes("429")) {
+              errorMsg = "⚠️ 服务繁忙 (429)：AI 助教当前请求过多，请稍后再试。";
           } else if (err.message.includes("fetch")) {
               errorMsg = "⚠️ 网络错误：无法连接到 Google API，请检查网络设置。";
           }
@@ -560,7 +559,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                          <div>
                              <h3 className="font-bold text-gray-900 text-sm">AI 助教</h3>
                              <p className="text-[10px] text-green-500 font-bold flex items-center gap-1">
-                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 2.0 Flash)
+                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 1.5 Flash)
                              </p>
                          </div>
                      </div>
