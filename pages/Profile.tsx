@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, User } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, User, Eye } from 'lucide-react';
 import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -121,12 +121,12 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
   // --- Mock Data: Badges ---
   const badges = [
-      { id: 1, name: 'PMP大师', desc: '通过 PMP 认证考试，获得 500 经验值', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
-      { id: 2, name: '早起鸟', desc: '连续7天在8点前打卡学习，获得 200 经验值', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-      { id: 3, name: '全能王', desc: '完成所有基础课程章节', icon: Trophy, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100' },
-      { id: 4, name: '连胜大师', desc: '连续学习30天未中断', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
-      { id: 5, name: 'Bug猎手', desc: '在实战中成功修复10个Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100' },
-      { id: 6, name: '完美主义', desc: '在单个测验中获得100分满分', icon: Target, unlocked: true, color: 'text-red-500', bg: 'bg-red-100' },
+      { id: 1, name: 'PMP大师', desc: '通过 PMP 认证考试，获得 500 经验值', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100', en: 'Master of PMP' },
+      { id: 2, name: '早起鸟', desc: '连续7天在8点前打卡学习，获得 200 经验值', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50', en: 'Early Bird Achiever' },
+      { id: 3, name: '全能王', desc: '完成所有基础课程章节', icon: Trophy, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100', en: 'All-Rounder' },
+      { id: 4, name: '连胜大师', desc: '连续学习30天未中断', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100', en: 'Streak Master' },
+      { id: 5, name: 'Bug猎手', desc: '在实战中成功修复10个Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100', en: 'Bug Hunter' },
+      { id: 6, name: '完美主义', desc: '在单个测验中获得100分满分', icon: Target, unlocked: true, color: 'text-red-500', bg: 'bg-red-100', en: 'Perfectionist' },
   ];
 
   const handleDownload = async (certTitle: string) => {
@@ -135,7 +135,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
       try {
           const canvas = await html2canvas(printRef.current, {
-              scale: 1,
+              scale: 2, // Higher scale for better PDF quality
               useCORS: true,
               logging: false,
               backgroundColor: '#ffffff',
@@ -197,7 +197,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                 {data.user}
             </h2>
             
-            <p className="text-xl text-slate-500 italic mt-4 mb-2 font-serif">has successfully completed the comprehensive course</p>
+            <p className="text-xl text-slate-500 italic mt-4 mb-2 font-serif">has successfully unlocked the achievement</p>
             <h3 className="text-4xl font-bold text-slate-800 font-sans tracking-wide max-w-4xl leading-tight">{data.title}</h3>
             <p className="text-lg text-slate-400 mt-2 font-sans tracking-wider uppercase font-medium">({data.titleEn})</p>
         </div>
@@ -384,11 +384,22 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                  {badges.map((badge) => (
                      <div 
-                        key={badge.id} 
-                        className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border cursor-pointer ${
+                        key={badge.id}
+                        onClick={() => {
+                            if (badge.unlocked) {
+                                setSelectedCert({
+                                    id: `CRT-${badge.id}-${Date.now().toString().slice(-4)}`,
+                                    title: badge.name,
+                                    titleEn: badge.en || 'Mastery Achievement',
+                                    user: currentUser?.name || 'User',
+                                    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                                });
+                            }
+                        }}
+                        className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border ${
                             badge.unlocked 
-                            ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg' 
-                            : 'bg-gray-100/50 border-transparent opacity-60 grayscale'
+                            ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg cursor-pointer hover:scale-105' 
+                            : 'bg-gray-100/50 border-transparent opacity-60 grayscale cursor-not-allowed'
                         }`}
                      >
                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-inner ${badge.unlocked ? badge.bg : 'bg-gray-200'} ${badge.color}`}>
@@ -397,9 +408,13 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                          <div>
                              <h4 className={`text-xs font-bold ${badge.unlocked ? 'text-gray-900' : 'text-gray-500'}`}>{badge.name}</h4>
                          </div>
-                         {!badge.unlocked && (
+                         {!badge.unlocked ? (
                              <div className="absolute top-1 right-1 text-gray-400">
                                  <Lock size={10} />
+                             </div>
+                         ) : (
+                             <div className="absolute bottom-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                 <Eye size={10} /> 证书
                              </div>
                          )}
                      </div>
