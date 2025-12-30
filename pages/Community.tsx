@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, MessageSquare, Heart, Share2, MoreHorizontal, 
-  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send
+  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, ThumbsUp
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -86,6 +86,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         
         const updatedPosts = posts.map(p => p.id === postId ? { ...p, likes: newLikes } : p);
         setPosts(updatedPosts);
+        setFilteredPosts(updatedPosts); // Sync filtered list too
         
         const newLikedSet = new Set(likedPosts);
         if (isLiked) newLikedSet.delete(postId);
@@ -119,6 +120,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
         const updatedList = [optimisticPost, ...posts];
         setPosts(updatedList);
+        setFilteredPosts(updatedList);
         setNewPostContent('');
 
         // Sync to DB
@@ -150,21 +152,21 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     <div className="glass-card rounded-[2rem] p-6 space-y-2 sticky top-24">
                         <button 
                             onClick={() => setActiveTab('recommend')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'recommend' ? 'bg-black text-white shadow-lg' : 'hover:bg-gray-50 text-gray-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'recommend' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
                         >
                             <TrendingUp size={20} />
                             <span className="font-bold">推荐动态</span>
                         </button>
                         <button 
                             onClick={() => setActiveTab('latest')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'latest' ? 'bg-black text-white shadow-lg' : 'hover:bg-gray-50 text-gray-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'latest' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
                         >
                             <Filter size={20} />
                             <span className="font-bold">最新发布</span>
                         </button>
                         <button 
                             onClick={() => setActiveTab('following')}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'following' ? 'bg-black text-white shadow-lg' : 'hover:bg-gray-50 text-gray-600'}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'following' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
                         >
                             <Users size={20} />
                             <span className="font-bold">我的关注</span>
@@ -174,7 +176,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                              <h3 className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">热门话题</h3>
                              <div className="space-y-1">
                                  {TRENDING_TOPICS.map(topic => (
-                                     <button key={topic.id} className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 rounded-lg group">
+                                     <button key={topic.id} className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 rounded-lg group transition-colors">
                                          <div className="flex items-center gap-2">
                                              <div className="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold">#</div>
                                              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{topic.name}</span>
@@ -190,9 +192,9 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 {/* --- Center: Feed --- */}
                 <div className="col-span-1 lg:col-span-6 space-y-6">
                     {/* Compose Box */}
-                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
+                    <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-shadow hover:shadow-md">
                         <div className="flex gap-4">
-                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
                                 {currentUser?.avatar ? (
                                     <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" />
                                 ) : (
@@ -209,8 +211,8 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                 />
                                 <div className="flex justify-between items-center mt-4">
                                     <div className="flex gap-2 text-gray-400">
-                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><ImageIcon size={20}/></button>
-                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Hash size={20}/></button>
+                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"><ImageIcon size={20}/></button>
+                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"><Hash size={20}/></button>
                                     </div>
                                     <button 
                                         onClick={handlePost}
@@ -227,23 +229,30 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     {/* Feed List */}
                     <div className="space-y-6 pb-20">
                         {isLoading ? (
-                            // Skeleton Loader
+                            // Enhanced Skeleton Loader
                             [1, 2, 3].map(i => (
-                                <div key={i} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 animate-pulse">
+                                <div key={i} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100">
                                     <div className="flex items-center gap-4 mb-4">
-                                        <div className="w-12 h-12 rounded-full bg-gray-200"></div>
-                                        <div className="flex-1">
-                                            <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
-                                            <div className="h-3 w-20 bg-gray-200 rounded"></div>
+                                        <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse"></div>
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+                                            <div className="h-3 w-20 bg-gray-100 rounded animate-pulse"></div>
                                         </div>
                                     </div>
-                                    <div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
-                                    <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
+                                    <div className="space-y-3">
+                                        <div className="h-4 w-full bg-gray-100 rounded animate-pulse"></div>
+                                        <div className="h-4 w-5/6 bg-gray-100 rounded animate-pulse"></div>
+                                        <div className="h-4 w-4/6 bg-gray-100 rounded animate-pulse"></div>
+                                    </div>
+                                    <div className="mt-6 flex gap-6">
+                                        <div className="h-8 w-16 bg-gray-100 rounded-full animate-pulse"></div>
+                                        <div className="h-8 w-16 bg-gray-100 rounded-full animate-pulse"></div>
+                                    </div>
                                 </div>
                             ))
                         ) : filteredPosts.length > 0 ? (
                             filteredPosts.map(post => (
-                                <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 animate-fade-in-up">
+                                <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 animate-fade-in-up">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
                                             <img 
@@ -268,18 +277,18 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                         </button>
                                     </div>
 
-                                    <p className="text-gray-800 text-sm leading-7 whitespace-pre-wrap mb-4 font-medium">
+                                    <p className="text-gray-800 text-sm leading-7 whitespace-pre-wrap mb-4 font-medium pl-1">
                                         {post.content}
                                     </p>
 
                                     {post.image && (
-                                        <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                                            <img src={post.image} className="w-full object-cover max-h-[400px] hover:scale-105 transition-transform duration-700" alt="Post attachment"/>
+                                        <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer">
+                                            <img src={post.image} className="w-full object-cover max-h-[400px] group-hover:scale-105 transition-transform duration-700" alt="Post attachment"/>
                                         </div>
                                     )}
 
                                     {post.tags && post.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 mb-5">
+                                        <div className="flex flex-wrap gap-2 mb-5 pl-1">
                                             {post.tags.map((tag: string) => (
                                                 <span key={tag} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors">#{tag}</span>
                                             ))}
@@ -289,10 +298,10 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
                                         <button 
                                             onClick={() => handleLike(post.id, post.likes)}
-                                            className={`flex items-center gap-2 text-sm font-bold transition-colors group ${likedPosts.has(post.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                            className={`flex items-center gap-2 text-sm font-bold transition-all group ${likedPosts.has(post.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                         >
                                             <div className={`p-2 rounded-full group-hover:bg-red-50 transition-colors ${likedPosts.has(post.id) ? 'bg-red-50' : ''}`}>
-                                                <Heart size={20} className={`transition-transform group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current' : ''}`}/> 
+                                                <Heart size={20} className={`transition-transform duration-300 group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current scale-110' : ''}`}/> 
                                             </div>
                                             <span>{post.likes}</span>
                                         </button>

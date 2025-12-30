@@ -1,9 +1,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield } from 'lucide-react';
+import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface ProfileProps {
     currentUser?: UserProfile | null;
@@ -13,6 +15,7 @@ interface ProfileProps {
 const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [certificates, setCertificates] = useState<any[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // --- Fetch Real Achievements ---
   useEffect(() => {
@@ -89,8 +92,41 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       { id: 6, name: '高产似母猪', desc: '一周提交20次代码', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
   ];
 
-  const handleDownload = (certTitle: string) => {
-      alert(`正在生成 ${certTitle} 高清证书 PDF，请稍候...`);
+  const handleDownload = async (certTitle: string) => {
+      if (isGeneratingPdf) return;
+      setIsGeneratingPdf(true);
+
+      try {
+          const element = document.getElementById('certificate-print-area');
+          if (!element) {
+              throw new Error("Certificate element not found");
+          }
+
+          // Use html2canvas to take a snapshot
+          const canvas = await html2canvas(element, {
+              scale: 2, // Higher scale for better resolution
+              useCORS: true, // Handle cross-origin images if any
+              logging: false,
+              backgroundColor: '#ffffff'
+          });
+
+          const imgData = canvas.toDataURL('image/png');
+          
+          // A4 Landscape dimensions
+          const pdf = new jsPDF('l', 'mm', 'a4');
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          
+          // Center the image
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pdf.save(`${certTitle.replace(/\s+/g, '_')}_Certificate.pdf`);
+
+      } catch (err) {
+          console.error("PDF generation failed:", err);
+          alert("证书生成失败，请稍后重试。");
+      } finally {
+          setIsGeneratingPdf(false);
+      }
   };
 
   const getHeatmapColor = (level: number) => {
@@ -326,17 +362,19 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
         </div>
 
-      {/* Certificate Preview Modal */}
+      {/* Certificate Preview Modal - FIXED CENTERING & DOWNLOAD */}
       {selectedCert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
             <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in" 
+                className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-fade-in" 
                 onClick={() => setSelectedCert(null)}
             ></div>
             
-            <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl overflow-hidden animate-bounce-in">
+            {/* Modal Content */}
+            <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-bounce-in z-50">
                 {/* Toolbar */}
-                <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50">
+                <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50 shrink-0">
                     <div>
                         <h3 className="text-lg font-bold text-gray-900">证书预览</h3>
                         <p className="text-xs text-gray-500">验证编号: {selectedCert.id}</p>
@@ -344,9 +382,11 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     <div className="flex gap-3">
                         <button 
                             onClick={() => handleDownload(selectedCert.title)}
-                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-colors"
+                            disabled={isGeneratingPdf}
+                            className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-full text-sm font-bold hover:bg-gray-800 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                         >
-                            <Download size={16} /> 下载 PDF
+                            {isGeneratingPdf ? <Loader2 size={16} className="animate-spin"/> : <Download size={16} />} 
+                            {isGeneratingPdf ? '生成中...' : '下载 PDF'}
                         </button>
                         <button 
                             onClick={() => setSelectedCert(null)}
@@ -357,9 +397,14 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     </div>
                 </div>
 
-                {/* Realistic Certificate Paper View */}
-                <div className="p-8 md:p-12 bg-[#FDFBF7] flex justify-center overflow-y-auto max-h-[70vh]">
-                    <div className="relative w-full max-w-3xl aspect-[1.414/1] bg-white border-[20px] border-double border-[#E5E0D8] shadow-lg p-8 md:p-12 flex flex-col items-center text-center justify-between">
+                {/* Preview Area (Scrollable if needed, but flex-centered) */}
+                <div className="flex-1 bg-[#F5F5F7] p-4 md:p-8 flex items-center justify-center overflow-auto">
+                    {/* The Certificate Element for Capture */}
+                    <div 
+                        id="certificate-print-area"
+                        className="relative w-full max-w-[900px] aspect-[1.414/1] bg-white border-[20px] border-double border-[#E5E0D8] shadow-2xl p-8 md:p-16 flex flex-col items-center text-center justify-between"
+                        style={{ minHeight: '600px' }} // Ensure height for PDF logic
+                    >
                         {/* Decorative Corners */}
                         <div className="absolute top-4 left-4 w-16 h-16 border-t-4 border-l-4 border-yellow-600/20"></div>
                         <div className="absolute top-4 right-4 w-16 h-16 border-t-4 border-r-4 border-yellow-600/20"></div>
@@ -367,51 +412,51 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         <div className="absolute bottom-4 right-4 w-16 h-16 border-b-4 border-r-4 border-yellow-600/20"></div>
                         
                         {/* Content */}
-                        <div className="space-y-4 md:space-y-6">
-                            <div className="flex justify-center mb-2 text-yellow-600">
-                                <Award size={56} />
+                        <div className="space-y-6 flex flex-col items-center w-full">
+                            <div className="text-yellow-600 mb-4">
+                                <Award size={64} strokeWidth={1.5} />
                             </div>
                             
-                            <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 tracking-wide uppercase">Certificate of Completion</h2>
+                            <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 tracking-wide uppercase">Certificate of Completion</h2>
                             
-                            <p className="text-gray-500 font-serif italic text-base md:text-lg">This is to certify that</p>
+                            <p className="text-gray-500 font-serif italic text-xl mt-4">This is to certify that</p>
                             
-                            <h1 className="text-4xl md:text-5xl font-mono text-blue-900 py-2 md:py-4 font-bold border-b-2 border-gray-100 inline-block px-12">
+                            <h1 className="text-5xl md:text-6xl font-mono text-blue-900 py-4 font-bold border-b-2 border-gray-100 inline-block px-12 mb-2">
                                 {selectedCert.user}
                             </h1>
                             
-                            <p className="text-gray-500 font-serif italic text-base md:text-lg">has successfully completed the course</p>
+                            <p className="text-gray-500 font-serif italic text-xl">has successfully completed the course</p>
                             
-                            <h3 className="text-2xl md:text-3xl font-bold text-gray-800">{selectedCert.title}</h3>
-                            <p className="text-gray-400 font-medium text-sm">({selectedCert.titleEn})</p>
+                            <h3 className="text-3xl md:text-4xl font-bold text-gray-800 mt-2">{selectedCert.title}</h3>
+                            <p className="text-gray-400 font-medium text-lg">({selectedCert.titleEn})</p>
                         </div>
 
                         {/* Footer */}
-                        <div className="w-full flex justify-between items-end mt-8 md:mt-12 px-4 md:px-8">
+                        <div className="w-full flex justify-between items-end mt-12 px-8">
                             <div className="text-center">
-                                <div className="h-px w-32 md:w-40 bg-gray-400 mb-2"></div>
-                                <p className="text-xs font-bold text-gray-500 uppercase">Date Issued</p>
-                                <p className="font-mono text-sm">{selectedCert.date}</p>
+                                <div className="h-px w-48 bg-gray-400 mb-3"></div>
+                                <p className="text-sm font-bold text-gray-500 uppercase">Date Issued</p>
+                                <p className="font-mono text-base">{selectedCert.date}</p>
                             </div>
 
                             {/* Seal */}
-                            <div className="relative group cursor-pointer">
-                                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-double ${selectedCert.sealColor} flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform duration-500 bg-white`}>
-                                    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full border border-dashed ${selectedCert.sealColor} flex items-center justify-center p-2 text-center`}>
-                                        <span className="text-[8px] font-bold uppercase tracking-widest text-gray-400 leading-tight">
+                            <div className="relative group">
+                                <div className={`w-32 h-32 rounded-full border-4 border-double ${selectedCert.sealColor} flex items-center justify-center bg-white shadow-sm`}>
+                                    <div className={`w-28 h-28 rounded-full border border-dashed ${selectedCert.sealColor} flex items-center justify-center p-2 text-center`}>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-tight">
                                             Verified<br/>ProjectFlow<br/>System
                                         </span>
                                     </div>
                                 </div>
-                                <div className="absolute -bottom-2 -right-4 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                                    <CheckCircle size={10} /> Valid
+                                <div className="absolute -bottom-3 -right-4 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-white">
+                                    <CheckCircle size={12} /> Validated
                                 </div>
                             </div>
 
                             <div className="text-center">
-                                <div className="h-px w-32 md:w-40 bg-gray-400 mb-2"></div>
-                                <p className="text-xs font-bold text-gray-500 uppercase">{selectedCert.issuer}</p>
-                                <p className="font-serif italic text-sm">Director of Education</p>
+                                <div className="h-px w-48 bg-gray-400 mb-3"></div>
+                                <p className="text-sm font-bold text-gray-500 uppercase">{selectedCert.issuer}</p>
+                                <p className="font-serif italic text-base">Director of Education</p>
                             </div>
                         </div>
                     </div>

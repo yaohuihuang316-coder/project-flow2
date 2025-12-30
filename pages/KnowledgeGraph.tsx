@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 import { ChevronLeft, Search, BookOpen, ExternalLink, X, Atom } from 'lucide-react';
@@ -54,7 +55,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
         ];
 
         const option: any = {
-            backgroundColor: '#0f172a', // slate-900
+            backgroundColor: 'transparent',
             tooltip: {},
             animationDuration: 1500,
             animationEasingUpdate: 'quinticInOut',
@@ -181,7 +182,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
                     </div>
                     <input 
                         type="text" 
-                        placeholder="搜索..." 
+                        placeholder="搜索知识点..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="bg-black/30 backdrop-blur-xl border border-white/10 text-white rounded-full pl-10 pr-4 py-2.5 w-full md:w-64 focus:w-full md:focus:w-80 transition-all outline-none text-sm placeholder-gray-500 shadow-xl"
@@ -189,19 +190,25 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
                 </div>
             </div>
 
-            {/* ECharts Container */}
-            <div ref={chartRef} className="w-full h-full" />
+            {/* ECharts Container (Full Screen Background) */}
+            <div ref={chartRef} className="absolute inset-0 w-full h-full z-0" />
 
-            {/* Responsive Info Panel (Right Sidebar on Desktop, Bottom Sheet on Mobile) */}
+            {/* Responsive Info Panel 
+                FIX: Removed confusing mix of absolute/md logic. 
+                Using strictly fixed positioning on top layer with clear transform rules.
+            */}
             <div 
                 className={`
-                    absolute bg-black/80 backdrop-blur-2xl border-white/10 shadow-2xl z-30 p-6 text-white transition-transform duration-500 cubic-bezier(0.19,1,0.22,1)
-                    /* Desktop Styles */
-                    md:top-0 md:right-0 md:h-full md:w-96 md:border-l
-                    ${selectedNode ? 'md:translate-x-0' : 'md:translate-x-full'}
-                    /* Mobile Styles */
-                    bottom-0 left-0 right-0 rounded-t-3xl border-t h-[60vh] md:h-auto md:rounded-none
-                    ${selectedNode ? 'translate-y-0' : 'translate-y-full md:translate-y-0'}
+                    absolute z-30 bg-black/80 backdrop-blur-2xl border-white/10 shadow-2xl p-6 text-white transition-transform duration-500 cubic-bezier(0.19,1,0.22,1)
+                    
+                    /* Mobile Styles: Bottom Sheet */
+                    bottom-0 left-0 right-0 h-[60vh] rounded-t-3xl border-t
+                    
+                    /* Desktop Styles: Right Sidebar */
+                    md:top-0 md:bottom-0 md:right-0 md:left-auto md:w-96 md:h-full md:rounded-none md:border-l md:border-t-0
+                    
+                    /* Transform Logic */
+                    ${selectedNode ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:translate-y-0 md:translate-x-full'}
                 `}
             >
                 {/* Mobile Drag Handle */}
