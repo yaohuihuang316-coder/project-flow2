@@ -459,7 +459,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
         {/* --- Certificate Preview Modal --- */}
       {selectedCert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-fade-in" onClick={() => setSelectedCert(null)}></div>
             
             <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden animate-bounce-in z-50">

@@ -263,9 +263,9 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         const ai = new GoogleGenAI({ apiKey: apiKey });
         
         // Use Streaming
-        // Switched to 'gemini-1.5-flash' for stability and better quota management
+        // Switched to 'gemini-3-flash-preview' as per instructions to fix 404
         const responseStream = await ai.models.generateContentStream({
-            model: 'gemini-1.5-flash', 
+            model: 'gemini-3-flash-preview', 
             contents: [
                 { role: 'user', parts: [{ text: `Context: User is learning the course "${data?.title}".` }] },
                 { role: 'user', parts: [{ text: currentInput }] }
@@ -294,7 +294,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
           if (err.message.includes("API Key")) {
               errorMsg = "⚠️ 错误：未配置 API Key。请在项目根目录创建 .env 文件并添加 VITE_GEMINI_API_KEY。";
           } else if (err.message.includes("404")) {
-              errorMsg = "⚠️ 模型未找到。请联系开发者检查模型名称配置 (Model Not Found)。";
+              errorMsg = "⚠️ 模型未找到。系统已尝试切换模型，请刷新页面重试。";
           } else if (err.message.includes("429")) {
               errorMsg = "⚠️ 服务繁忙 (429)：AI 助教当前请求过多，请稍后再试。";
           } else if (err.message.includes("fetch")) {
@@ -559,7 +559,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                          <div>
                              <h3 className="font-bold text-gray-900 text-sm">AI 助教</h3>
                              <p className="text-[10px] text-green-500 font-bold flex items-center gap-1">
-                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 1.5 Flash)
+                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 3 Flash)
                              </p>
                          </div>
                      </div>
