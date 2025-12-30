@@ -4,7 +4,9 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tool
 import { Award, Download, X, CheckCircle, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
+// @ts-ignore
 import html2canvas from 'html2canvas';
+// @ts-ignore
 import { jsPDF } from 'jspdf';
 
 interface ProfileProps {
