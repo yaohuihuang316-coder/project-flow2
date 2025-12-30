@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { ArrowRight, Mail, User, Loader2, AlertCircle, CheckCircle2, Database } from 'lucide-react';
@@ -109,14 +110,34 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
   };
 
-  // Fallback: Demo Login (No DB required)
-  const handleDemoLogin = () => {
-      onLogin({
+  // Fallback: Demo Login (Auto-syncs to DB)
+  const handleDemoLogin = async () => {
+      const demoUser = {
           id: 'demo-user',
           email: 'demo@projectflow.com',
           name: 'Demo Admin',
-          role: 'SuperAdmin', // Grant admin rights for demo
-          joined_at: new Date().toISOString()
+          role: 'SuperAdmin',
+          status: '正常',
+          department: 'System',
+          avatar: 'https://i.pravatar.cc/150?u=demo',
+          created_at: new Date().toISOString()
+      };
+
+      // Proactively try to ensure demo user exists in DB to prevent Foreign Key errors
+      try {
+          await supabase.from('app_users').upsert(demoUser);
+      } catch (err) {
+          console.warn("Could not sync demo user to DB (might be offline or table missing)", err);
+      }
+
+      onLogin({
+          id: demoUser.id,
+          email: demoUser.email,
+          name: demoUser.name,
+          role: demoUser.role as any,
+          avatar: demoUser.avatar,
+          department: demoUser.department,
+          joined_at: demoUser.created_at
       });
   };
 
