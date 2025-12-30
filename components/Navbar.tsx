@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserProfile } from '../types';
-import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, MessageCircle, Users } from 'lucide-react';
+import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users } from 'lucide-react';
 
 interface NavbarProps {
   currentPage: Page;
@@ -74,7 +74,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
               className={`flex items-center gap-2 px-5 py-2 rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
                 isActive
                   ? 'bg-white text-black shadow-sm scale-100 font-medium'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-white/50 scale-95'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-white/5 scale-95'
               }`}
             >
               <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-blue-600' : ''} />
