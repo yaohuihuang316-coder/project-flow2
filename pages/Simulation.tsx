@@ -1,12 +1,14 @@
 import React from 'react';
 import { ChevronLeft, Share2, Settings } from 'lucide-react';
 import KanbanBoard from '../components/KanbanBoard';
+import { UserProfile } from '../types';
 
 interface SimulationProps {
     onBack: () => void;
+    currentUser?: UserProfile | null;
 }
 
-const Simulation: React.FC<SimulationProps> = ({ onBack }) => {
+const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
     return (
         <div className="w-full h-screen bg-[#F5F5F7] flex flex-col overflow-hidden">
             {/* --- App Header --- */}
@@ -51,7 +53,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack }) => {
                  <div className="w-full h-full bg-white rounded-[2rem] shadow-sm border border-gray-200 p-6 relative overflow-hidden">
                     <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
                     <div className="relative z-10 h-full">
-                        <KanbanBoard />
+                        <KanbanBoard currentUser={currentUser} />
                     </div>
                  </div>
             </div>

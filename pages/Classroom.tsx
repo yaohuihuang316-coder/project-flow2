@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, Play, 
-  Minimize2, Maximize2, FileText, Download, CheckCircle, Send, Loader2, AlertCircle, Save
+  Minimize2, Maximize2, FileText, Download, CheckCircle, Send, Loader2, AlertCircle, Save, Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
@@ -19,6 +19,10 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [noteContent, setNoteContent] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteStatus, setNoteStatus] = useState<string>('');
+
+  // Progress State
+  const [completedChapters, setCompletedChapters] = useState<string[]>([]);
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
 
   // Data State
   const [data, setData] = useState<any>(null);
@@ -39,37 +43,33 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                 .eq('id', courseId)
                 .single();
 
-            // Fallback Logic
-            if (courseError || !courseData) {
-                console.warn(`Course ${courseId} not found, trying fallback`);
-                const { data: fallbackData } = await supabase
-                    .from('app_courses')
-                    .select('*')
-                    .limit(1)
-                    .single();
-                courseData = fallbackData;
-            }
-
             if (courseData) {
                 const safeChapters = Array.isArray(courseData.chapters) ? courseData.chapters : typeof courseData.chapters === 'string' ? JSON.parse(courseData.chapters) : [];
-                const safeResources = Array.isArray(courseData.resources) ? courseData.resources : typeof courseData.resources === 'string' ? JSON.parse(courseData.resources) : [];
-                const safeModuleInfo = typeof courseData.module_info === 'object' ? courseData.module_info : { module: 'Module 1', subTitle: 'Overview' };
+                // Ensure chapters have IDs
+                const processedChapters = safeChapters.map((ch: any, idx: number) => ({
+                    ...ch,
+                    id: ch.id || `ch-${idx}` // Fallback ID
+                }));
 
+                const safeResources = Array.isArray(courseData.resources) ? courseData.resources : typeof courseData.resources === 'string' ? JSON.parse(courseData.resources) : [];
+                
                 setData({
                     id: courseData.id,
                     title: courseData.title,
                     image: courseData.image,
-                    module: safeModuleInfo?.module || 'Module 1',
-                    subTitle: safeModuleInfo?.subTitle || courseData.title,
-                    chapters: safeChapters.length > 0 ? safeChapters : [{title: 'Course Intro', time: '10:00', active: true}],
+                    subTitle: courseData.title,
+                    chapters: processedChapters,
                     resources: safeResources
                 });
+                
+                if (processedChapters.length > 0) setActiveChapterId(processedChapters[0].id);
+
             } else {
-                setError("无法加载课程数据，请检查数据库。");
+                setError("课程未找到");
             }
         } catch (err) {
             console.error(err);
-            setError("网络错误，无法连接到 Supabase。");
+            setError("数据加载失败");
         } finally {
             setIsLoading(false);
         }
@@ -78,25 +78,34 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
     fetchCourse();
   }, [courseId]);
 
-  // 2. Fetch User Notes for this Course
+  // 2. Fetch User Progress (Notes & Completed Chapters)
   useEffect(() => {
-      const fetchNotes = async () => {
+      const fetchProgress = async () => {
           if (!currentUser || !data?.id) return;
 
           const { data: progressData } = await supabase
               .from('app_user_progress')
-              .select('notes')
+              .select('notes, completed_chapters')
               .eq('user_id', currentUser.id)
               .eq('course_id', data.id)
               .single();
           
-          if (progressData && progressData.notes) {
-              setNoteContent(progressData.notes);
+          if (progressData) {
+              if (progressData.notes) setNoteContent(progressData.notes);
+              
+              // Handle completed_chapters safely (could be null or json)
+              let doneList: string[] = [];
+              if (Array.isArray(progressData.completed_chapters)) {
+                  doneList = progressData.completed_chapters;
+              } else if (typeof progressData.completed_chapters === 'string') {
+                  try { doneList = JSON.parse(progressData.completed_chapters); } catch(e) {}
+              }
+              setCompletedChapters(doneList);
           }
       };
       
       if (!isLoading && data) {
-          fetchNotes();
+          fetchProgress();
       }
   }, [currentUser, data, isLoading]);
 
@@ -115,12 +124,15 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
           course_id: data.id,
           notes: noteContent,
           last_accessed: new Date().toISOString()
+          // We don't overwrite completed_chapters here, Supabase merge handles it if we don't send it? 
+          // Upsert replaces row. We need to be careful. 
+          // Better strategy: fetch current then update? Or send both.
+          // Since we have completedChapters state, we can send it.
       }, { onConflict: 'user_id,course_id' });
 
       setIsSavingNote(false);
       
       if (error) {
-          console.error(error);
           setNoteStatus('保存失败');
       } else {
           setNoteStatus('已同步至云端');
@@ -128,6 +140,33 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       }
   };
 
+  // 4. Toggle Chapter Completion & Update Progress %
+  const toggleChapter = async (e: React.MouseEvent, chapterId: string) => {
+      e.stopPropagation(); // Prevent playing video when checking box
+      if (!currentUser || !data?.id) return;
+
+      const isCompleted = completedChapters.includes(chapterId);
+      const newCompleted = isCompleted 
+          ? completedChapters.filter(id => id !== chapterId)
+          : [...completedChapters, chapterId];
+      
+      setCompletedChapters(newCompleted);
+
+      // Calculate Progress %
+      const total = data.chapters.length;
+      const progressPercent = Math.round((newCompleted.length / total) * 100);
+
+      // Optimistic update
+      const { error } = await supabase.from('app_user_progress').upsert({
+          user_id: currentUser.id,
+          course_id: data.id,
+          completed_chapters: newCompleted, // Save raw array
+          progress: progressPercent,
+          last_accessed: new Date().toISOString()
+      }, { onConflict: 'user_id,course_id' });
+
+      if (error) console.error("Failed to update progress", error);
+  };
 
   if (isLoading) {
       return (
@@ -154,13 +193,13 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         
         {/* --- Main Content Area --- */}
         <div className="flex-1 flex flex-col relative z-10">
-            {/* Ambient Glow Background Effect */}
+            {/* Ambient Glow */}
             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[60%] bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 blur-3xl rounded-full pointer-events-none transition-opacity duration-1000 ${focusMode ? 'opacity-20' : 'opacity-40'}`}></div>
 
             {/* Toolbar */}
             <div className={`h-16 px-8 flex items-center justify-between z-20 ${focusMode ? 'text-white/50' : 'text-gray-500'}`}>
                 <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest border border-current px-2 py-0.5 rounded-md">{data.module}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest border border-current px-2 py-0.5 rounded-md">Course</span>
                     <h2 className={`text-lg font-semibold tracking-tight ${focusMode ? 'text-white' : 'text-gray-900'}`}>{data.subTitle}</h2>
                 </div>
                 <button 
@@ -184,12 +223,10 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                         </button>
                     </div>
 
-                    {/* Controls Overlay */}
+                    {/* Simple Progress Bar */}
                     <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <div className="h-1.5 bg-white/20 rounded-full overflow-hidden cursor-pointer hover:h-2 transition-all">
-                            <div className="h-full w-1/3 bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative">
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md scale-0 group-hover:scale-100 transition-transform"></div>
-                            </div>
+                            <div className="h-full w-1/3 bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative"></div>
                         </div>
                         <div className="flex justify-between text-white text-xs font-bold mt-3 tracking-wider">
                             <span>14:20</span>
@@ -226,33 +263,56 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
             </div>
 
             {/* Content Container */}
-            <div className="flex-1 overflow-y-auto px-6 pb-20">
+            <div className="flex-1 overflow-y-auto px-6 pb-20 custom-scrollbar">
                 {/* Catalog View */}
                 {activeTab === 'catalog' && (
                     <div className="space-y-4 mt-2">
-                        <h3 className="text-sm font-bold text-gray-900 mb-4">{data.title}</h3>
-                        {data.chapters.map((chapter: any, idx: number) => (
-                            <div 
-                                key={idx} 
-                                className={`p-4 rounded-2xl cursor-pointer transition-all ${
-                                    chapter.active 
-                                    ? 'bg-blue-50 border border-blue-100 shadow-sm' 
-                                    : 'hover:bg-gray-50 border border-transparent'
-                                }`}
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div className={`mt-0.5 ${chapter.active ? 'text-blue-600' : 'text-gray-300'}`}>
-                                        {chapter.active ? <Play size={16} fill="currentColor"/> : <CheckCircle size={16} />}
-                                    </div>
-                                    <div>
-                                        <p className={`text-sm font-bold ${chapter.active ? 'text-blue-900' : 'text-gray-700'}`}>
-                                            {chapter.title}
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1 font-medium">{chapter.time}</p>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-sm font-bold text-gray-900 truncate pr-2">{data.title}</h3>
+                            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                {Math.round((completedChapters.length / data.chapters.length) * 100)}% 完成
+                            </span>
+                        </div>
+                        
+                        {data.chapters.map((chapter: any) => {
+                            const isCompleted = completedChapters.includes(chapter.id);
+                            const isActive = activeChapterId === chapter.id;
+                            
+                            return (
+                                <div 
+                                    key={chapter.id} 
+                                    onClick={() => setActiveChapterId(chapter.id)}
+                                    className={`p-4 rounded-2xl cursor-pointer transition-all border ${
+                                        isActive
+                                        ? 'bg-blue-50 border-blue-100 shadow-sm' 
+                                        : 'hover:bg-gray-50 border-transparent bg-transparent'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <button 
+                                            onClick={(e) => toggleChapter(e, chapter.id)}
+                                            className={`mt-0.5 rounded-full border p-0.5 transition-colors ${
+                                                isCompleted 
+                                                ? 'bg-green-500 border-green-500 text-white' 
+                                                : 'border-gray-300 text-transparent hover:border-gray-400'
+                                            }`}
+                                        >
+                                            <Check size={12} strokeWidth={3} />
+                                        </button>
+                                        
+                                        <div className="flex-1">
+                                            <p className={`text-sm font-bold leading-tight ${isActive ? 'text-blue-900' : isCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                                {chapter.title}
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-1.5 font-medium flex items-center gap-1">
+                                                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>}
+                                                {chapter.duration || '10:00'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
@@ -318,7 +378,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                     </div>
                     <div className="flex-1 px-2">
                         <p className="text-xs font-bold text-gray-900">AI 助教</p>
-                        <p className="text-[10px] text-gray-500 truncate">针对当前“{data.subTitle}”有疑问？</p>
+                        <p className="text-[10px] text-gray-500 truncate">针对当前内容有疑问？</p>
                     </div>
                     <button className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white mr-1 hover:bg-gray-800">
                         <Send size={14} />

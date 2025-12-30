@@ -101,7 +101,7 @@ const App: React.FC = () => {
       case Page.KNOWLEDGE_GRAPH:
         return <KnowledgeGraph onBack={() => navigateTo(Page.DASHBOARD)} onNavigate={navigateTo} />;
       case Page.SIMULATION:
-        return <Simulation onBack={() => navigateTo(Page.DASHBOARD)} />;
+        return <Simulation onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }
