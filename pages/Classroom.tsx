@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, Play, 
-  Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check
+  Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
@@ -9,9 +10,10 @@ import { UserProfile } from '../types';
 interface ClassroomProps {
     courseId?: string;
     currentUser?: UserProfile | null;
+    onBack: () => void;
 }
 
-const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser }) => {
+const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser, onBack }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'notes' | 'resources'>('catalog');
   const [focusMode, setFocusMode] = useState(false);
   
@@ -53,13 +55,20 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
 
                 const safeResources = Array.isArray(courseData.resources) ? courseData.resources : typeof courseData.resources === 'string' ? JSON.parse(courseData.resources) : [];
                 
+                // If no resources in DB, provide some mocks for download demo
+                const finalResources = safeResources.length > 0 ? safeResources : [
+                    { name: '课程讲义.pdf', size: '2.4 MB', type: 'pdf' },
+                    { name: '实战源码.zip', size: '15 MB', type: 'zip' },
+                    { name: '参考资料链接.txt', size: '1 KB', type: 'txt' }
+                ];
+
                 setData({
                     id: courseData.id,
                     title: courseData.title,
                     image: courseData.image,
                     subTitle: courseData.title,
                     chapters: processedChapters,
-                    resources: safeResources
+                    resources: finalResources
                 });
                 
                 if (processedChapters.length > 0) setActiveChapterId(processedChapters[0].id);
@@ -124,10 +133,6 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
           course_id: data.id,
           notes: noteContent,
           last_accessed: new Date().toISOString()
-          // We don't overwrite completed_chapters here, Supabase merge handles it if we don't send it? 
-          // Upsert replaces row. We need to be careful. 
-          // Better strategy: fetch current then update? Or send both.
-          // Since we have completedChapters state, we can send it.
       }, { onConflict: 'user_id,course_id' });
 
       setIsSavingNote(false);
@@ -168,6 +173,25 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       if (error) console.error("Failed to update progress", error);
   };
 
+  // 5. Handle Real Download
+  const handleDownload = (resourceName: string) => {
+      // In a real app, this would use a URL from Supabase Storage
+      // Here we simulate a real file download by creating a blob
+      const content = `这是 ${resourceName} 的模拟文件内容。\n\nProjectFlow Learning Resource\nCourse ID: ${data.id}`;
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = resourceName; // Set the file name
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
       return (
           <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F5F7]">
@@ -183,6 +207,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
               <AlertCircle size={40} className="text-red-500 mb-4" />
               <p className="text-gray-900 font-bold mb-2">加载失败</p>
               <p className="text-gray-500 text-sm">{error || '未知错误'}</p>
+              <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">返回课程列表</button>
           </div>
       );
   }
@@ -197,10 +222,19 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[60%] bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 blur-3xl rounded-full pointer-events-none transition-opacity duration-1000 ${focusMode ? 'opacity-20' : 'opacity-40'}`}></div>
 
             {/* Toolbar */}
-            <div className={`h-16 px-8 flex items-center justify-between z-20 ${focusMode ? 'text-white/50' : 'text-gray-500'}`}>
-                <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest border border-current px-2 py-0.5 rounded-md">Course</span>
-                    <h2 className={`text-lg font-semibold tracking-tight ${focusMode ? 'text-white' : 'text-gray-900'}`}>{data.subTitle}</h2>
+            <div className={`h-16 px-4 md:px-8 flex items-center justify-between z-20 ${focusMode ? 'text-white/50' : 'text-gray-500'}`}>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={onBack}
+                        className={`p-2 rounded-full transition-colors ${focusMode ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-200 text-gray-600'}`}
+                        title="返回上一级"
+                    >
+                        <ChevronLeft size={24} />
+                    </button>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Playing Course</span>
+                        <h2 className={`text-base font-bold leading-none ${focusMode ? 'text-white' : 'text-gray-900'}`}>{data.subTitle}</h2>
+                    </div>
                 </div>
                 <button 
                     onClick={() => setFocusMode(!focusMode)}
@@ -348,15 +382,19 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                             data.resources.map((res: any, idx: number) => (
                                 <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors group">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500">
+                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 border border-gray-100">
                                             <FileText size={20} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-gray-800">{res.name}</p>
-                                            <p className="text-xs text-gray-400">{res.size}</p>
+                                            <p className="text-sm font-bold text-gray-800 line-clamp-1">{res.name}</p>
+                                            <p className="text-xs text-gray-400">{res.size} • {res.type?.toUpperCase()}</p>
                                         </div>
                                     </div>
-                                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
+                                    <button 
+                                        onClick={() => handleDownload(res.name)}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors active:scale-95"
+                                        title="下载资源"
+                                    >
                                         <Download size={18} />
                                     </button>
                                 </div>

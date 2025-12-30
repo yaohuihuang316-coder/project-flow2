@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Search, MessageSquare, Heart, Share2, MoreHorizontal, 
-  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight
+  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -43,6 +43,8 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     const [newPostContent, setNewPostContent] = useState('');
     const [activeTab, setActiveTab] = useState<'recommend' | 'latest' | 'following'>('recommend');
     const [isLoading, setIsLoading] = useState(true);
+    const [isPosting, setIsPosting] = useState(false);
+    const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
     
     // Interaction States
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
@@ -115,6 +117,11 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         await supabase.from('app_community_posts').update({ likes: newLikes }).eq('id', postId);
     };
 
+    const showToast = (msg: string, type: 'success' | 'error') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3000);
+    };
+
     const handlePost = async () => {
         if (!newPostContent.trim()) return;
         if (!currentUser) {
@@ -122,24 +129,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             return;
         }
         
-        const optimisticPost = {
-            id: Date.now(),
-            user_id: currentUser.id,
-            user_name: currentUser.name,
-            user_avatar: currentUser.avatar,
-            role: currentUser.role,
-            content: newPostContent,
-            tags: [],
-            likes: 0,
-            comments: 0,
-            created_at: new Date().toISOString(),
-            image: null
-        };
-
-        const updatedList = [optimisticPost, ...posts];
-        setPosts(updatedList);
-        setFilteredPosts(updatedList);
-        setNewPostContent('');
+        setIsPosting(true);
 
         const { error } = await supabase.from('app_community_posts').insert({
             user_id: currentUser.id,
@@ -152,8 +142,16 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             comments: 0
         });
 
-        if (error) console.error("Post failed:", error);
-        else fetchPosts();
+        setIsPosting(false);
+
+        if (error) {
+            console.error("Post failed:", error);
+            showToast("发布失败，请稍后重试", "error");
+        } else {
+            showToast("发布成功！", "success");
+            setNewPostContent('');
+            fetchPosts(); // Refresh list to get real ID
+        }
     };
 
     // --- Comment Logic ---
@@ -200,7 +198,18 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     };
 
     return (
-        <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen">
+        <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen relative">
+            
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm animate-bounce-in ${
+                    toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-black text-white'
+                }`}>
+                    {toast.type === 'error' ? <AlertTriangle size={16}/> : <CheckCircle2 size={16}/>}
+                    {toast.msg}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
                 {/* --- Left Sidebar --- */}
@@ -256,10 +265,10 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     </div>
                                     <button 
                                         onClick={handlePost}
-                                        disabled={!newPostContent.trim() || !currentUser}
-                                        className="bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-gray-200"
+                                        disabled={!newPostContent.trim() || !currentUser || isPosting}
+                                        className="bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-gray-200 min-w-[100px] justify-center"
                                     >
-                                        发布动态 <Send size={14}/>
+                                        {isPosting ? <Loader2 size={16} className="animate-spin"/> : <>发布动态 <Send size={14}/></>}
                                     </button>
                                 </div>
                             </div>
@@ -405,8 +414,11 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                 </div>
                             ))
                         ) : (
-                            <div className="text-center py-20 text-gray-400">
-                                <p className="text-sm font-bold">没有找到相关动态</p>
+                            <div className="text-center py-20 text-gray-400 flex flex-col items-center">
+                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                    <MessageSquare size={24} className="opacity-50"/>
+                                </div>
+                                <p className="text-sm font-bold">社区冷冷清清，发个帖活跃一下？</p>
                             </div>
                         )}
                     </div>

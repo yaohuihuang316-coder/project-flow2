@@ -155,19 +155,19 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
 
   // --- Mock Data: Badges ---
   const badges = [
-      { id: 1, name: 'PMP大师', desc: '通过 PMP 认证考试', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
-      { id: 2, name: '早起鸟', desc: '连续7天在8点前打卡', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-      { id: 3, name: '全能王', desc: '完成所有基础课程', icon: Trophy, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100' },
-      { id: 4, name: '连胜大师', desc: '连续学习30天', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
-      { id: 5, name: 'Bug猎手', desc: '在实战中修复10个Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100' },
-      { id: 6, name: '完美主义', desc: '单个测验获得100分', icon: Target, unlocked: true, color: 'text-red-500', bg: 'bg-red-100' },
-      { id: 7, name: '高产似母猪', desc: '一周提交20次代码', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 8, name: '文档专家', desc: '编写超过 5000 字的文档', icon: Feather, unlocked: true, color: 'text-blue-600', bg: 'bg-blue-100' },
-      { id: 9, name: '社区之星', desc: '帖子获得 100 个赞', icon: Hexagon, unlocked: true, color: 'text-indigo-500', bg: 'bg-indigo-100' },
-      { id: 10, name: '夜猫子', desc: '凌晨 2 点提交作业', icon: Lock, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 11, name: '团队核心', desc: '在协作项目中贡献度第一', icon: Trophy, unlocked: true, color: 'text-teal-500', bg: 'bg-teal-100' },
-      { id: 12, name: '敏捷先锋', desc: '完成所有敏捷模块', icon: Zap, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-      { id: 13, name: '终身学习', desc: '累计学习时长 100 小时', icon: Calendar, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 1, name: 'PMP大师', desc: '通过 PMP 认证考试，获得 500 经验值', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
+      { id: 2, name: '早起鸟', desc: '连续7天在8点前打卡学习，获得 200 经验值', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+      { id: 3, name: '全能王', desc: '完成所有基础课程章节', icon: Trophy, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100' },
+      { id: 4, name: '连胜大师', desc: '连续学习30天未中断', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
+      { id: 5, name: 'Bug猎手', desc: '在实战中成功修复10个Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100' },
+      { id: 6, name: '完美主义', desc: '在单个测验中获得100分满分', icon: Target, unlocked: true, color: 'text-red-500', bg: 'bg-red-100' },
+      { id: 7, name: '高产似母猪', desc: '一周内提交20次代码或作业', icon: Star, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 8, name: '文档专家', desc: '编写超过 5000 字的项目文档', icon: Feather, unlocked: true, color: 'text-blue-600', bg: 'bg-blue-100' },
+      { id: 9, name: '社区之星', desc: '单篇帖子获得 100 个赞', icon: Hexagon, unlocked: true, color: 'text-indigo-500', bg: 'bg-indigo-100' },
+      { id: 10, name: '夜猫子', desc: '在凌晨 2 点提交作业', icon: Lock, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 11, name: '团队核心', desc: '在协作项目中贡献度排名第一', icon: Trophy, unlocked: true, color: 'text-teal-500', bg: 'bg-teal-100' },
+      { id: 12, name: '敏捷先锋', desc: '完成所有敏捷开发实战模块', icon: Zap, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
+      { id: 13, name: '终身学习', desc: '累计学习时长超过 100 小时', icon: Calendar, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
   ];
 
   const handleDownload = async (certTitle: string) => {
@@ -477,7 +477,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                      {badges.map((badge) => (
                          <div 
                             key={badge.id} 
-                            className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border ${
+                            className={`relative group rounded-2xl p-3 flex flex-col items-center text-center gap-2 transition-all border cursor-pointer ${
                                 badge.unlocked 
                                 ? 'bg-white/60 border-white/50 hover:bg-white hover:shadow-lg' 
                                 : 'bg-gray-100/50 border-transparent opacity-60 grayscale'
@@ -494,6 +494,16 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                                      <Lock size={10} />
                                  </div>
                              )}
+                             
+                             {/* --- Tooltip --- */}
+                             <div className="absolute bottom-full mb-3 hidden group-hover:block w-40 z-20 animate-fade-in">
+                                 <div className="bg-black/90 backdrop-blur text-white text-[10px] p-3 rounded-xl shadow-xl text-left border border-white/10 relative">
+                                     <div className="font-bold mb-1 text-yellow-400">{badge.name}</div>
+                                     <div className="opacity-80 leading-relaxed">{badge.desc}</div>
+                                     {/* Arrow */}
+                                     <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
+                                 </div>
+                             </div>
                          </div>
                      ))}
                  </div>

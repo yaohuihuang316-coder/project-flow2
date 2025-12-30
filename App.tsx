@@ -95,7 +95,13 @@ const App: React.FC = () => {
       case Page.COMMUNITY:
         return <Community currentUser={currentUser} />;
       case Page.CLASSROOM:
-        return <Classroom courseId={currentCourseId} currentUser={currentUser} />;
+        return (
+            <Classroom 
+                courseId={currentCourseId} 
+                currentUser={currentUser} 
+                onBack={() => navigateTo(Page.LEARNING)}
+            />
+        );
       case Page.PROFILE:
         return <Profile currentUser={currentUser} onLogout={handleLogout} />;
       case Page.SCHEDULE:
