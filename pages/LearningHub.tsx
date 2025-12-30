@@ -3,12 +3,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, FileJson, 
-  Network, BarChart3, TrendingUp,
+  Network, BarChart3, 
   GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, AlertTriangle, CloudLightning, Box, Plus, Trash2,
-  ArrowRight, DollarSign, Target, CheckSquare, Move, Save, X, Award
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, CloudLightning, Box, Plus, Trash2,
+  ArrowRight, DollarSign, Target, Save, X, Award
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, Legend, ScatterChart, Scatter, ZAxis, Cell } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, Legend, ScatterChart, Scatter, Cell } from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -187,6 +187,10 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                         />
                         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                        <div className="absolute top-4 right-4 bg-white/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 flex items-center gap-1 text-white text-xs font-bold shadow-lg">
+                            <Star size={12} fill="white" />
+                            <span>{item.rating || '4.8'}</span>
+                        </div>
                         <div className="absolute bottom-4 left-4 right-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500">
                                 <button className="w-full bg-white/90 backdrop-blur text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg">
                                     <PlayCircle size={18} /> 继续学习
@@ -199,6 +203,15 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                             <span className="w-4 h-4 rounded-full bg-gray-200 block"></span>
                             {item.author}
                         </p>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                <span className="flex items-center gap-1"><Clock size={14} /> {item.duration || 'N/A'}</span>
+                                <span className="flex items-center gap-1"><BookOpen size={14} /> {item.chapters} 章节</span>
+                            </div>
+                            {item.user_progress > 0 && (
+                                <span className="text-xs font-bold text-blue-600">{item.user_progress}%</span>
+                            )}
+                        </div>
                         <div className="mt-4 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
                                 <div className="h-full bg-blue-500 rounded-full transition-all duration-1000 ease-out" style={{width: `${item.user_progress || 0}%`}}></div>
                         </div>
@@ -334,10 +347,6 @@ const CpmTool = () => {
 
     useEffect(() => {
         // Simplified Critical Path Logic (Forward Pass only for Duration estimate in this demo)
-        // For real CPM we need full graph traversal. Here we simulate the longest path for demo.
-        // Assuming linear dependency flow for demo simplicity or calculating max path.
-        let max = 0;
-        // Mock calc
         setTotalDuration(15); 
         setCriticalPath('A -> B -> D -> E');
     }, [tasks]);
@@ -541,7 +550,7 @@ const StakeholderMatrix = () => {
                             <YAxis type="number" dataKey="y" name="Power" domain={[0, 100]} label={{ value: 'Power (权力)', angle: -90, position: 'left' }} />
                             <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
                             <Scatter name="Stakeholders" data={stakeholders} fill="#8884d8">
-                                {stakeholders.map((entry, index) => (
+                                {stakeholders.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={['#eab308', '#22c55e', '#94a3b8', '#3b82f6'][index % 4]} />
                                 ))}
                             </Scatter>
