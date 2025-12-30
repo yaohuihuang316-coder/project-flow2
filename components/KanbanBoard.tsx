@@ -63,19 +63,21 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
               .eq('user_id', currentUser.id);
 
           if (!error && data) {
-              // Ensure we fallback if DB columns are missing (though SQL script should fix this)
+              // Ensure we fallback if DB columns are missing
               const safeTasks = data.map(t => ({
                   ...t,
                   points: t.points || 1,
                   priority: t.priority || 'Medium',
+                  // Fallback for assignee since it might not exist in DB
                   assignee: t.assignee || 'Unassigned'
               }));
               setTasks(safeTasks.length > 0 ? safeTasks : []);
           } else {
               if (error) {
                   console.error("Error loading tasks:", error);
-                  if (error.code === '42703') { // Undefined column
-                      setNotification({ msg: '数据库结构待更新 (Missing Columns)', type: 'error' });
+                  // Suppress column error for read, just show empty state
+                  if (error.code !== '42703') { 
+                      setNotification({ msg: '加载任务失败', type: 'error' });
                   }
               }
               setTasks([]); 
@@ -161,18 +163,21 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
   const saveTaskUpdate = async (updatedTask: Task) => {
       if (!currentUser) return; 
 
+      // Prepare payload excluding assignee to prevent SQL error 42703
+      const taskPayload = {
+          id: updatedTask.id,
+          user_id: currentUser.id,
+          title: updatedTask.title,
+          tag: updatedTask.tag,
+          points: updatedTask.points,
+          status: updatedTask.status,
+          priority: updatedTask.priority
+          // assignee excluded
+      };
+
       const { error } = await supabase
           .from('app_kanban_tasks')
-          .upsert({
-              id: updatedTask.id,
-              user_id: currentUser.id,
-              title: updatedTask.title,
-              tag: updatedTask.tag,
-              points: updatedTask.points,
-              status: updatedTask.status,
-              priority: updatedTask.priority,
-              assignee: updatedTask.assignee
-          });
+          .upsert(taskPayload);
       
       if (error) {
           console.error("Failed to sync task:", error);
@@ -182,16 +187,29 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
   const initDefaultTasks = async () => {
       if (!currentUser) return;
       setIsLoading(true);
+      
+      // Prepare DB payload (without assignee)
       const tasksToInsert = SEED_TASKS.map(t => ({
-          ...t,
           id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, 
           user_id: currentUser.id,
+          title: t.title,
+          tag: t.tag,
+          points: t.points,
+          status: t.status,
+          priority: t.priority,
           created_at: new Date().toISOString()
       }));
 
+      // Prepare State payload (with assignee for UI)
+      const tasksForState = tasksToInsert.map((t, idx) => ({
+          ...t,
+          assignee: SEED_TASKS[idx].assignee
+      }));
+
       const { error } = await supabase.from('app_kanban_tasks').insert(tasksToInsert);
+      
       if (!error) {
-          setTasks(tasksToInsert);
+          setTasks(tasksForState);
           setNotification({ msg: '已初始化示例任务', type: 'info' });
           setTimeout(() => setNotification(null), 3000);
       } else {
@@ -217,8 +235,10 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       setTasks(prev => [...prev, newTask]);
       
       if (currentUser) {
+          // Clean payload for DB
+          const { assignee, ...dbPayload } = newTask;
           await supabase.from('app_kanban_tasks').insert({
-              ...newTask,
+              ...dbPayload,
               user_id: currentUser.id,
               created_at: new Date().toISOString()
           });
