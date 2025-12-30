@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, ChatMessage } from '../types';
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 interface ClassroomProps {
     courseId?: string;
@@ -274,7 +274,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         setIsAiThinking(false);
 
         for await (const chunk of responseStream) {
-            const chunkText = chunk.text();
+            const chunkText = chunk.text; // Fixed: accessing as property, not function call
             setChatMessages(prev => prev.map(msg => 
                 msg.id === aiMsgId 
                 ? { ...msg, content: msg.content + chunkText }

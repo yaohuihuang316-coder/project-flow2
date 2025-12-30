@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Star, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Feather, Hexagon, Info, User } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, User } from 'lucide-react';
 import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -16,7 +16,6 @@ interface ProfileProps {
 
 const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
-  const [certificates, setCertificates] = useState<any[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [viewingUser, setViewingUser] = useState<any | null>(null); // For Social Modal
@@ -28,27 +27,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   useEffect(() => {
       const fetchData = async () => {
           if (!currentUser) return;
-
-          // 1. Fetch Certificates
-          const { data: certData } = await supabase
-              .from('app_achievements')
-              .select('*')
-              .eq('user_id', currentUser.id)
-              .order('date_awarded', { ascending: false });
-          
-          if (certData) {
-              const mappedCerts = certData.map(item => ({
-                  id: item.id.toString(),
-                  title: item.title,
-                  titleEn: item.title_en || 'Professional Certificate',
-                  issuer: item.issuer || 'ProjectFlow Institute',
-                  date: new Date(item.date_awarded).toLocaleDateString(),
-                  user: currentUser.name,
-                  bgGradient: item.meta_data?.bg || 'bg-gradient-to-br from-gray-900 to-black',
-                  sealColor: item.meta_data?.seal || 'border-yellow-500 text-yellow-500'
-              }));
-              setCertificates(mappedCerts);
-          }
 
           // 2. Fetch Activity Logs for Heatmap
           // Get logs for the last year
