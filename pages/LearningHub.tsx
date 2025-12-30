@@ -287,7 +287,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
     // Stats
     const [stats, setStats] = useState({ budget: 100, time: 100, morale: 90 });
 
-    const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.API_KEY;
 
     // 1. Generate Scenario on Mount
     useEffect(() => {
@@ -319,7 +319,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
                     config: { responseMimeType: 'application/json' }
                 });
                 
-                const json = JSON.parse(resp.response.text());
+                const json = JSON.parse(resp.response.text);
                 setScenario(json);
             } catch (e) {
                 console.error("AI Error", e);
@@ -351,7 +351,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
     const handleAiAssist = async (action: string) => {
         setAiThinking(true);
         try {
-            const ai = new GoogleGenAI({ apiKey });
+            const ai = new GoogleGenAI({ apiKey: apiKey || '' });
             let prompt = "";
             if (action === 'optimize') {
                 prompt = `You are a Senior Project Manager. Review the following draft plan for "${project.title}" and suggest 3 specific improvements based on PMBOK standards. Draft: ${docContent}`;
@@ -365,7 +365,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
             });
 
             // Append response to chat or feedback area
-            const advice = resp.response.text();
+            const advice = resp.response.text;
             setMessages(prev => [...prev, { id: Date.now(), sender: 'AI Copilot', text: advice, type: 'ai', time: 'Now' }]);
         } catch (e) {
             setMessages(prev => [...prev, { id: Date.now(), sender: 'System', text: 'AI Connection Failed.', type: 'system', time: 'Now' }]);

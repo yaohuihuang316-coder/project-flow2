@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, User, Eye, FileSignature, Star } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star } from 'lucide-react';
 import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -18,7 +18,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [viewingUser, setViewingUser] = useState<any | null>(null);
 
   // Print Ref for capturing the certificate
   const printRef = useRef<HTMLDivElement>(null);
@@ -89,14 +88,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
     { subject: '风险 (Risk)', A: 148, fullMark: 150 },
     { subject: '领导力 (Lead)', A: 140, fullMark: 150 },
     { subject: '敏捷 (Agile)', A: 130, fullMark: 150 },
-  ];
-
-  const leaderboard = [
-      { rank: 1, name: currentUser?.name || 'Alex Chen', xp: '18,450', avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=777', isMe: true, title: '全栈架构师' },
-      { rank: 2, name: 'Sarah Chen', xp: '15,450', avatar: 'https://i.pravatar.cc/150?u=1', title: '敏捷教练' },
-      { rank: 3, name: 'Mike Ross', xp: '14,200', avatar: 'https://i.pravatar.cc/150?u=2', title: '高级 PM' }, 
-      { rank: 4, name: 'Jennie Kim', xp: '12,400', avatar: 'https://i.pravatar.cc/150?u=4', title: '产品经理' },
-      { rank: 5, name: 'David Zhang', xp: '11,230', avatar: 'https://i.pravatar.cc/150?u=5', title: 'DevOps' },
   ];
 
   // Badges (Achievement Icons)

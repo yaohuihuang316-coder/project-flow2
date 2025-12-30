@@ -41,7 +41,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [error, setError] = useState<string | null>(null);
 
   // Gemini Client Init
-  const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = process.env.API_KEY;
   
   // 1. Fetch Course Data
   useEffect(() => {
