@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import MobileTabbar from './components/MobileTabbar';
@@ -5,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LearningHub from './pages/LearningHub';
 import Classroom from './pages/Classroom';
+import Community from './pages/Community'; // New Import
 import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
@@ -87,12 +89,12 @@ const App: React.FC = () => {
       case Page.LOGIN:
         return <Login onLogin={handleLogin} />;
       case Page.DASHBOARD:
-        // Pass currentUser to Dashboard for data sync
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
       case Page.LEARNING:
         return <LearningHub onNavigate={navigateTo} currentUser={currentUser} />;
+      case Page.COMMUNITY:
+        return <Community currentUser={currentUser} />;
       case Page.CLASSROOM:
-        // Pass currentUser to Classroom for saving notes
         return <Classroom courseId={currentCourseId} currentUser={currentUser} />;
       case Page.PROFILE:
         return <Profile currentUser={currentUser} onLogout={handleLogout} />;

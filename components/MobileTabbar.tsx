@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Page } from '../types';
-import { LayoutDashboard, Library, User, Compass } from 'lucide-react';
+import { LayoutDashboard, Library, User, Users } from 'lucide-react';
 
 interface MobileTabbarProps {
   currentPage: Page;
@@ -11,7 +12,7 @@ const MobileTabbar: React.FC<MobileTabbarProps> = ({ currentPage, setPage }) => 
   const navItems = [
     { page: Page.DASHBOARD, icon: LayoutDashboard, label: '概览' },
     { page: Page.LEARNING, icon: Library, label: '学习' },
-    { page: Page.SIMULATION, icon: Compass, label: '实战' }, // Mobile specific priority
+    { page: Page.COMMUNITY, icon: Users, label: '社区' },
     { page: Page.PROFILE, icon: User, label: '我的' },
   ];
 
