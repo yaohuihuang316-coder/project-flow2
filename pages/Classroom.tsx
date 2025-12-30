@@ -43,6 +43,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   // Gemini Client Init
   // Accessing Vite env vars. Strictly per instructions we must use the key from environment.
   // Using import.meta.env for Vite compatibility, falling back to process.env if needed.
+  // NOTE: In Vite, env vars MUST start with VITE_ to be exposed to the client.
   const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || process.env.API_KEY;
   
   // 1. Fetch Course Data
@@ -255,13 +256,19 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       }]);
 
       try {
-        if (!apiKey) throw new Error("API Key not configured");
+        if (!apiKey) {
+            console.error("❌ ERROR: API Key is missing. Please create a .env file and set VITE_GEMINI_API_KEY.");
+            throw new Error("API Key is missing (Check Console)");
+        }
         
+        console.log("🚀 Initializing Gemini with Key: ", apiKey.substring(0, 5) + "...");
+
         const ai = new GoogleGenAI({ apiKey: apiKey });
         
         // Use Streaming
+        // Changed model to 'gemini-2.0-flash-exp' to fix 404 error
         const responseStream = await ai.models.generateContentStream({
-            model: 'gemini-2.5-flash-lite-latest', // Fast model for chat
+            model: 'gemini-2.0-flash-exp', 
             contents: [
                 { role: 'user', parts: [{ text: `Context: User is learning the course "${data?.title}".` }] },
                 { role: 'user', parts: [{ text: currentInput }] }
@@ -274,7 +281,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         setIsAiThinking(false);
 
         for await (const chunk of responseStream) {
-            const chunkText = chunk.text; // Fixed: accessing as property, not function call
+            const chunkText = chunk.text; 
             setChatMessages(prev => prev.map(msg => 
                 msg.id === aiMsgId 
                 ? { ...msg, content: msg.content + chunkText }
@@ -283,11 +290,21 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         }
 
       } catch (err: any) {
-          console.error("Gemini Error:", err);
+          console.error("Gemini Error Detail:", err);
           setIsAiThinking(false);
+          
+          let errorMsg = "抱歉，我现在无法连接到大脑。";
+          if (err.message.includes("API Key")) {
+              errorMsg = "⚠️ 错误：未配置 API Key。请在项目根目录创建 .env 文件并添加 VITE_GEMINI_API_KEY。";
+          } else if (err.message.includes("404")) {
+              errorMsg = "⚠️ 模型未找到。请联系开发者检查模型名称配置 (Model Not Found)。";
+          } else if (err.message.includes("fetch")) {
+              errorMsg = "⚠️ 网络错误：无法连接到 Google API，请检查网络设置。";
+          }
+
           setChatMessages(prev => prev.map(msg => 
             msg.id === aiMsgId 
-            ? { ...msg, content: "抱歉，我现在无法连接到大脑 (API Error)。请检查 API Key 配置。" }
+            ? { ...msg, content: errorMsg }
             : msg
         ));
       }
@@ -543,7 +560,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                          <div>
                              <h3 className="font-bold text-gray-900 text-sm">AI 助教</h3>
                              <p className="text-[10px] text-green-500 font-bold flex items-center gap-1">
-                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 2.5)
+                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 2.0 Flash)
                              </p>
                          </div>
                      </div>
