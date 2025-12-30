@@ -292,7 +292,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
     // 1. Generate Scenario on Mount
     useEffect(() => {
         const initScenario = async () => {
-            if (!apiKey) {
+            if (!process.env.API_KEY) {
                 // Fallback demo scenario
                 setTimeout(() => {
                     setScenario({
@@ -307,7 +307,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
             }
 
             try {
-                const ai = new GoogleGenAI({ apiKey });
+                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
                 const prompt = `Generate a high-pressure, realistic corporate email scenario for a project manager leading "${project.title}". 
                 The email should come from a stakeholder (CEO, CTO, or Client).
                 It must introduce a major constraint (e.g., budget cut, deadline move, scope creep, tech stack change).
@@ -351,7 +351,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
     const handleAiAssist = async (action: string) => {
         setAiThinking(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             let prompt = "";
             if (action === 'optimize') {
                 prompt = `You are a Senior Project Manager. Review the following draft plan for "${project.title}" and suggest 3 specific improvements based on PMBOK standards. Draft: ${docContent}`;

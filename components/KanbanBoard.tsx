@@ -14,7 +14,7 @@ type Priority = 'High' | 'Medium' | 'Low' | 'Critical';
 
 interface Task {
   id: string;
-  
+  title: string;
   tag: string;
   points: number;
   status: Status;
