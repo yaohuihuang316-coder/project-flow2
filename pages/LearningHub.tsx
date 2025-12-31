@@ -9,7 +9,8 @@ import {
   DollarSign, Target, X, 
   History, BookOpen,
   ArrowRight, Zap, Save,
-  AlertTriangle
+  AlertTriangle, Play,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
@@ -189,16 +190,22 @@ const CpmStudio = () => {
     const [calculatedTasks, setCalculatedTasks] = useState<CpmTask[]>([]);
     const [projectDuration, setProjectDuration] = useState(0);
     const [criticalCount, setCriticalCount] = useState(0);
+    
+    // UI State: Controls whether the critical path is revealed
+    const [isCalculated, setIsCalculated] = useState(false);
 
-    const handleCalculate = () => {
+    // Auto-calculate logic (for layout only)
+    useEffect(() => { 
         const result = CpmEngine.calculate(tasks);
         setCalculatedTasks(result);
         setProjectDuration(Math.max(0, ...result.map(t => t.ef)));
         setCriticalCount(result.filter(t => t.isCritical).length);
+        // Do NOT set isCalculated to true here, we wait for user action
+    }, [tasks]);
+
+    const handleStartCalculation = () => {
+        setIsCalculated(true);
     };
-    
-    // Auto-calculate on task change
-    useEffect(() => { handleCalculate(); }, [tasks]);
 
     const getTaskPos = (task: CpmTask) => {
         const levelNodes = calculatedTasks.filter(t => t.level === task.level).sort((a,b) => a.id.localeCompare(b.id));
@@ -227,6 +234,7 @@ const CpmStudio = () => {
              newTasks[idx][field] = value.split(/[,，]/).map(s=>s.trim().toUpperCase()).filter(s=>s);
         }
         setTasks(newTasks);
+        setIsCalculated(false); // Reset visualization on edit
     };
 
     return (
@@ -300,27 +308,49 @@ const CpmStudio = () => {
                     
                     <button 
                         onClick={()=>setTasks([...tasks, {id: String.fromCharCode(65+tasks.length), name:'New Task', duration:1, predecessors:[], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0}])} 
-                        className="w-full py-4 border-2 border-dashed border-gray-300/50 rounded-2xl text-gray-400 font-bold hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-4 border-2 border-dashed border-gray-300/50 rounded-2xl text-gray-400 font-bold hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-2 mb-2"
                     >
                         <Plus size={16}/> Add Task
                     </button>
                 </div>
+
+                {/* Calculate Button Area */}
+                <div className="p-4 bg-white/50 border-t border-white/20">
+                     <button 
+                        onClick={handleStartCalculation}
+                        className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
+                            isCalculated 
+                            ? 'bg-gray-900 text-white cursor-default' 
+                            : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl'
+                        }`}
+                     >
+                         {isCalculated ? (
+                             <>
+                                <CheckCircle2 size={18} className="text-green-400"/> Calculation Done
+                             </>
+                         ) : (
+                             <>
+                                <Play size={18} fill="currentColor"/> 开始计算 (Calculate)
+                             </>
+                         )}
+                     </button>
+                </div>
             </div>
 
             {/* 3. HUD (Heads-Up Display) */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl px-8 py-3 rounded-full shadow-2xl border border-white/50 z-20 flex items-center gap-8 animate-fade-in-up">
+            <div className={`absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl px-8 py-3 rounded-full shadow-2xl border border-white/50 z-20 flex items-center gap-8 animate-fade-in-up transition-opacity duration-500 ${isCalculated ? 'opacity-100' : 'opacity-40 grayscale'}`}>
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Duration</span>
                     <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 font-mono">
-                        {projectDuration}<span className="text-sm text-gray-400 ml-1">days</span>
+                        {isCalculated ? projectDuration : '--'}<span className="text-sm text-gray-400 ml-1">days</span>
                     </div>
                 </div>
                 <div className="w-px h-8 bg-gray-200"></div>
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Critical Tasks</span>
                     <div className="text-2xl font-black text-[#FF3B30] font-mono flex items-center gap-2">
-                        {criticalCount}
-                        {criticalCount > 0 && <div className="w-2 h-2 rounded-full bg-[#FF3B30] animate-pulse"></div>}
+                        {isCalculated ? criticalCount : '--'}
+                        {isCalculated && criticalCount > 0 && <div className="w-2 h-2 rounded-full bg-[#FF3B30] animate-pulse"></div>}
                     </div>
                 </div>
             </div>
@@ -341,21 +371,22 @@ const CpmStudio = () => {
                         </defs>
                         {calculatedTasks.map((task) => {
                             const end = getTaskPos(task);
-                            // Adjust End pos for better connection point (center left)
                             const endX = end.x; 
-                            const endY = end.y + 35; // Half of card height roughly
+                            const endY = end.y + 35;
 
                             return task.predecessors.map(pid => {
                                 const parent = calculatedTasks.find(t => t.id === pid);
                                 if(!parent) return null;
                                 const start = getTaskPos(parent);
-                                // Adjust Start pos (center right)
-                                const startX = start.x + 160; // Card Width
+                                const startX = start.x + 160; 
                                 const startY = start.y + 35;
 
+                                // Determine if this specific connection is critical
                                 const isCriticalLink = task.isCritical && parent.isCritical && (Math.abs(parent.ef - task.es) < 0.01); 
                                 
-                                // Bezier Curve Calculation
+                                // Show critical style ONLY if button clicked AND it is critical
+                                const showCritical = isCalculated && isCriticalLink;
+
                                 const midX = (startX + endX) / 2;
                                 const path = `M${startX},${startY} C${midX},${startY} ${midX},${endY} ${endX},${endY}`;
                                 
@@ -364,15 +395,15 @@ const CpmStudio = () => {
                                         <path 
                                             d={path} 
                                             fill="none" 
-                                            stroke={isCriticalLink ? "#FF3B30" : "#E5E7EB"} 
-                                            strokeWidth={isCriticalLink ? 3 : 2} 
-                                            markerEnd={isCriticalLink ? "url(#arrow-critical)" : "url(#arrow)"}
-                                            strokeDasharray={isCriticalLink ? "8,4" : "none"} 
-                                            className={isCriticalLink ? "animate-flow" : ""}
-                                            style={{ opacity: isCriticalLink ? 1 : 0.4 }}
+                                            stroke={showCritical ? "#FF3B30" : "#E5E7EB"} 
+                                            strokeWidth={showCritical ? 3 : 2} 
+                                            markerEnd={showCritical ? "url(#arrow-critical)" : "url(#arrow)"}
+                                            strokeDasharray={showCritical ? "8,4" : "none"} 
+                                            className={showCritical ? "animate-flow" : "transition-colors duration-1000"}
+                                            style={{ opacity: showCritical ? 1 : 0.4 }}
                                         />
                                         {/* Slack Label on Line if Slack > 0 */}
-                                        {!isCriticalLink && task.slack > 0 && (
+                                        {isCalculated && !isCriticalLink && task.slack > 0 && (
                                             <text x={(startX+endX)/2} y={(startY+endY)/2} fill="#34C759" fontSize="10" fontWeight="bold" textAnchor="middle" dy="-5">
                                                 +{task.slack}d
                                             </text>
@@ -386,11 +417,13 @@ const CpmStudio = () => {
                     {/* HTML Layer (Smart Nodes) */}
                     {calculatedTasks.map((task) => {
                         const pos = getTaskPos(task);
+                        const isCriticalNode = isCalculated && task.isCritical;
+
                         return (
                             <div 
                                 key={task.id}
                                 className={`absolute w-40 h-20 rounded-xl p-3 flex flex-col justify-between transition-all duration-500 z-10
-                                    ${task.isCritical 
+                                    ${isCriticalNode 
                                         ? 'bg-white border-2 border-[#FF3B30] shadow-[0_8px_30px_rgba(255,59,48,0.25)] scale-105' 
                                         : 'bg-white border border-gray-200 shadow-sm opacity-90'
                                     }`}
@@ -398,7 +431,7 @@ const CpmStudio = () => {
                             >
                                 <div className="flex justify-between items-start">
                                     <span className="text-xs font-bold text-gray-800 truncate pr-2">{task.name}</span>
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded text-white ${task.isCritical ? 'bg-[#FF3B30]' : 'bg-gray-800'}`}>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded text-white ${isCriticalNode ? 'bg-[#FF3B30]' : 'bg-gray-800'}`}>
                                         {task.id}
                                     </span>
                                 </div>
@@ -408,15 +441,19 @@ const CpmStudio = () => {
                                         <span className="text-[9px] text-gray-400 font-bold uppercase">Duration</span>
                                         <span className="text-sm font-mono font-bold text-gray-700">{task.duration}d</span>
                                     </div>
-                                    <div className="flex flex-col items-end">
+                                    <div className="flex flex-col items-end opacity-80">
                                         <span className="text-[9px] text-gray-400 font-bold uppercase">ES / EF</span>
-                                        <span className="text-[10px] font-mono text-gray-500">{task.es} → {task.ef}</span>
+                                        {isCalculated ? (
+                                             <span className="text-[10px] font-mono text-gray-500">{task.es} → {task.ef}</span>
+                                        ) : (
+                                             <span className="text-[10px] font-mono text-gray-300">- → -</span>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Slack Bubble */}
-                                {task.slack > 0 && (
-                                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#34C759] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap">
+                                {isCalculated && task.slack > 0 && (
+                                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#34C759] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap animate-bounce-in">
                                         Slack: {task.slack}
                                     </div>
                                 )}
