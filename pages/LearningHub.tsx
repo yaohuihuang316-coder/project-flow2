@@ -1,14 +1,13 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
   Activity, Zap, Code, Terminal, Play, 
   Network, BarChart3, 
   GitMerge, Layers, Database, Globe, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, CloudLightning, Plus, Trash2,
+  Layout, Cpu, Briefcase, Users, FileText, RefreshCw, CloudLightning, Plus,
   ArrowRight, DollarSign, Target, Save, X, Award, Mail, Send, Bot, CheckCircle2
 } from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, Legend, ScatterChart, Scatter, Cell } from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { GoogleGenAI } from "@google/genai";
@@ -16,7 +15,6 @@ import { GoogleGenAI } from "@google/genai";
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
 type SubCategory = 'Course' | 'Cert' | 'Official';
-type LabCategory = 'Quantitative' | 'Strategic' | 'Toolkit';
 
 interface LearningHubProps {
     onNavigate: (page: Page, id?: string) => void;
