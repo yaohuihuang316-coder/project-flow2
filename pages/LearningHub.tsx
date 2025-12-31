@@ -6,19 +6,18 @@ import {
   Network, BarChart3, 
   GitMerge, Layers, Shield, Loader2,
   Layout, Cpu, Briefcase, FileText, RefreshCw, CloudLightning, 
-  DollarSign, Target, X, Award, 
+  DollarSign, Target, X, 
   History, BookOpen,
-  ArrowRight, Code, Zap, Save, Users,
-  MonitorPlay, Lock, FileDown, CheckCircle2, AlertTriangle
+  ArrowRight, Zap, Save,
+  AlertTriangle
 } from 'lucide-react';
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, ReferenceLine, BarChart, Bar, Legend, Line, ComposedChart 
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
+  ResponsiveContainer, ReferenceLine, Bar, Legend, Line, ComposedChart, Area
 } from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { GoogleGenAI } from "@google/genai";
-import { jsPDF } from 'jspdf';
 
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
@@ -208,7 +207,6 @@ const CpmStudio = () => {
         // Dynamic Layout
         const xBase = 100;
         const xStep = 220;
-        const yBase = 100;
         const yStep = 140;
         
         const x = xBase + (task.level * xStep);
@@ -669,16 +667,15 @@ const UserStorySplitter = () => {
     const handleSplit = async () => {
         setIsThinking(true); const apiKey = getApiKey();
         if(!apiKey) { alert("No Key"); setIsThinking(false); return; }
-        try { const ai = new GoogleGenAI({apiKey}); const resp = await ai.models.generateContent({model:'gemini-3-flash-preview', contents:[{role:'user', parts:[{text:`Split this epic into 3 INVEST user stories: "${input}". List only.`}]}]}); setOutput((resp.text||'').split('\n').filter(l=>l.trim())); } catch(e){console.error(e);} finally{setIsThinking(false);}
+        try { const ai = new GoogleGenAI({apiKey}); const resp = await ai.models.generateContent({model:'gemini-3-flash-preview', contents:[{role:'user', parts:[{text:`Split this epic into 3 INVEST user stories: "${input}". List only.`}]}]}); setOutput((resp.text||'').split('\n').filter((l: string)=>l.trim())); } catch(e){console.error(e);} finally{setIsThinking(false);}
     };
     return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-indigo-600"/> User Story 拆分</h2><div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="flex flex-col gap-4"><textarea className="flex-1 bg-gray-50 border rounded-2xl p-4 resize-none" placeholder="Enter Epic..." value={input} onChange={e=>setInput(e.target.value)}/><button onClick={handleSplit} disabled={isThinking||!input} className="py-3 bg-black text-white rounded-xl font-bold">{isThinking?'Thinking...':'Split Story'}</button></div><div className="bg-white rounded-2xl border p-6 overflow-y-auto"><ul className="space-y-3">{output.map((s,i)=><li key={i} className="bg-gray-50 p-3 rounded-lg text-sm">{s}</li>)}</ul></div></div></div>;
 };
 
 // --- SIMULATION COMPONENT ---
-const ProjectSimulationView = ({ caseData, onClose, currentUser }: { caseData: any, onClose: () => void, currentUser?: UserProfile | null }) => {
+const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: () => void, currentUser?: UserProfile | null }) => {
     const [view, setView] = useState<'overview' | 'quiz' | 'result'>('overview');
     const [questions, setQuestions] = useState<any[]>([]);
-    const [score, setScore] = useState(0);
     const [isLoadingQ, setIsLoadingQ] = useState(false);
 
     const startQuiz = async () => {
