@@ -43,8 +43,22 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Gemini Client Init
-  const apiKey = process.env.API_KEY;
+  // Helper for Safe Env Access
+  const getApiKey = () => {
+      try {
+          if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+              return process.env.API_KEY;
+          }
+      } catch (e) {}
+      try {
+          // @ts-ignore
+          if (typeof import.meta !== 'undefined' && import.meta.env) {
+              // @ts-ignore
+              return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
+          }
+      } catch (e) {}
+      return '';
+  };
   
   // Reset search when tab changes
   useEffect(() => {
@@ -261,6 +275,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       }]);
 
       try {
+        const apiKey = getApiKey();
         if (!apiKey) {
             console.error("❌ ERROR: API Key is missing. Please create a .env file and set VITE_GEMINI_API_KEY.");
             throw new Error("API Key is missing (Check Console)");
