@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star, HelpCircle } from 'lucide-react';
 import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -108,7 +108,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           titleEn: 'Agile Project Management Expert',
           date: '2023-10-15', 
           issuer: 'ProjectFlow Academy',
-          image: 'https://images.unsplash.com/photo-1589330694653-4a8b243aafa0?auto=format&fit=crop&w=400&q=80' 
+          image: 'https://images.unsplash.com/photo-1589330694653-4a8b243aafa0?auto=format&fit=crop&w=400&q=80',
+          courseName: '敏捷实战高阶课'
       },
       { 
           id: 'CERT-002', 
@@ -116,7 +117,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           titleEn: 'Enterprise Risk Control Specialist',
           date: '2024-01-20', 
           issuer: 'ProjectFlow Academy',
-          image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=400&q=80'
+          image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=400&q=80',
+          courseName: '风险管理与合规'
       },
       {
           id: 'CERT-003',
@@ -124,7 +126,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           titleEn: 'DevOps Process Architect',
           date: '2024-03-10',
           issuer: 'ProjectFlow Academy',
-          image: 'https://images.unsplash.com/photo-1546955121-d0ba6a58f9e7?auto=format&fit=crop&w=400&q=80'
+          image: 'https://images.unsplash.com/photo-1546955121-d0ba6a58f9e7?auto=format&fit=crop&w=400&q=80',
+          courseName: 'DevOps 工程实践'
       }
   ];
 
@@ -372,9 +375,22 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         onClick={() => setSelectedCert({ ...cert, user: currentUser?.name || 'User' })}
                         className="group relative aspect-[1.414/1] bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-4 hover:ring-yellow-500/50 transition-all shadow-2xl transform hover:scale-[1.02]"
                      >
-                         {/* Mock Preview Image */}
+                         {/* Preview Image */}
                          <img src={cert.image} alt={cert.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                          
+                         {/* Top Left Tooltip Icon */}
+                         <div className="absolute top-3 left-3 z-20 group/icon">
+                             <div className="p-1.5 bg-black/30 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-colors">
+                                 <HelpCircle size={16} />
+                             </div>
+                             {/* Tooltip Content */}
+                             <div className="absolute top-full left-0 mt-2 w-48 opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none">
+                                <div className="bg-black/90 backdrop-blur text-white text-[10px] p-2 rounded-lg shadow-xl">
+                                    完成 <span className="text-yellow-400 font-bold">{cert.courseName}</span> 后颁发
+                                </div>
+                             </div>
+                         </div>
+
                          {/* Overlay Info */}
                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
                              <h3 className="text-lg font-bold text-white leading-tight">{cert.title}</h3>
@@ -391,12 +407,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                          </div>
                      </div>
                  ))}
-                 
-                 {/* Empty State Placeholder */}
-                 <div className="aspect-[1.414/1] rounded-xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center text-gray-500 hover:border-white/30 hover:text-gray-300 transition-colors group cursor-default">
-                     <Lock size={32} className="mb-2 opacity-50 group-hover:scale-110 transition-transform" />
-                     <p className="text-sm font-bold">完成更多课程以解锁</p>
-                 </div>
              </div>
         </div>
 
