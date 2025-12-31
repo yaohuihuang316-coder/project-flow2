@@ -10,7 +10,8 @@ import {
   History, BookOpen,
   ArrowRight, Zap, Save,
   AlertTriangle, Play,
-  CheckCircle2
+  CheckCircle2,
+  Lock, Award, FileDown
 } from 'lucide-react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
@@ -19,6 +20,7 @@ import {
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { GoogleGenAI } from "@google/genai";
+import { jsPDF } from 'jspdf';
 
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
@@ -99,10 +101,24 @@ const CLASSIC_CASES = [
         cover_image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800',
     },
     {
+        id: 'case-tesla',
+        title: 'Model 3 "生产地狱"',
+        summary: '特斯拉如何通过激进的自动化策略遭遇瓶颈，又是如何通过快速迭代和帐篷工厂解决产能危机的。',
+        difficulty: 'Medium',
+        cover_image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&q=80&w=800',
+    },
+    {
+        id: 'case-olympics',
+        title: '2012 伦敦奥运会',
+        summary: '教科书级别的成功项目管理。如何在绝对不可延期的截止日期前，通过风险管理确保按时交付。',
+        difficulty: 'Medium',
+        cover_image: 'https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&q=80&w=800',
+    },
+    {
         id: 'case-apollo',
         title: '阿波罗 13 号救援',
         summary: '“失败不是选项”。在极端资源受限（氧气、电力）的情况下，如何通过敏捷决策和团队协作将宇航员带回家。',
-        difficulty: 'Medium',
+        difficulty: 'High',
         cover_image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=800',
     }
 ];
@@ -709,53 +725,233 @@ const UserStorySplitter = () => {
     return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-indigo-600"/> User Story 拆分</h2><div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="flex flex-col gap-4"><textarea className="flex-1 bg-gray-50 border rounded-2xl p-4 resize-none" placeholder="Enter Epic..." value={input} onChange={e=>setInput(e.target.value)}/><button onClick={handleSplit} disabled={isThinking||!input} className="py-3 bg-black text-white rounded-xl font-bold">{isThinking?'Thinking...':'Split Story'}</button></div><div className="bg-white rounded-2xl border p-6 overflow-y-auto"><ul className="space-y-3">{output.map((s,i)=><li key={i} className="bg-gray-50 p-3 rounded-lg text-sm">{s}</li>)}</ul></div></div></div>;
 };
 
-// --- SIMULATION COMPONENT ---
-const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: () => void, currentUser?: UserProfile | null }) => {
+// --- SIMULATION COMPONENT (AI-Powered) ---
+interface Question {
+    id: string;
+    question_text: string;
+    type: 'mc';
+    options: string[];
+    correct_answer: string;
+    explanation: string;
+}
+
+const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: () => void, currentUser?: any }) => {
     const [view, setView] = useState<'overview' | 'quiz' | 'result'>('overview');
-    const [questions, setQuestions] = useState<any[]>([]);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [currentQIndex, setCurrentQIndex] = useState(0);
+    const [score, setScore] = useState(0);
+    const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [isAnswered, setIsAnswered] = useState(false);
     const [isLoadingQ, setIsLoadingQ] = useState(false);
 
     const startQuiz = async () => {
         setIsLoadingQ(true);
-        // Fake questions for demo
-        setTimeout(() => {
-            setQuestions([{id:1, text:"Is this project risky?", options:["Yes","No"], correct:"Yes"}]);
+        await generateQuestionsByAI();
+    };
+
+    const generateQuestionsByAI = async () => {
+        const apiKey = getApiKey();
+        
+        // 1. Fallback Data (Offline/No Key)
+        if (!apiKey) {
+            setQuestions([
+                {
+                    id: 'q1', question_text: '在项目初期，面对需求不明确的情况，最佳策略是？', type: 'mc',
+                    options: ['A. 拒绝开始工作直到需求明确', 'B. 采用敏捷方法迭代开发', 'C. 估算一个最大预算', 'D. 忽略风险直接开工'],
+                    correct_answer: 'B. 采用敏捷方法迭代开发',
+                    explanation: '敏捷方法允许在需求不明确时通过迭代和小步快跑来逐步明确方向。'
+                },
+                {
+                    id: 'q2', question_text: '当关键相关方提出变更请求，且该变更会严重影响进度时，应首先做什么？', type: 'mc',
+                    options: ['A. 立即拒绝', 'B. 立即接受以取悦相关方', 'C. 评估变更的影响并走变更控制流程', 'D. 偷偷加班完成'],
+                    correct_answer: 'C. 评估变更的影响并走变更控制流程',
+                    explanation: 'PMBOK 标准流程要求先评估影响，再由变更控制委员会 (CCB) 决策。'
+                }
+            ]);
             setView('quiz');
             setIsLoadingQ(false);
-        }, 1500);
+            return;
+        }
+        
+        // 2. AI Generation
+        try {
+            const ai = new GoogleGenAI({ apiKey });
+            const prompt = `Create 5 project management multiple choice questions based on case: "${caseData.title}". Return JSON array only: [{ "question_text": "...", "options": ["A..","B.."], "correct_answer": "...", "explanation": "..." }]`;
+            
+            const resp = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: { responseMimeType: 'application/json' }
+            });
+            
+            const text = resp.text || '[]';
+            const generated = JSON.parse(text);
+            setQuestions(generated);
+            setView('quiz');
+        } catch (e) {
+            console.error(e);
+            alert("AI 服务暂时不可用，请检查 Key 或网络。");
+            setIsLoadingQ(false);
+        } finally {
+            setIsLoadingQ(false);
+        }
+    };
+
+    const handleAnswer = (option: string) => {
+        setSelectedOption(option);
+        setIsAnswered(true);
+        if (option === questions[currentQIndex].correct_answer) {
+            setScore(s => s + 20);
+        }
+    };
+
+    const nextQuestion = () => {
+        if (currentQIndex < questions.length - 1) {
+            setCurrentQIndex(prev => prev + 1);
+            setSelectedOption(null);
+            setIsAnswered(false);
+        } else {
+            setView('result');
+        }
+    };
+
+    const handleDownloadReport = () => {
+        try {
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text(`Simulation Report: ${caseData.title}`, 10, 20);
+            doc.setFontSize(12);
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, 10, 30);
+            doc.text(`Final Score: ${score} / 100`, 10, 40);
+            
+            doc.line(10, 45, 200, 45);
+            doc.text("Performance Analysis:", 10, 55);
+            if (score >= 80) doc.text("- Excellent strategic decision making.", 10, 65);
+            else if (score >= 60) doc.text("- Good understanding, but missed some risks.", 10, 65);
+            else doc.text("- Needs improvement in risk management.", 10, 65);
+
+            doc.save(`${caseData.id}_report.pdf`);
+        } catch(e) { console.error(e); }
     };
 
     return (
         <div className="fixed inset-0 z-[200] bg-[#F5F5F7] flex flex-col animate-fade-in">
+            {/* Header */}
             <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10">
-                <button onClick={onClose}><X size={20}/></button>
-                <h1 className="font-bold">{caseData.title}</h1>
+                <div className="flex items-center gap-4">
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
+                        <X size={20}/>
+                    </button>
+                    <h1 className="font-bold text-gray-900 truncate max-w-md">{caseData.title}</h1>
+                </div>
             </div>
-            <div className="flex-1 p-8 overflow-y-auto">
-                {view === 'overview' && (
-                    <div className="max-w-4xl mx-auto text-center space-y-8 mt-10">
-                        <img src={caseData.cover_image} className="w-full h-64 object-cover rounded-3xl shadow-xl"/>
-                        <h2 className="text-4xl font-bold">{caseData.title}</h2>
-                        <p className="text-xl text-gray-500">{caseData.summary}</p>
-                        <button onClick={startQuiz} disabled={isLoadingQ} className="px-8 py-4 bg-black text-white rounded-xl font-bold text-lg">
-                            {isLoadingQ ? 'Loading...' : 'Start Simulation'}
-                        </button>
-                    </div>
-                )}
-                {view === 'quiz' && (
-                    <div className="max-w-2xl mx-auto text-center mt-20">
-                        <h3 className="text-2xl font-bold mb-8">Question 1</h3>
-                        <div className="space-y-4">
-                            {questions[0].options.map((opt:string)=><button key={opt} onClick={()=>setView('result')} className="w-full p-4 bg-white border rounded-xl hover:bg-gray-50">{opt}</button>)}
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                <div className="max-w-6xl mx-auto w-full min-h-full">
+                    {view === 'overview' && (
+                        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center justify-center min-h-[calc(100vh-140px)]">
+                            <div className="w-full lg:w-1/2 aspect-video bg-black rounded-2xl overflow-hidden relative shadow-2xl group ring-1 ring-black/5">
+                                <img src={caseData.cover_image} className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-700" alt="Case Cover"/>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <PlayCircle size={80} className="text-white drop-shadow-lg cursor-pointer hover:scale-110 transition-transform opacity-90 hover:opacity-100" onClick={startQuiz}/>
+                                </div>
+                            </div>
+                            <div className="w-full lg:w-1/2 space-y-8">
+                                <div>
+                                    <div className={`inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100 mb-4`}>
+                                        <Lock size={12}/> {caseData.difficulty} Case
+                                    </div>
+                                    <h2 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-4">{caseData.title}</h2>
+                                    <p className="text-lg text-gray-600 leading-relaxed border-l-4 border-gray-200 pl-4">{caseData.summary}</p>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                     <h3 className="font-bold text-gray-900 flex items-center gap-2"><Terminal size={18}/> Mission Brief</h3>
+                                     <div className="text-sm text-gray-500 space-y-2">
+                                         <p>• Identify key risks in the project timeline.</p>
+                                         <p>• Make critical decisions under pressure.</p>
+                                         <p>• Analyze stakeholder impact.</p>
+                                     </div>
+                                </div>
+                                <button 
+                                    onClick={startQuiz}
+                                    disabled={isLoadingQ}
+                                    className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-800 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200"
+                                >
+                                    {isLoadingQ ? <Loader2 className="animate-spin"/> : <Terminal size={20}/>}
+                                    {isLoadingQ ? 'Initializing AI Scenario...' : 'Enter Simulation Environment'}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
-                {view === 'result' && (
-                    <div className="text-center mt-32">
-                        <h2 className="text-4xl font-bold mb-4">Simulation Complete</h2>
-                        <button onClick={onClose} className="px-6 py-3 bg-black text-white rounded-xl">Close</button>
-                    </div>
-                )}
+                    )}
+
+                    {view === 'quiz' && (
+                        <div className="max-w-3xl mx-auto mt-10 pb-20">
+                            <div className="flex justify-between text-xs font-bold text-gray-400 mb-6">
+                                <span>QUESTION {currentQIndex + 1} OF {questions.length}</span>
+                                <span>SCORE: {score}</span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-8 leading-tight">{questions[currentQIndex].question_text}</h3>
+                            <div className="space-y-4">
+                                {questions[currentQIndex].options.map((opt, i) => {
+                                    const isCorrect = opt === questions[currentQIndex].correct_answer;
+                                    let bg = "bg-white border-gray-200 hover:border-blue-500 hover:bg-blue-50";
+                                    if (isAnswered) {
+                                        if (isCorrect) bg = "bg-green-50 border-green-500 text-green-700 ring-1 ring-green-500";
+                                        else if (selectedOption === opt) bg = "bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500";
+                                        else bg = "bg-gray-50 border-gray-100 opacity-50";
+                                    }
+                                    return (
+                                        <button 
+                                            key={i}
+                                            onClick={() => !isAnswered && handleAnswer(opt)}
+                                            className={`w-full p-5 rounded-xl text-left border text-base font-medium transition-all ${bg}`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {isAnswered && (
+                                <div className="mt-8 animate-fade-in-up">
+                                    <div className="p-5 bg-blue-50 rounded-xl text-sm text-blue-800 mb-6 border border-blue-100 flex gap-3">
+                                        <div className="shrink-0 mt-0.5"><Activity size={16}/></div>
+                                        <div>
+                                            <span className="font-bold block mb-1">Analysis:</span>
+                                            {questions[currentQIndex].explanation}
+                                        </div>
+                                    </div>
+                                    <button onClick={nextQuestion} className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-800 transition-colors">
+                                        Next Question
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {view === 'result' && (
+                        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                            <div className="w-28 h-28 bg-yellow-400 rounded-full flex items-center justify-center mb-8 shadow-2xl text-white animate-bounce-in">
+                                <Award size={56} />
+                            </div>
+                            <h2 className="text-4xl font-black text-gray-900 mb-2">Simulation Complete</h2>
+                            <p className="text-gray-500 mb-8">You have completed the scenario analysis.</p>
+                            
+                            <div className="text-7xl font-black mb-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                                {score} <span className="text-2xl text-gray-400 font-bold">/ 100</span>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                                <button onClick={handleDownloadReport} className="flex-1 py-4 bg-gray-100 text-gray-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
+                                    <FileDown size={20}/> Download Report
+                                </button>
+                                <button onClick={onClose} className="flex-1 py-4 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors">
+                                    Return to Hub
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
