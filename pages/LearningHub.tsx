@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
-  Activity, Zap, Code, Terminal, Play, 
+  Activity, Zap, Terminal, Play, 
   Network, BarChart3, 
-  GitMerge, Layers, Database, Server, Shield, Loader2,
+  GitMerge, Layers, Database, Shield, Loader2,
   Layout, Cpu, Briefcase, FileText, RefreshCw, CloudLightning, Plus,
   ArrowRight, DollarSign, Target, Save, X, Award, 
   History, BookMarked, FileDown
