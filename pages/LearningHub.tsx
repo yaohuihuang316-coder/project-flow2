@@ -1,16 +1,15 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  PlayCircle, Activity, Network, BarChart3, 
-  GitMerge, Layers, Shield, Loader2,
-  Cpu, DollarSign, Target, X, 
-  Plus, Trash2, Save, RefreshCw, Zap,
-  ArrowRight, CheckCircle2, AlertTriangle,
-  MousePointer2, ChevronRight, ChevronDown, Layout
+  PlayCircle, Network, 
+  Layers, 
+  DollarSign, Target, X, 
+  Plus, Save, RefreshCw, Zap,
+  AlertTriangle,
+  ChevronDown, Layout
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar, Legend, LineChart, Line, ComposedChart } from 'recharts';
-import { Page, UserProfile } from '../types';
-import { supabase } from '../lib/supabaseClient';
+import { Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine, Bar, Legend, Line, ComposedChart } from 'recharts';
+import { UserProfile } from '../types';
 
 // --- TYPES & INTERFACES ---
 
@@ -556,7 +555,7 @@ const WbsTree = () => {
 
 // --- MAIN PAGE COMPONENT ---
 
-const LearningHub: React.FC<{onNavigate:any, currentUser:UserProfile|null}> = ({ onNavigate, currentUser }) => {
+const LearningHub: React.FC<{onNavigate:any, currentUser:UserProfile|null}> = () => {
     // Navigation State
     const [activeToolId, setActiveToolId] = useState('cpm');
     
