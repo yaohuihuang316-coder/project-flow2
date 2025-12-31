@@ -1125,9 +1125,9 @@ const UserStorySplitter = () => {
                 contents: [{ role: 'user', parts: [{ text: prompt }] }]
             });
 
-            const text = resp.response.text;
+            const text: string = resp.response.text;
             // Split by newline and filter empty strings
-            const stories = text.split('\n').filter(line => line.trim().length > 0);
+            const stories = text.split('\n').filter((line: string) => line.trim().length > 0);
             setOutput(stories);
 
         } catch (e) {
