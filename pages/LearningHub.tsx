@@ -386,7 +386,8 @@ const SwotBoard = () => {
 
 // 2.2.2 相关方矩阵
 const StakeholderMatrix = () => {
-    const [sh, setSh] = useState([
+    // Fixed: Removed unused setSh
+    const [sh] = useState([
         { id: 1, name: 'CEO', power: 90, interest: 90 },
         { id: 2, name: '项目组', power: 30, interest: 80 },
         { id: 3, name: '财务部', power: 80, interest: 20 },
@@ -435,7 +436,8 @@ const StakeholderMatrix = () => {
 
 // 2.2.3 风险 EMV 计算
 const RiskEmv = () => {
-    const [risks, setRisks] = useState([
+    // Fixed: Removed unused setRisks
+    const [risks] = useState([
         { id: 1, name: '服务器宕机', prob: 0.1, impact: -50000 },
         { id: 2, name: '新功能大卖', prob: 0.3, impact: 20000 },
     ]);
@@ -455,7 +457,8 @@ const RiskEmv = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {risks.map((r, i) => (
+                        {/* Fixed: Removed unused index 'i' */}
+                        {risks.map((r) => (
                             <tr key={r.id}>
                                 <td className="p-4 font-bold">{r.name}</td>
                                 <td className="p-4">{r.prob * 100}%</td>
