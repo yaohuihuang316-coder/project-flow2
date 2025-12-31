@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
-  Activity, Zap, Terminal, Play, 
+  PlayCircle, Clock, BookOpen, ChevronLeft, 
+  Activity, Terminal, Play, 
   Network, BarChart3, 
-  GitMerge, Layers, Database, Shield, Loader2,
-  Layout, Cpu, Briefcase, FileText, RefreshCw, CloudLightning, Plus,
-  ArrowRight, DollarSign, Target, Save, X, Award, 
-  History, BookMarked, FileDown, AlertCircle
+  GitMerge, Layers, Shield, Loader2,
+  Layout, Cpu, Briefcase, FileText, RefreshCw, CloudLightning, 
+  DollarSign, Target, X, Award, 
+  History, FileDown, AlertCircle
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -421,7 +421,11 @@ const LabToolView = ({ toolId, onClose }: { toolId: string, onClose: () => void 
     // Render specific tool based on ID
     const renderTool = () => {
         switch(toolId) {
-            case 'evm': return <EvmCalculator />; // In real app, put full component code back
+            case 'evm': return <EvmCalculator />;
+            case 'pert': return <PertCalculator />;
+            case 'swot': return <SwotBoard />;
+            case 'charter': return <ProjectCharter />;
+            case 'userstory': return <UserStorySplitter />;
             default: return <div className="flex items-center justify-center h-full">Tool Interface Placeholder</div>;
         }
     };
