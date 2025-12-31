@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft, ExternalLink, Bot, X
+  Play, Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft, ExternalLink, Bot, X, Search
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, ChatMessage } from '../types';
@@ -21,6 +21,9 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [noteContent, setNoteContent] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteStatus, setNoteStatus] = useState<string>('');
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Progress State
   const [completedChapters, setCompletedChapters] = useState<string[]>([]);
@@ -43,6 +46,11 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   // Gemini Client Init
   const apiKey = process.env.API_KEY;
   
+  // Reset search when tab changes
+  useEffect(() => {
+      setSearchQuery('');
+  }, [activeTab]);
+
   // 1. Fetch Course Data
   useEffect(() => {
     const fetchCourse = async () => {
@@ -413,6 +421,22 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                 ))}
             </div>
 
+            {/* Search Bar - Only for Catalog and Resources */}
+            {activeTab !== 'notes' && (
+                <div className="px-6 mb-2">
+                    <div className="relative group">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input 
+                            type="text" 
+                            placeholder={activeTab === 'catalog' ? "搜索章节..." : "搜索资源..."}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-gray-400"
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* Content Container */}
             <div className="flex-1 overflow-y-auto px-6 pb-20 custom-scrollbar">
                 {/* Catalog View */}
@@ -425,7 +449,9 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                             </span>
                         </div>
                         
-                        {data.chapters.map((chapter: any) => {
+                        {data.chapters
+                            .filter((c: any) => c.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                            .map((chapter: any) => {
                             const isCompleted = completedChapters.includes(chapter.id);
                             const isActive = activeChapterId === chapter.id;
                             
@@ -464,6 +490,10 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                                 </div>
                             );
                         })}
+                        
+                        {data.chapters.filter((c: any) => c.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                            <div className="text-center py-8 text-gray-400 text-xs">未找到相关章节</div>
+                        )}
                     </div>
                 )}
 
@@ -496,28 +526,38 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                 {activeTab === 'resources' && (
                     <div className="space-y-3 mt-2">
                         {data.resources && data.resources.length > 0 ? (
-                            data.resources.map((res: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 border border-gray-100">
-                                            <FileText size={20} />
+                            (() => {
+                                const filteredResources = data.resources.filter((res: any) => 
+                                    res.name.toLowerCase().includes(searchQuery.toLowerCase())
+                                );
+                                
+                                if (filteredResources.length === 0) {
+                                    return <div className="text-center py-8 text-gray-400 text-xs">未找到相关资源</div>;
+                                }
+
+                                return filteredResources.map((res: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 border border-gray-100">
+                                                <FileText size={20} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-gray-800 line-clamp-1">{res.name}</p>
+                                                <p className="text-xs text-gray-400">{res.size} • {res.type?.toUpperCase()}</p>
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-gray-800 line-clamp-1">{res.name}</p>
-                                            <p className="text-xs text-gray-400">{res.size} • {res.type?.toUpperCase()}</p>
-                                        </div>
+                                        <button 
+                                            onClick={() => handleDownload(res)}
+                                            className={`p-2 rounded-full transition-colors active:scale-95 ${
+                                                res.url ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                            title={res.url ? "下载真实文件" : "下载模拟文件"}
+                                        >
+                                            {res.url ? <ExternalLink size={18} /> : <Download size={18} />}
+                                        </button>
                                     </div>
-                                    <button 
-                                        onClick={() => handleDownload(res)}
-                                        className={`p-2 rounded-full transition-colors active:scale-95 ${
-                                            res.url ? 'text-blue-500 hover:bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                                        }`}
-                                        title={res.url ? "下载真实文件" : "下载模拟文件"}
-                                    >
-                                        {res.url ? <ExternalLink size={18} /> : <Download size={18} />}
-                                    </button>
-                                </div>
-                            ))
+                                ));
+                            })()
                         ) : (
                             <div className="text-center py-10 text-gray-400 text-sm">
                                 暂无相关资源
