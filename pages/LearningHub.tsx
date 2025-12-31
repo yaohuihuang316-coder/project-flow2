@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   PlayCircle, Clock, Star, BookOpen, ChevronLeft, 
-  Activity, Zap, Code, Terminal, Play, FileJson, 
+  Activity, Zap, Code, Terminal, Play, 
   Network, BarChart3, 
-  GitMerge, Layers, Database, Globe, Smartphone, Server, Shield, Loader2,
-  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, CloudLightning, Box, Plus, Trash2,
-  ArrowRight, DollarSign, Target, Save, X, Award, Mail, Send, Bot, AlertTriangle, CheckCircle2, MessageSquare
+  GitMerge, Layers, Database, Globe, Server, Shield, Loader2,
+  Layout, Cpu, Briefcase, Calculator, Users, FileText, RefreshCw, CloudLightning, Plus, Trash2,
+  ArrowRight, DollarSign, Target, Save, X, Award, Mail, Send, Bot, CheckCircle2
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, Legend, ScatterChart, Scatter, Cell } from 'recharts';
 import { Page, UserProfile } from '../types';
@@ -281,13 +281,10 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
     const [loadingScenario, setLoadingScenario] = useState(true);
     const [messages, setMessages] = useState<any[]>([]);
     const [docContent, setDocContent] = useState('');
-    const [aiFeedback, setAiFeedback] = useState<string | null>(null);
     const [aiThinking, setAiThinking] = useState(false);
     
     // Stats
-    const [stats, setStats] = useState({ budget: 100, time: 100, morale: 90 });
-
-    const apiKey = process.env.API_KEY;
+    const [stats] = useState({ budget: 100, time: 100, morale: 90 });
 
     // 1. Generate Scenario on Mount
     useEffect(() => {
@@ -307,7 +304,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
             }
 
             try {
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
                 const prompt = `Generate a high-pressure, realistic corporate email scenario for a project manager leading "${project.title}". 
                 The email should come from a stakeholder (CEO, CTO, or Client).
                 It must introduce a major constraint (e.g., budget cut, deadline move, scope creep, tech stack change).
@@ -351,7 +348,7 @@ const ProjectSimulationView = ({ project, onClose }: { project: SimProject, onCl
     const handleAiAssist = async (action: string) => {
         setAiThinking(true);
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
             let prompt = "";
             if (action === 'optimize') {
                 prompt = `You are a Senior Project Manager. Review the following draft plan for "${project.title}" and suggest 3 specific improvements based on PMBOK standards. Draft: ${docContent}`;
