@@ -108,7 +108,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           titleEn: 'Agile Project Management Expert',
           date: '2023-10-15', 
           issuer: 'ProjectFlow Academy',
-          image: 'https://cdn.dribbble.com/users/1615584/screenshots/15710467/media/e9d070c7936737523df0bd297d2f9d6c.jpg?resize=400x300&vertical=center' // Mock preview
+          image: 'https://images.unsplash.com/photo-1589330694653-4a8b243aafa0?auto=format&fit=crop&w=400&q=80' 
       },
       { 
           id: 'CERT-002', 
@@ -116,7 +116,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           titleEn: 'Enterprise Risk Control Specialist',
           date: '2024-01-20', 
           issuer: 'ProjectFlow Academy',
-          image: 'https://cdn.dribbble.com/users/603697/screenshots/11288339/media/c82705973792030d937060429737036c.jpg?resize=400x300&vertical=center'
+          image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=400&q=80'
       },
       {
           id: 'CERT-003',
@@ -124,7 +124,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           titleEn: 'DevOps Process Architect',
           date: '2024-03-10',
           issuer: 'ProjectFlow Academy',
-          image: 'https://cdn.dribbble.com/users/2563353/screenshots/14470682/media/9499df02072f53434d27806fa3b8392f.png?resize=400x300&vertical=center'
+          image: 'https://images.unsplash.com/photo-1546955121-d0ba6a58f9e7?auto=format&fit=crop&w=400&q=80'
       }
   ];
 
@@ -363,9 +363,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         <p className="text-sm text-gray-400">官方认证的专业能力证明</p>
                     </div>
                 </div>
-                <button className="text-xs font-bold bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full transition-colors border border-white/10">
-                    验证证书真伪
-                </button>
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">

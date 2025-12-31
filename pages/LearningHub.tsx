@@ -972,6 +972,37 @@ const WbsOutliner = () => {
 const ProjectCharter = () => {
     const [step, setStep] = useState(1);
     const [data, setData] = useState({ name: '', goal: '', stakeholders: '' });
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generatedContent, setGeneratedContent] = useState('');
+
+    const generateCharter = async () => {
+        setIsGenerating(true);
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+            const prompt = `Act as a Senior Project Manager. Generate a professional Project Charter for a project named "${data.name}" with the goal: "${data.goal}". 
+            
+            Structure the output clearly with the following sections:
+            1. Executive Summary
+            2. Project Objectives
+            3. Scope
+            4. Key Stakeholders
+            
+            Format the output as clean text suitable for a document.`;
+
+            const resp = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+            
+            setGeneratedContent(resp.response.text);
+            setStep(3); // Move to result step
+        } catch (e) {
+            console.error("AI Error", e);
+            alert("AI 生成失败，请检查 API Key 或网络连接。");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     return (
         <div className="h-full flex flex-col animate-fade-in">
@@ -981,7 +1012,7 @@ const ProjectCharter = () => {
                     <div className="w-full space-y-4 animate-fade-in-up">
                         <h3 className="text-lg font-bold">1. 项目名称与背景</h3>
                         <input placeholder="Project Name" className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200" value={data.name} onChange={e=>setData({...data, name: e.target.value})}/>
-                        <button onClick={()=>setStep(2)} className="w-full py-3 bg-black text-white rounded-xl font-bold">Next</button>
+                        <button onClick={()=>setStep(2)} disabled={!data.name} className="w-full py-3 bg-black text-white rounded-xl font-bold disabled:opacity-50">Next</button>
                     </div>
                 )}
                 {step === 2 && (
@@ -990,26 +1021,32 @@ const ProjectCharter = () => {
                         <textarea placeholder="Specific, Measurable..." className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 h-32" value={data.goal} onChange={e=>setData({...data, goal: e.target.value})}/>
                         <div className="flex gap-3">
                             <button onClick={()=>setStep(1)} className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">Back</button>
-                            <button onClick={()=>setStep(3)} className="flex-1 py-3 bg-black text-white rounded-xl font-bold">Next</button>
+                            <button 
+                                onClick={generateCharter} 
+                                disabled={isGenerating || !data.goal}
+                                className="flex-1 py-3 bg-black text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isGenerating ? <Loader2 className="animate-spin" size={16}/> : <Zap size={16}/>}
+                                AI Generate Charter
+                            </button>
                         </div>
                     </div>
                 )}
                 {step === 3 && (
-                    <div className="w-full space-y-6 animate-fade-in-up bg-yellow-50 p-8 rounded-3xl border border-yellow-200 shadow-sm relative overflow-hidden">
+                    <div className="w-full h-full flex flex-col space-y-6 animate-fade-in-up bg-yellow-50 p-8 rounded-3xl border border-yellow-200 shadow-sm relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Award size={100}/></div>
-                        <div className="text-center mb-6">
+                        <div className="text-center mb-4 shrink-0">
                             <h2 className="text-2xl font-serif font-bold text-gray-900">PROJECT CHARTER</h2>
                             <div className="h-1 w-20 bg-black mx-auto mt-2"></div>
                         </div>
-                        <div>
-                            <p className="text-xs font-bold text-gray-400 uppercase">Project Title</p>
-                            <p className="text-xl font-bold">{data.name || 'Untitled Project'}</p>
+                        
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="prose prose-sm max-w-none text-gray-800 font-serif leading-relaxed whitespace-pre-line">
+                                {generatedContent}
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs font-bold text-gray-400 uppercase">Goal</p>
-                            <p className="text-sm">{data.goal || 'TBD'}</p>
-                        </div>
-                        <div className="pt-4 flex justify-between items-end">
+
+                        <div className="pt-4 flex justify-between items-end shrink-0 border-t border-yellow-200/50">
                             <div className="font-serif italic text-lg opacity-50">Authorized by Sponsor</div>
                             <button onClick={()=>alert('PDF Exported!')} className="px-4 py-2 bg-black text-white rounded-lg text-xs font-bold flex items-center gap-2"><Save size={14}/> Export PDF</button>
                         </div>
@@ -1068,17 +1105,37 @@ const UserStorySplitter = () => {
     const [output, setOutput] = useState<string[]>([]);
     const [isThinking, setIsThinking] = useState(false);
 
-    const handleSplit = () => {
+    const handleSplit = async () => {
         setIsThinking(true);
-        setTimeout(() => {
-            // Mock AI
-            setOutput([
-                '作为用户，我可以通过手机号注册，以便快速创建账户。',
-                '作为用户，我可以接收验证码，以验证手机号所有权。',
-                '作为管理员，我可以查看今日注册量，以便监控增长趋势。'
-            ]);
+        if (!process.env.API_KEY) {
+            alert("未配置 API Key，无法使用 AI 功能");
             setIsThinking(false);
-        }, 1500);
+            return;
+        }
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const prompt = `Act as an Agile Coach. Split the following Epic/User Story into 3-5 smaller, INVEST-compliant user stories. 
+            Return ONLY the list of stories, one per line. Do not include introductory text.
+            
+            Input: "${input}"`;
+
+            const resp = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+
+            const text = resp.response.text;
+            // Split by newline and filter empty strings
+            const stories = text.split('\n').filter(line => line.trim().length > 0);
+            setOutput(stories);
+
+        } catch (e) {
+            console.error("AI Error", e);
+            setOutput(['AI Service Unavailable. Please try again later.']);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     return (
