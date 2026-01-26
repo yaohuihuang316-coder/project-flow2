@@ -599,30 +599,36 @@ const AgileBurn = () => {
 };
 
 // 4. WBS Tree (Advanced)
-const WbsTree = () => {
-    const Node = ({ data, level }: {data:any, level:number}) => {
-        const [expanded, setExpanded] = useState(true);
-        const progressColor = data.progress === 100 ? 'bg-green-500' : data.progress > 50 ? 'bg-blue-500' : 'bg-gray-300';
-        return (
-            <div className="flex flex-col items-center relative">
-                {level > 0 && <div className="h-6 w-px bg-gray-300"></div>}
-                <div className={`relative z-10 bg-white border-2 rounded-xl p-3 w-40 text-center shadow-sm cursor-pointer transition-all hover:scale-105 ${data.progress===100 ? 'border-green-200' : 'border-gray-100'}`} onClick={()=>setExpanded(!expanded)}>
-                    <div className="text-[10px] font-bold text-gray-400 mb-1">{data.code}</div>
-                    <div className="text-sm font-bold text-gray-800 leading-tight mb-2">{data.name}</div>
-                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div className={`h-full ${progressColor}`} style={{width: `${data.progress}%`}}></div></div>
-                    {data.children && <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white border rounded-full p-0.5 text-gray-400 shadow-sm ${expanded ? 'rotate-180':''}`}><ChevronDown size={12}/></div>}
-                </div>
-                {expanded && data.children && (
-                    <div className="flex gap-4 mt-0 pt-0 relative">
-                        {data.children.length > 1 && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-10rem)] h-px bg-transparent"><div className="absolute top-0 left-0 right-0 h-px bg-gray-300"></div></div>}
-                        {data.children.map((child:any, i:number) => <Node key={i} data={child} level={level+1} />)}
-                    </div>
-                )}
+interface WbsNodeProps {
+    data: any;
+    level: number;
+}
+
+const WbsNode: React.FC<WbsNodeProps> = ({ data, level }) => {
+    const [expanded, setExpanded] = useState(true);
+    const progressColor = data.progress === 100 ? 'bg-green-500' : data.progress > 50 ? 'bg-blue-500' : 'bg-gray-300';
+    return (
+        <div className="flex flex-col items-center relative">
+            {level > 0 && <div className="h-6 w-px bg-gray-300"></div>}
+            <div className={`relative z-10 bg-white border-2 rounded-xl p-3 w-40 text-center shadow-sm cursor-pointer transition-all hover:scale-105 ${data.progress === 100 ? 'border-green-200' : 'border-gray-100'}`} onClick={() => setExpanded(!expanded)}>
+                <div className="text-[10px] font-bold text-gray-400 mb-1">{data.code}</div>
+                <div className="text-sm font-bold text-gray-800 leading-tight mb-2">{data.name}</div>
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div className={`h-full ${progressColor}`} style={{ width: `${data.progress}%` }}></div></div>
+                {data.children && <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white border rounded-full p-0.5 text-gray-400 shadow-sm ${expanded ? 'rotate-180' : ''}`}><ChevronDown size={12} /></div>}
             </div>
-        );
-    };
+            {expanded && data.children && (
+                <div className="flex gap-4 mt-0 pt-0 relative">
+                    {data.children.length > 1 && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-10rem)] h-px bg-transparent"><div className="absolute top-0 left-0 right-0 h-px bg-gray-300"></div></div>}
+                    {data.children.map((child: any, i: number) => <WbsNode key={i} data={child} level={level + 1} />)}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const WbsTree = () => {
     const wbsData = { code: '1.0', name: 'New Mobile App', progress: 65, children: [{ code: '1.1', name: 'Planning', progress: 100, children: [{ code: '1.1.1', name: 'Market Research', progress: 100 }, { code: '1.1.2', name: 'Feasibility', progress: 100 }] }, { code: '1.2', name: 'Design', progress: 80, children: [{ code: '1.2.1', name: 'Prototyping', progress: 100 }, { code: '1.2.2', name: 'UI Assets', progress: 60 }] }, { code: '1.3', name: 'Development', progress: 40, children: [{ code: '1.3.1', name: 'Backend API', progress: 70 }, { code: '1.3.2', name: 'Frontend', progress: 10 }] }] };
-    return <div className="h-full bg-gray-50/50 rounded-3xl overflow-auto custom-scrollbar p-10 flex justify-center items-start animate-fade-in"><Node data={wbsData} level={0} /></div>;
+    return <div className="h-full bg-gray-50/50 rounded-3xl overflow-auto custom-scrollbar p-10 flex justify-center items-start animate-fade-in"><WbsNode data={wbsData} level={0} /></div>;
 };
 
 // 5. Simple Tools Implementation

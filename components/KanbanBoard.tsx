@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MoreHorizontal, Plus, CheckCircle2, Clock, 
-  AlertTriangle, Loader2, Save, XCircle
+  AlertTriangle, Loader2, Save, XCircle, Trash2
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
@@ -35,14 +35,6 @@ const SEED_TASKS: Task[] = [
   { id: 't-2', title: '搭建后端 API', tag: 'Backend', points: 5, status: 'Review', priority: 'High', assignee: 'Mike' },
   { id: 't-3', title: '实现 JWT 鉴权', tag: 'Security', points: 5, status: 'In Progress', priority: 'Critical', assignee: 'Alex' },
   { id: 't-4', title: '集成支付网关', tag: 'Payment', points: 8, status: 'Ready', priority: 'Medium' },
-  { id: 't-5', title: '编写用户手册', tag: 'Docs', points: 2, status: 'Backlog', priority: 'Low' },
-  { id: 't-6', title: '配置 CI/CD 流水线', tag: 'DevOps', points: 5, status: 'Backlog', priority: 'High' },
-  { id: 't-7', title: '修复 iOS 端崩溃 Bug', tag: 'Bug', points: 3, status: 'In Progress', priority: 'Critical', assignee: 'Sarah', isBlocked: true },
-  { id: 't-8', title: '优化数据库索引', tag: 'DB', points: 8, status: 'Backlog', priority: 'Medium' },
-  { id: 't-9', title: '设计营销 Banner', tag: 'Design', points: 2, status: 'Ready', priority: 'Low' },
-  { id: 't-10', title: '撰写 API 接口文档', tag: 'Docs', points: 3, status: 'Review', priority: 'Medium', assignee: 'Mike' },
-  { id: 't-11', title: '实现微信登录', tag: 'Feature', points: 5, status: 'Backlog', priority: 'High' },
-  { id: 't-12', title: '压力测试 QPS > 1000', tag: 'QA', points: 8, status: 'Backlog', priority: 'Critical' },
 ];
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
@@ -78,73 +70,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
               }));
               setTasks(safeTasks);
           } else {
-              // If empty even for logged in user, show seed tasks
-              setTasks(SEED_TASKS);
-              setIsLoading(false);
+              setTasks([]);
           }
           setIsLoading(false);
       };
 
       fetchTasks();
   }, [currentUser]);
-
-  // --- 2. Simulation Engine (Random Events) ---
-  useEffect(() => {
-    // Only run simulation if user is active (has tasks)
-    if (!tasks.length) return;
-
-    const interval = setInterval(() => {
-        // 10% chance every 15 seconds to trigger an event
-        if (Math.random() > 0.9) { 
-             triggerRandomEvent();
-        }
-    }, 15000); 
-
-    return () => clearInterval(interval);
-  }, [tasks]);
-
-  const triggerRandomEvent = () => {
-      const eventTypes = [
-          { type: 'SCOPE_CREEP', msg: '🚨 客户变更了需求！新增紧急任务到 Backlog。', severity: 'error' },
-          { type: 'BUG_FOUND', msg: '🐛 测试环境发现严重 Bug，请优先修复！', severity: 'error' },
-          { type: 'TEAM_HELP', msg: '🤝 团队成员完成了部分工作，效率提升！', severity: 'success' },
-          { type: 'SERVER_DOWN', msg: '🔥 开发服务器宕机，所有进行中任务受阻。', severity: 'error' }
-      ];
-      
-      const evt = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-      setNotification({ msg: evt.msg, type: evt.severity as any });
-      setTimeout(() => setNotification(null), 5000);
-
-      // Effect Logic
-      if (evt.type === 'SCOPE_CREEP') {
-          const newTask: Task = {
-              id: `urgent-${Date.now()}`,
-              title: '紧急：客户需求变更 #' + Math.floor(Math.random() * 100),
-              tag: 'Change',
-              points: 5,
-              status: 'Backlog',
-              priority: 'Critical',
-              assignee: 'Unassigned'
-          };
-          setTasks(prev => [newTask, ...prev]);
-      } 
-      else if (evt.type === 'SERVER_DOWN') {
-          setTasks(prev => prev.map(t => 
-              t.status === 'In Progress' ? { ...t, isBlocked: true } : t
-          ));
-      }
-      else if (evt.type === 'TEAM_HELP') {
-           // Auto move one task to done
-           setTasks(prev => {
-               const candidates = prev.filter(t => t.status === 'In Progress' && !t.isBlocked);
-               if (candidates.length > 0) {
-                   const luckyTask = candidates[0];
-                   return prev.map(t => t.id === luckyTask.id ? { ...t, status: 'Review' } : t);
-               }
-               return prev;
-           });
-      }
-  };
 
   // --- 3. Burndown Logic ---
   useEffect(() => {
@@ -171,7 +103,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
           points: updatedTask.points,
           status: updatedTask.status,
           priority: updatedTask.priority,
-          assignee: updatedTask.assignee, // Included back
+          assignee: updatedTask.assignee, 
           is_blocked: updatedTask.isBlocked
       };
 
@@ -184,21 +116,35 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       }
   };
 
+  // NEW: Delete Task
+  const handleDeleteTask = async (id: string) => {
+      if (!window.confirm("确定要删除此任务吗？")) return;
+      
+      // Optimistic update
+      setTasks(prev => prev.filter(t => t.id !== id));
+
+      if (currentUser) {
+          const { error } = await supabase.from('app_kanban_tasks').delete().eq('id', id);
+          if (error) {
+              setNotification({ msg: '删除失败', type: 'error' });
+              // Revert if critical, but for Kanban usually fine to just reload later
+          } else {
+              setNotification({ msg: '任务已删除', type: 'info' });
+          }
+      }
+      setTimeout(() => setNotification(null), 2000);
+  };
+
   // Activity Logger
   const logActivity = async (task: Task) => {
       if (!currentUser) return;
-      
-      // Insert into activity log
       await supabase.from('app_activity_logs').insert({
           user_id: currentUser.id,
           action_type: 'complete_task',
-          points: task.points, // Points awarded for heatmap contribution
+          points: task.points, 
           meta: { task_title: task.title },
           created_at: new Date().toISOString()
       });
-
-      // Update User XP (Simulation)
-      // In a real app, this would be a trigger or backend function
       setNotification({ msg: `任务完成！获得 ${task.points} 贡献点`, type: 'success' });
       setTimeout(() => setNotification(null), 3000);
   };
@@ -206,7 +152,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
   const initDefaultTasks = async () => {
       if (!currentUser) return;
       setIsLoading(true);
-      
       const tasksToInsert = SEED_TASKS.map(t => ({
           id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, 
           user_id: currentUser.id,
@@ -215,7 +160,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
           points: t.points,
           status: t.status,
           priority: t.priority,
-          assignee: t.assignee, // Included back
+          assignee: t.assignee,
           created_at: new Date().toISOString()
       }));
 
@@ -224,10 +169,10 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
       if (!error) {
           setTasks(tasksToInsert);
           setNotification({ msg: '已初始化示例任务', type: 'info' });
-          setTimeout(() => setNotification(null), 3000);
       } else {
           setNotification({ msg: '初始化失败：' + (error.message || 'Check DB'), type: 'error' });
       }
+      setTimeout(() => setNotification(null), 3000);
       setIsLoading(false);
   };
 
@@ -256,7 +201,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
               points: newTask.points,
               status: newTask.status,
               priority: newTask.priority,
-              assignee: newTask.assignee, // Included back
+              assignee: newTask.assignee, 
               created_at: new Date().toISOString()
           });
       }
@@ -289,7 +234,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
         setTasks(prev => prev.map(t => t.id === draggedTaskId ? updatedTask : t));
         saveTaskUpdate(updatedTask);
         
-        // Log activity if moved to Done
         if (targetStatus === 'Done' && task.status !== 'Done') {
             logActivity(task);
         }
@@ -315,7 +259,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs border-2 border-white">
                          {currentUser?.name?.charAt(0) || 'U'}
                      </div>
-                     <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-500">+AI</div>
                 </div>
                 <div className="h-6 w-px bg-gray-300"></div>
                 <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
@@ -325,26 +268,17 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
             </div>
 
             <div className="flex items-center gap-4">
-                {/* Seed Button for Empty State */}
                 {tasks.length === 0 && !isLoading && currentUser && (
-                    <button 
-                        onClick={initDefaultTasks}
-                        className="flex items-center gap-2 text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
-                    >
+                    <button onClick={initDefaultTasks} className="flex items-center gap-2 text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
                         <Save size={14}/> 初始化示例数据
                     </button>
                 )}
-
-                {/* Burndown Mini Chart */}
                 <div className="h-12 w-32 relative group">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={burndownData}>
                             <Area type="monotone" dataKey="remaining" stroke="#3b82f6" fill="#eff6ff" strokeWidth={2} />
                         </AreaChart>
                     </ResponsiveContainer>
-                    <div className="absolute inset-0 bg-white/90 backdrop-blur opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity border border-gray-100 rounded-lg shadow-sm">
-                        <span className="text-[10px] font-bold text-blue-600">Burndown</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -378,15 +312,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
                                 column === 'Done' ? 'bg-green-50/50' : 'bg-gray-100/50'
                             } ${draggedTaskId ? 'ring-2 ring-blue-500/10' : ''}`}
                         >
-                            {/* Column Header */}
                             <div className="p-4 flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <span className={`w-2 h-2 rounded-full ${
-                                        column === 'Backlog' ? 'bg-gray-400' :
-                                        column === 'Ready' ? 'bg-orange-400' :
-                                        column === 'In Progress' ? 'bg-blue-500' :
-                                        column === 'Review' ? 'bg-purple-500' : 'bg-green-500'
-                                    }`}></span>
+                                    <span className={`w-2 h-2 rounded-full ${column === 'Backlog' ? 'bg-gray-400' : 'bg-blue-500'}`}></span>
                                     <h3 className="font-bold text-sm text-gray-700">{column}</h3>
                                     <span className="bg-white/50 px-2 py-0.5 rounded text-xs font-medium text-gray-500">
                                         {tasks.filter(t => t.status === column).length}
@@ -397,7 +325,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
                                 </button>
                             </div>
 
-                            {/* Drop Zone */}
                             <div className="flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar">
                                 {tasks.filter(t => t.status === column).map(task => (
                                     <div
@@ -409,15 +336,13 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
                                         }`}
                                     >
                                         {task.isBlocked && (
-                                            <div 
-                                                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-sm z-10 cursor-pointer"
+                                            <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-sm z-10 cursor-pointer"
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // prevent drag start on click
+                                                    e.stopPropagation();
                                                     if (confirm("是否解决此阻塞问题？")) {
                                                         setTasks(prev => prev.map(t => t.id === task.id ? {...t, isBlocked: false} : t));
                                                     }
                                                 }}
-                                                title="点击解决阻塞"
                                             >
                                                 <XCircle size={14} />
                                             </div>
@@ -427,28 +352,28 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ currentUser }) => {
                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
                                                 {task.priority}
                                             </span>
-                                            <button className="text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <MoreHorizontal size={16} />
-                                            </button>
+                                            
+                                            {/* Action Menu (Delete) */}
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                                                    className="text-gray-300 hover:text-red-500"
+                                                    title="删除任务"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                                <button className="text-gray-300 hover:text-gray-600">
+                                                    <MoreHorizontal size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                         
                                         <h4 className="text-sm font-bold text-gray-900 leading-tight mb-3">{task.title}</h4>
                                         
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-mono font-bold text-gray-400 bg-gray-50 px-1.5 rounded">
-                                                    {task.tag}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {task.assignee && (
-                                                    <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-400 to-indigo-500 flex items-center justify-center text-[8px] text-white font-bold">
-                                                        {task.assignee.charAt(0)}
-                                                    </div>
-                                                )}
-                                                <div className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600 bg-gray-50" title="Story Points">
-                                                    {task.points}
-                                                </div>
+                                            <span className="text-[10px] font-mono font-bold text-gray-400 bg-gray-50 px-1.5 rounded">{task.tag}</span>
+                                            <div className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600 bg-gray-50">
+                                                {task.points}
                                             </div>
                                         </div>
                                     </div>

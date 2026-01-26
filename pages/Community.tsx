@@ -4,36 +4,18 @@ import {
   Search, MessageSquare, Heart, Share2, MoreHorizontal, 
   Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2
 } from 'lucide-react';
-import { UserProfile } from '../types';
+import { UserProfile, Comment } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 interface CommunityProps {
     currentUser?: UserProfile | null;
 }
 
-interface Comment {
-    id: number;
-    user: string;
-    avatar?: string;
-    content: string;
-    time: string;
-    likes: number;
-}
-
-// Mock Topics for sidebar (>10 items)
+// Mock Topics for sidebar
 const TRENDING_TOPICS = [
     { id: 1, name: 'PMP 备考冲刺', count: 1240 },
     { id: 2, name: '敏捷转型实战', count: 856 },
     { id: 3, name: 'DevOps 工具链', count: 632 },
-    { id: 4, name: 'AI 辅助项目管理', count: 420 },
-    { id: 5, name: 'WBS 最佳实践', count: 315 },
-    { id: 6, name: '相关方管理吐槽大会', count: 290 },
-    { id: 7, name: 'OKR 目标设定', count: 210 },
-    { id: 8, name: '远程协作效率', count: 185 },
-    { id: 9, name: '产品经理 vs 项目经理', count: 175 },
-    { id: 10, name: 'Jira 高级技巧', count: 150 },
-    { id: 11, name: '风险应对策略', count: 130 },
-    { id: 12, name: 'PMO 职场生存指南', count: 120 },
 ];
 
 const Community: React.FC<CommunityProps> = ({ currentUser }) => {
@@ -49,8 +31,11 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     // Interaction States
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
     const [expandedPostId, setExpandedPostId] = useState<number | null>(null);
+    
+    // Real Comments Map
     const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({});
     const [commentInput, setCommentInput] = useState('');
+    const [isLoadingComments, setIsLoadingComments] = useState(false);
 
     const fetchPosts = async () => {
         setIsLoading(true);
@@ -60,10 +45,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 .select('*')
                 .order('created_at', { ascending: false });
             
-            if (error) {
-                console.error("Error fetching posts:", error);
-            }
-
             if (data && data.length > 0) {
                 const formattedData = data.map(post => ({
                     ...post,
@@ -145,62 +126,83 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         setIsPosting(false);
 
         if (error) {
-            console.error("Post failed:", error);
             showToast("发布失败，请稍后重试", "error");
         } else {
             showToast("发布成功！", "success");
             setNewPostContent('');
-            fetchPosts(); // Refresh list to get real ID
+            fetchPosts(); 
         }
     };
 
-    // --- Comment Logic ---
+    // --- Comment Logic (Real DB) ---
+    const fetchComments = async (postId: number) => {
+        setIsLoadingComments(true);
+        const { data } = await supabase
+            .from('app_comments')
+            .select('*')
+            .eq('post_id', postId)
+            .order('created_at', { ascending: true });
+        
+        if (data) {
+            setCommentsMap(prev => ({ ...prev, [postId]: data }));
+        }
+        setIsLoadingComments(false);
+    };
+
     const toggleComments = (postId: number) => {
         if (expandedPostId === postId) {
             setExpandedPostId(null);
         } else {
             setExpandedPostId(postId);
-            // Mock fetching comments if not exist
-            if (!commentsMap[postId]) {
-                setCommentsMap(prev => ({
-                    ...prev,
-                    [postId]: [
-                        { id: 1, user: 'Sarah Chen', avatar: 'https://i.pravatar.cc/150?u=1', content: '这个观点很有趣，我在上个项目中也遇到了类似情况。', time: '1h ago', likes: 5 },
-                        { id: 2, user: 'Mike Ross', avatar: 'https://i.pravatar.cc/150?u=2', content: '同意，尤其是关于 WBS 分解的那部分。', time: '30m ago', likes: 2 }
-                    ]
-                }));
-            }
+            // Fetch if not already loaded or simple cache logic
+            fetchComments(postId);
         }
     };
 
-    const handleSendComment = (postId: number) => {
+    const handleSendComment = async (postId: number) => {
         if (!commentInput.trim() || !currentUser) return;
 
-        const newComment: Comment = {
-            id: Date.now(),
-            user: currentUser.name,
-            avatar: currentUser.avatar,
+        const newCommentPayload = {
+            post_id: postId,
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            user_avatar: currentUser.avatar,
             content: commentInput,
-            time: 'Just now',
             likes: 0
         };
 
+        // 1. Insert Comment
+        const { data, error } = await supabase
+            .from('app_comments')
+            .insert(newCommentPayload)
+            .select()
+            .single();
+
+        if (error) {
+            showToast("评论失败", "error");
+            return;
+        }
+
+        // 2. Update Local State
         setCommentsMap(prev => ({
             ...prev,
-            [postId]: [...(prev[postId] || []), newComment]
+            [postId]: [...(prev[postId] || []), data]
         }));
         setCommentInput('');
+
+        // 3. Update Post Comment Count (Optimistic + DB)
+        const currentPost = posts.find(p => p.id === postId);
+        const newCount = (currentPost?.comments || 0) + 1;
         
-        // Update comment count UI
-        const updatedPosts = posts.map(p => p.id === postId ? { ...p, comments: (p.comments || 0) + 1 } : p);
+        const updatedPosts = posts.map(p => p.id === postId ? { ...p, comments: newCount } : p);
         setPosts(updatedPosts);
         setFilteredPosts(updatedPosts);
+
+        await supabase.from('app_community_posts').update({ comments: newCount }).eq('id', postId);
     };
 
     return (
         <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen relative">
-            
-            {/* Toast Notification */}
             {toast && (
                 <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm animate-bounce-in ${
                     toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-black text-white'
@@ -289,7 +291,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     </div>
                                     <div className="space-y-3">
                                         <div className="h-4 w-full bg-gray-100 rounded animate-pulse"></div>
-                                        <div className="h-4 w-4/6 bg-gray-100 rounded animate-pulse"></div>
                                     </div>
                                 </div>
                             ))
@@ -356,7 +357,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                             <div className={`p-2 rounded-full group-hover:bg-blue-50 transition-colors ${expandedPostId === post.id ? 'bg-blue-50' : ''}`}>
                                                 <MessageSquare size={20} /> 
                                             </div>
-                                            <span>{post.comments}</span>
+                                            <span>{post.comments || 0}</span>
                                         </button>
                                         
                                         <button className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm font-bold ml-auto group">
@@ -370,22 +371,27 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     {expandedPostId === post.id && (
                                         <div className="mt-4 pt-4 border-t border-gray-50 bg-gray-50/50 -mx-6 px-6 pb-2 animate-fade-in rounded-b-[2rem]">
                                             <div className="space-y-4 mb-4">
-                                                {commentsMap[post.id]?.map(comment => (
-                                                    <div key={comment.id} className="flex gap-3">
-                                                        <img 
-                                                            src={comment.avatar || `https://ui-avatars.com/api/?name=${comment.user}`} 
-                                                            className="w-8 h-8 rounded-full border border-white shadow-sm"
-                                                        />
-                                                        <div className="flex-1 bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
-                                                            <div className="flex justify-between items-baseline mb-1">
-                                                                <span className="text-xs font-bold text-gray-900">{comment.user}</span>
-                                                                <span className="text-[10px] text-gray-400">{comment.time}</span>
+                                                {isLoadingComments && !commentsMap[post.id] ? (
+                                                    <div className="text-center py-4"><Loader2 className="animate-spin text-gray-400 mx-auto"/></div>
+                                                ) : (
+                                                    commentsMap[post.id]?.map(comment => (
+                                                        <div key={comment.id} className="flex gap-3">
+                                                            <img 
+                                                                src={comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name}`} 
+                                                                className="w-8 h-8 rounded-full border border-white shadow-sm"
+                                                            />
+                                                            <div className="flex-1 bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
+                                                                <div className="flex justify-between items-baseline mb-1">
+                                                                    <span className="text-xs font-bold text-gray-900">{comment.user_name}</span>
+                                                                    <span className="text-[10px] text-gray-400">{new Date(comment.created_at).toLocaleTimeString()}</span>
+                                                                </div>
+                                                                <p className="text-sm text-gray-700">{comment.content}</p>
                                                             </div>
-                                                            <p className="text-sm text-gray-700">{comment.content}</p>
                                                         </div>
-                                                    </div>
-                                                ))}
-                                                {(!commentsMap[post.id] || commentsMap[post.id].length === 0) && (
+                                                    ))
+                                                )}
+                                                
+                                                {(!isLoadingComments && (!commentsMap[post.id] || commentsMap[post.id].length === 0)) && (
                                                     <p className="text-center text-xs text-gray-400 py-2">暂无评论，来抢沙发吧！</p>
                                                 )}
                                             </div>
@@ -437,20 +443,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                 className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
                             />
                         </div>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-xl shadow-blue-500/20 sticky top-44">
-                        <div className="flex items-center gap-2 mb-3 opacity-80">
-                            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                            <span className="text-xs font-bold uppercase tracking-widest">Notice</span>
-                        </div>
-                        <h3 className="font-bold text-xl mb-3 leading-tight">ProjectFlow 社区公约 v2.0</h3>
-                        <p className="text-blue-100 text-sm mb-6 leading-relaxed opacity-90">
-                            为了维护良好的技术交流氛围，请大家文明发言。
-                        </p>
-                        <button className="bg-white text-blue-600 px-5 py-3 rounded-xl text-xs font-bold hover:bg-blue-50 transition-colors w-full shadow-lg">
-                            阅读详情
-                        </button>
                     </div>
                 </div>
             </div>

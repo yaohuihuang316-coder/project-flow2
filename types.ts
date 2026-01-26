@@ -5,6 +5,7 @@ export enum Page {
   LEARNING = 'LEARNING',
   CLASSROOM = 'CLASSROOM', // Kept for detail view
   COMMUNITY = 'COMMUNITY', // New Top-level Nav
+  AI_ASSISTANT = 'AI_ASSISTANT', // New AI Page
   PROFILE = 'PROFILE',
   SCHEDULE = 'SCHEDULE',
   KNOWLEDGE_GRAPH = 'KNOWLEDGE_GRAPH',
@@ -13,6 +14,7 @@ export enum Page {
   ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
   ADMIN_USERS = 'ADMIN_USERS',
   ADMIN_CONTENT = 'ADMIN_CONTENT',
+  ADMIN_COMMUNITY = 'ADMIN_COMMUNITY', // New Admin Page
   ADMIN_SETTINGS = 'ADMIN_SETTINGS',
   ADMIN_MONITOR = 'ADMIN_MONITOR'
 }
@@ -62,4 +64,15 @@ export interface ChatMessage {
     role: 'user' | 'ai';
     content: string;
     timestamp: Date;
+}
+
+export interface Comment {
+    id: number;
+    post_id: number;
+    user_id: string;
+    user_name: string;
+    user_avatar: string;
+    content: string;
+    created_at: string;
+    likes: number;
 }

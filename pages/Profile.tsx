@@ -18,6 +18,9 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  
+  // Real Certificate Data
+  const [certificates, setCertificates] = useState<any[]>([]);
 
   // Print Ref for capturing the certificate
   const printRef = useRef<HTMLDivElement>(null);
@@ -29,6 +32,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
           const oneYearAgo = new Date();
           oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
           
+          // 1. Logs
           const { data: logsData } = await supabase
               .from('app_activity_logs')
               .select('*')
@@ -36,6 +40,34 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               .gte('created_at', oneYearAgo.toISOString());
           
           if (logsData) setActivityLogs(logsData);
+
+          // 2. Completed Courses (Certificates)
+          // We fetch courses where progress is 100
+          const { data: progressData } = await supabase
+              .from('app_user_progress')
+              .select(`
+                  course_id,
+                  last_accessed,
+                  progress,
+                  app_courses (title, image)
+              `)
+              .eq('user_id', currentUser.id)
+              .eq('progress', 100);
+
+          if (progressData && progressData.length > 0) {
+              const mappedCerts = progressData.map((p: any, idx) => ({
+                  id: `CERT-${p.course_id}`,
+                  title: p.app_courses?.title || 'Unknown Course',
+                  titleEn: 'Certificate of Completion',
+                  date: new Date(p.last_accessed).toLocaleDateString(),
+                  issuer: 'ProjectFlow Academy',
+                  image: p.app_courses?.image,
+                  courseName: p.app_courses?.title
+              }));
+              setCertificates(mappedCerts);
+          } else {
+              setCertificates([]); // No completed courses yet
+          }
       };
       fetchData();
   }, [currentUser]);
@@ -54,10 +86,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
         let count = logMap[dateStr] || 0;
-        if (activityLogs.length === 0) { // Mock for demo
-             const randomSeed = date.getDate() + date.getMonth() * 3;
-             if (date.getDay() !== 0 && date.getDay() !== 6 && Math.random() > 0.7) count = randomSeed % 5;
-        }
         let level = 0;
         if (count === 0) level = 0;
         else if (count <= 2) level = 1;
@@ -80,7 +108,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       }
   };
 
-  // --- Mock Data ---
+  // --- Mock Data for Skills ---
   const skillsData = [
     { subject: '规划 (Plan)', A: 145, fullMark: 150 },
     { subject: '执行 (Exec)', A: 125, fullMark: 150 },
@@ -90,7 +118,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
     { subject: '敏捷 (Agile)', A: 130, fullMark: 150 },
   ];
 
-  // Badges (Achievement Icons)
   const badges = [
       { id: 1, name: 'PMP大师', condition: '通过 PMP 模拟考试且分数 > 85', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
       { id: 2, name: '早起鸟', condition: '连续 7 天在早上 8 点前登录学习', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
@@ -100,44 +127,12 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       { id: 6, name: '完美主义', condition: '在任意测验中获得 100 分', icon: Target, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
   ];
 
-  // Certificates (Documents)
-  const certificates = [
-      { 
-          id: 'CERT-001', 
-          title: '敏捷项目管理专家认证', 
-          titleEn: 'Agile Project Management Expert',
-          date: '2023-10-15', 
-          issuer: 'ProjectFlow Academy',
-          image: 'https://images.unsplash.com/photo-1589330694653-4a8b243aafa0?auto=format&fit=crop&w=400&q=80',
-          courseName: '敏捷实战高阶课'
-      },
-      { 
-          id: 'CERT-002', 
-          title: '企业级风险控制专员', 
-          titleEn: 'Enterprise Risk Control Specialist',
-          date: '2024-01-20', 
-          issuer: 'ProjectFlow Academy',
-          image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=400&q=80',
-          courseName: '风险管理与合规'
-      },
-      {
-          id: 'CERT-003',
-          title: 'DevOps 流程架构师',
-          titleEn: 'DevOps Process Architect',
-          date: '2024-03-10',
-          issuer: 'ProjectFlow Academy',
-          image: 'https://images.unsplash.com/photo-1546955121-d0ba6a58f9e7?auto=format&fit=crop&w=400&q=80',
-          courseName: 'DevOps 工程实践'
-      }
-  ];
-
   // --- Download Handler ---
   const handleDownload = async (certTitle: string) => {
       if (isGeneratingPdf || !printRef.current) return;
       setIsGeneratingPdf(true);
 
       try {
-          // Increase scale for better clarity
           const canvas = await html2canvas(printRef.current, {
               scale: 3, 
               useCORS: true,
@@ -338,7 +333,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                          </div>
                          {!badge.unlocked && <div className="absolute top-2 right-2 text-gray-400"><Lock size={12} /></div>}
                          
-                         {/* Hover Tooltip for Condition */}
                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
                              <div className="bg-black/90 backdrop-blur text-white text-xs p-3 rounded-xl shadow-xl text-center leading-relaxed">
                                  <p className="font-bold text-yellow-400 mb-1">获取条件</p>
@@ -351,9 +345,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
              </div>
         </div>
 
-        {/* --- 3. Certificates Wall (New Feature) --- */}
+        {/* --- 3. Certificates Wall (Dynamic) --- */}
         <div className="bg-[#1c1c1e] rounded-[2.5rem] p-8 shadow-xl text-white animate-fade-in-up delay-300 relative overflow-hidden">
-             {/* Background Effects */}
              <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-yellow-500/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
              
              <div className="flex items-center justify-between mb-8 relative z-10">
@@ -363,51 +356,41 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-white">荣誉证书墙</h2>
-                        <p className="text-sm text-gray-400">官方认证的专业能力证明</p>
+                        <p className="text-sm text-gray-400">完成课程进度 100% 自动颁发</p>
                     </div>
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
-                 {certificates.map((cert) => (
-                     <div 
-                        key={cert.id}
-                        onClick={() => setSelectedCert({ ...cert, user: currentUser?.name || 'User' })}
-                        className="group relative aspect-[1.414/1] bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-4 hover:ring-yellow-500/50 transition-all shadow-2xl transform hover:scale-[1.02]"
-                     >
-                         {/* Preview Image */}
-                         <img src={cert.image} alt={cert.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                         
-                         {/* Top Left Tooltip Icon */}
-                         <div className="absolute top-3 left-3 z-20 group/icon">
-                             <div className="p-1.5 bg-black/30 backdrop-blur-md rounded-full text-white/70 hover:text-white transition-colors">
-                                 <HelpCircle size={16} />
+             {certificates.length > 0 ? (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
+                     {certificates.map((cert) => (
+                         <div 
+                            key={cert.id}
+                            onClick={() => setSelectedCert({ ...cert, user: currentUser?.name || 'User' })}
+                            className="group relative aspect-[1.414/1] bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-4 hover:ring-yellow-500/50 transition-all shadow-2xl transform hover:scale-[1.02]"
+                         >
+                             <img src={cert.image} alt={cert.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                             
+                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
+                                 <h3 className="text-lg font-bold text-white leading-tight">{cert.title}</h3>
+                                 <p className="text-xs text-gray-300 mt-1">{cert.titleEn}</p>
+                                 <div className="flex items-center gap-2 mt-3">
+                                     <span className="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">CLICK TO VIEW</span>
+                                     <span className="text-[10px] text-gray-400">{cert.date}</span>
+                                 </div>
                              </div>
-                             {/* Tooltip Content */}
-                             <div className="absolute top-full left-0 mt-2 w-48 opacity-0 group-hover/icon:opacity-100 transition-opacity pointer-events-none">
-                                <div className="bg-black/90 backdrop-blur text-white text-[10px] p-2 rounded-lg shadow-xl">
-                                    完成 <span className="text-yellow-400 font-bold">{cert.courseName}</span> 后颁发
-                                </div>
-                             </div>
-                         </div>
 
-                         {/* Overlay Info */}
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
-                             <h3 className="text-lg font-bold text-white leading-tight">{cert.title}</h3>
-                             <p className="text-xs text-gray-300 mt-1">{cert.titleEn}</p>
-                             <div className="flex items-center gap-2 mt-3">
-                                 <span className="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold">CLICK TO VIEW</span>
-                                 <span className="text-[10px] text-gray-400">{cert.date}</span>
+                             <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/20">
+                                 <Award size={14} className="text-yellow-400" />
                              </div>
                          </div>
-
-                         {/* Verified Badge */}
-                         <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/20">
-                             <Award size={14} className="text-yellow-400" />
-                         </div>
-                     </div>
-                 ))}
-             </div>
+                     ))}
+                 </div>
+             ) : (
+                 <div className="py-20 text-center text-gray-500">
+                     <p>尚未获得证书，快去完成课程吧！</p>
+                 </div>
+             )}
         </div>
 
         {/* --- Certificate Preview Modal (Centered & Downloadable) --- */}
@@ -416,8 +399,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                 <div className="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity animate-fade-in" onClick={() => setSelectedCert(null)}></div>
                 
                 <div className="relative w-full max-w-6xl h-[90vh] flex flex-col animate-bounce-in z-50">
-                    
-                    {/* Toolbar */}
                     <div className="flex justify-between items-center mb-4 px-2">
                         <div className="text-white">
                             <h3 className="text-xl font-bold">{selectedCert.title}</h3>
@@ -438,9 +419,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         </div>
                     </div>
 
-                    {/* Preview Viewport */}
                     <div className="flex-1 bg-[#2C2C2E]/50 rounded-[2rem] border border-white/10 flex items-center justify-center overflow-hidden relative shadow-2xl">
-                        {/* Visual Scaled Preview */}
                         <div className="origin-center transition-transform duration-500" style={{ transform: 'scale(0.65)' }}>
                             <CertificateTemplate data={selectedCert} />
                         </div>

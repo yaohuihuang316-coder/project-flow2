@@ -6,7 +6,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LearningHub from './pages/LearningHub';
 import Classroom from './pages/Classroom';
-import Community from './pages/Community'; // New Import
+import Community from './pages/Community'; 
+import AiAssistant from './pages/AiAssistant'; // New Import
 import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
@@ -16,6 +17,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserTable from './pages/admin/UserTable';
 import AdminContent from './pages/admin/AdminContent';
+import AdminCommunity from './pages/admin/AdminCommunity'; // New Import
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminMonitor from './pages/admin/AdminMonitor';
 import { Page, UserProfile } from './types';
@@ -78,6 +80,7 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
           {currentPage === Page.ADMIN_USERS && <UserTable currentRole={currentUser?.role || 'SuperAdmin'} />}
           {currentPage === Page.ADMIN_CONTENT && <AdminContent />}
+          {currentPage === Page.ADMIN_COMMUNITY && <AdminCommunity />}
           {currentPage === Page.ADMIN_SETTINGS && <AdminSettings />}
           {currentPage === Page.ADMIN_MONITOR && <AdminMonitor />}
         </AdminLayout>
@@ -92,6 +95,8 @@ const App: React.FC = () => {
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
       case Page.LEARNING:
         return <LearningHub onNavigate={navigateTo} currentUser={currentUser} />;
+      case Page.AI_ASSISTANT:
+        return <AiAssistant currentUser={currentUser} />;
       case Page.COMMUNITY:
         return <Community currentUser={currentUser} />;
       case Page.CLASSROOM:

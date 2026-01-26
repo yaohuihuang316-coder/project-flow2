@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserProfile } from '../types';
-import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users } from 'lucide-react';
+import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users, Bot } from 'lucide-react';
 
 interface NavbarProps {
   currentPage: Page;
@@ -38,6 +38,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
   const navItems = [
     { page: Page.DASHBOARD, icon: LayoutDashboard, label: '概览' },
     { page: Page.LEARNING, icon: Library, label: '学习中心' },
+    { page: Page.AI_ASSISTANT, icon: Bot, label: 'AI 助手' },
     { page: Page.COMMUNITY, icon: Users, label: '社区' },
     { page: Page.PROFILE, icon: User, label: '成就' },
   ];

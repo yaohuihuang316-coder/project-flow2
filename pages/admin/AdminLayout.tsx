@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { Page, AdminRole, UserProfile } from '../../types';
 import { 
   LayoutDashboard, Users, FileText, Settings, 
-  LogOut, Bell, ChevronRight, Shield, Activity, Menu, X
+  LogOut, Bell, ChevronRight, Shield, Activity, Menu, X, MessageSquare
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -42,6 +43,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
       page: Page.ADMIN_CONTENT, 
       icon: FileText, 
       roles: ['SuperAdmin', 'Manager', 'Editor'] 
+    },
+    { 
+      label: '社区管理', 
+      page: Page.ADMIN_COMMUNITY, 
+      icon: MessageSquare, 
+      roles: ['SuperAdmin', 'Manager'] 
     },
     { 
       label: '系统设置', 

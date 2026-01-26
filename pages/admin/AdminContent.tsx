@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, MoreVertical, BookOpen, Clock, Tag, Eye, FileText, Archive, CheckCircle, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Plus, MoreVertical, BookOpen, Clock, Tag, Eye, FileText, Archive, CheckCircle, AlertCircle, RefreshCw, Loader2, Trash2 } from 'lucide-react';
 import CourseBuilder from './CourseBuilder';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -20,14 +21,13 @@ const AdminContent: React.FC = () => {
   const fetchContent = async () => {
     setIsLoading(true);
     try {
-      // 使用 'app_courses' 而不是 'Course'
       const { data, error } = await supabase
         .from('app_courses')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching content:', error.message || JSON.stringify(error));
+        console.error('Error fetching content:', error.message);
         setContentData([]);
       } else if (data && data.length > 0) {
         const mappedData = data.map(item => ({
@@ -50,13 +50,7 @@ const AdminContent: React.FC = () => {
     fetchContent();
   }, []);
 
-  // --- Logic ---
   const filteredData = contentData.filter(item => {
-      // Logic adjustment: Currently Database only stores 'Course', 'Cert', 'Official' which are all technically 'courses' type in this admin view.
-      // If user wants to differentiate, they need to add a 'type' column or map 'category' to these tabs.
-      // For now, we assume everything in DB is a course unless specified.
-      // const matchTab = activeTab === 'courses' ? true : false; // Removed as currently unused
-      
       const matchSearch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (item.author || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = filterStatus === 'All' || item.status === filterStatus;
       return matchSearch && matchStatus;
@@ -88,26 +82,37 @@ const AdminContent: React.FC = () => {
       };
 
       try {
-        // 使用 'app_courses' 表
         const { error } = await supabase.from('app_courses').upsert({
            id: newItem.id.toString(), 
            title: newItem.title,
            author: newItem.author,
-           // type: newItem.type, // Remove if DB doesn't have type column yet
            status: newItem.status,
            category: newItem.category,
            views: newItem.views,
            last_update: newItem.last_update,
-           chapters: newItem.chapters // Ensure chapters are saved
+           chapters: newItem.chapters 
         });
   
         if (!error) {
-          fetchContent(); // Refresh from server
+          fetchContent();
         } else {
-          console.error("Failed to save to DB (Table: app_courses):", error.message || JSON.stringify(error));
+          console.error("Failed to save to DB:", error.message);
         }
       } catch (err) {
         console.error("Unexpected error saving content:", err);
+      }
+  };
+
+  // NEW: Delete Course
+  const handleDeleteContent = async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!window.confirm('确定要删除此课程吗？与之相关的学习进度也将被删除。')) return;
+
+      const { error } = await supabase.from('app_courses').delete().eq('id', id);
+      if (!error) {
+          setContentData(prev => prev.filter(c => c.id !== id));
+      } else {
+          alert('删除失败: ' + error.message);
       }
   };
 
@@ -232,9 +237,18 @@ const AdminContent: React.FC = () => {
                 {item.status}
               </div>
 
-              <button className="p-2 text-gray-300 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors">
-                <MoreVertical size={20} />
-              </button>
+              <div className="flex gap-1">
+                  <button 
+                    onClick={(e) => handleDeleteContent(item.id, e)}
+                    className="p-2 text-gray-300 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+                    title="删除"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                  <button className="p-2 text-gray-300 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors">
+                    <MoreVertical size={20} />
+                  </button>
+              </div>
             </div>
           </div>
         )) : (

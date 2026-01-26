@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Play, Pause, X, CloudRain, Coffee, Zap, Plus, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Play, Pause, X, CloudRain, Coffee, Zap, Plus, Loader2, Trash2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -50,20 +50,7 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
     const fetchEvents = async () => {
         setIsLoading(true);
         if (!currentUser) {
-            // Mock data for guests (>10 items)
-            setEvents([
-                { id: 1, time: '07:30 AM', title: '晨间冥想 (Meditation)', type: 'self', duration: '30min' },
-                { id: 2, time: '09:00 AM', title: '每日站会 (Daily Standup)', type: 'meeting', duration: '15min' },
-                { id: 3, time: '10:00 AM', title: '产品需求评审 (PRD Review)', type: 'work', duration: '1h' },
-                { id: 4, time: '11:30 AM', title: '敏捷项目管理课程 - Module 2', type: 'learning', duration: '45min' },
-                { id: 5, time: '01:00 PM', title: '午餐 & 休息', type: 'self', duration: '1h' },
-                { id: 6, time: '02:30 PM', title: '前端架构设计研讨', type: 'work', duration: '1.5h' },
-                { id: 7, time: '04:00 PM', title: '代码走查 (Code Review)', type: 'work', duration: '1h' },
-                { id: 8, time: '05:30 PM', title: '健身房 (Gym)', type: 'self', duration: '1h' },
-                { id: 9, time: '07:00 PM', title: 'PMP 备考刷题', type: 'learning', duration: '45min' },
-                { id: 10, time: '08:00 PM', title: '阅读：人月神话', type: 'learning', duration: '30min' },
-                { id: 11, time: '09:00 PM', title: '总结与明日规划', type: 'self', duration: '15min' },
-            ]);
+            setEvents([]);
             setIsLoading(false);
             return;
         }
@@ -74,12 +61,7 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: true });
 
-        if (data && data.length > 0) {
-            setEvents(data);
-        } else {
-             // If DB empty for user, show empty state or fallback. Here we show empty.
-             setEvents([]);
-        }
+        if (data) setEvents(data);
         setIsLoading(false);
     };
 
@@ -105,6 +87,16 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
             fetchEvents();
             setIsAddOpen(false);
             setNewEvent({ title: '', time: '09:00 AM', duration: '1h', type: 'meeting' });
+        }
+    };
+
+    // NEW: Delete Event
+    const handleDeleteEvent = async (id: number) => {
+        if (!window.confirm("确定删除此日程吗？")) return;
+        
+        const { error } = await supabase.from('app_events').delete().eq('id', id);
+        if (!error) {
+            setEvents(events.filter(e => e.id !== id));
         }
     };
 
@@ -164,7 +156,6 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
                         </div>
                     </div>
 
-                    {/* Focus Mode Entry */}
                     <button 
                         onClick={() => setIsFocusMode(true)}
                         className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-[1.5rem] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:scale-[1.02] transition-all group"
@@ -239,7 +230,7 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
                                     <div className="flex-1 relative pl-6 border-l-2 border-gray-100 group-hover:border-gray-200 transition-colors pb-8 last:pb-0">
                                         <div className={`absolute -left-[5px] top-3 w-2.5 h-2.5 rounded-full ring-4 ring-white ${getEventColor(event.type)}`}></div>
                                         
-                                        <div className="bg-white rounded-2xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 hover:shadow-md transition-all cursor-pointer hover:-translate-y-1">
+                                        <div className="bg-white rounded-2xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 hover:shadow-md transition-all cursor-pointer hover:-translate-y-1 relative">
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md text-white mb-2 inline-block opacity-80 ${getEventColor(event.type)}`}>
@@ -247,9 +238,17 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
                                                     </span>
                                                     <h3 className="text-lg font-bold text-gray-900">{event.title}</h3>
                                                 </div>
-                                                <button className="text-gray-300 hover:text-gray-600">
-                                                    <MoreHorizontal size={20} />
-                                                </button>
+                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button 
+                                                        onClick={() => handleDeleteEvent(event.id)} 
+                                                        className="text-gray-300 hover:text-red-500"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                    <button className="text-gray-300 hover:text-gray-600">
+                                                        <MoreHorizontal size={16} />
+                                                    </button>
+                                                </div>
                                             </div>
                                             
                                             <div className="flex items-center gap-4 mt-4 text-sm text-gray-500 font-medium">
@@ -274,13 +273,10 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
             {/* --- Focus Mode Overlay (Full Screen) --- */}
             {isFocusMode && (
                 <div className="fixed inset-0 z-[100] bg-[#000] text-white flex flex-col items-center justify-center animate-fade-in">
-                     {/* Background Ambient Effect */}
                      <div className="absolute inset-0 overflow-hidden pointer-events-none">
                          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/20 rounded-full blur-[120px] transition-all duration-[3000ms] ${isActive ? 'scale-110 opacity-30' : 'scale-100 opacity-20'}`}></div>
-                         <div className={`absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px] transition-all duration-[4000ms] ${isActive ? 'translate-x-10' : ''}`}></div>
                      </div>
 
-                     {/* Top Bar */}
                      <div className="absolute top-0 left-0 right-0 p-8 flex justify-between items-center z-10">
                          <div className="flex items-center gap-2 text-white/50">
                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -294,7 +290,6 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
                          </button>
                      </div>
 
-                     {/* Main Timer */}
                      <div className="relative z-10 text-center mb-16">
                          <div className="text-[12rem] font-bold tracking-tighter leading-none font-mono tabular-nums bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 select-none">
                              {formatTime(timeLeft)}
@@ -315,31 +310,6 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
                                 Reset
                              </button>
                          </div>
-                     </div>
-
-                     {/* Ambient Sound Controls */}
-                     <div className="absolute bottom-12 flex gap-4 bg-white/10 backdrop-blur-xl p-2 rounded-2xl border border-white/10">
-                         {[
-                             { id: 'rain', icon: CloudRain, label: 'Rain' },
-                             { id: 'cafe', icon: Coffee, label: 'Cafe' },
-                             { id: 'white', icon: Zap, label: 'Static' },
-                         ].map(sound => (
-                             <button
-                                key={sound.id}
-                                onClick={() => setAmbientSound(ambientSound === sound.id ? null : sound.id as any)}
-                                className={`flex flex-col items-center justify-center w-20 h-20 rounded-xl transition-all ${
-                                    ambientSound === sound.id 
-                                    ? 'bg-white text-black shadow-lg' 
-                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
-                                }`}
-                             >
-                                 <sound.icon size={24} className={ambientSound === sound.id ? 'fill-current' : ''} />
-                                 <span className="text-[10px] font-bold mt-2 uppercase tracking-wider">{sound.label}</span>
-                                 {ambientSound === sound.id && (
-                                     <div className="w-1 h-1 bg-black rounded-full mt-1 animate-ping"></div>
-                                 )}
-                             </button>
-                         ))}
                      </div>
                 </div>
             )}
