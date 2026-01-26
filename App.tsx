@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import LearningHub from './pages/LearningHub';
 import Classroom from './pages/Classroom';
 import Community from './pages/Community'; 
-import AiAssistant from './pages/AiAssistant'; // New Import
+import AiAssistant from './pages/AiAssistant'; 
 import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
@@ -17,7 +17,8 @@ import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserTable from './pages/admin/UserTable';
 import AdminContent from './pages/admin/AdminContent';
-import AdminCommunity from './pages/admin/AdminCommunity'; // New Import
+import AdminCommunity from './pages/admin/AdminCommunity'; 
+import AdminAnnouncements from './pages/admin/AdminAnnouncements'; // New Import
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminMonitor from './pages/admin/AdminMonitor';
 import { Page, UserProfile } from './types';
@@ -25,16 +26,16 @@ import { Page, UserProfile } from './types';
 const App: React.FC = () => {
   // 1. 全局导航状态管理
   const [currentPage, setCurrentPage] = useState<Page>(Page.LOGIN);
-  // 新增：课程 ID 状态
-  const [currentCourseId, setCurrentCourseId] = useState<string>('default');
+  // 新增：通用 ID/Param 状态 (used for courseId AND admin tab params)
+  const [currentParam, setCurrentParam] = useState<string>('default');
   
   // 2. 用户身份状态 (Persisted User State)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
   // 核心跳转逻辑
-  const navigateTo = (page: Page, secondaryId?: string) => {
-    if (secondaryId) {
-      setCurrentCourseId(secondaryId);
+  const navigateTo = (page: Page, param?: string) => {
+    if (param) {
+      setCurrentParam(param);
     }
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -73,14 +74,17 @@ const App: React.FC = () => {
       return (
         <AdminLayout 
           currentPage={currentPage} 
-          setPage={setCurrentPage} 
-          currentUser={currentUser} // Pass actual user
+          onNavigate={navigateTo} // Pass navigation handler
+          currentUser={currentUser} 
           onLogout={handleLogout}
+          currentTabParam={currentParam} // Pass active param for highlighting
         >
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
           {currentPage === Page.ADMIN_USERS && <UserTable currentRole={currentUser?.role || 'SuperAdmin'} />}
-          {currentPage === Page.ADMIN_CONTENT && <AdminContent />}
+          {/* AdminContent now receives the param to switch tabs internally */}
+          {currentPage === Page.ADMIN_CONTENT && <AdminContent initialTab={currentParam !== 'default' ? currentParam : 'courses'} />}
           {currentPage === Page.ADMIN_COMMUNITY && <AdminCommunity />}
+          {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
           {currentPage === Page.ADMIN_SETTINGS && <AdminSettings />}
           {currentPage === Page.ADMIN_MONITOR && <AdminMonitor />}
         </AdminLayout>
@@ -102,7 +106,7 @@ const App: React.FC = () => {
       case Page.CLASSROOM:
         return (
             <Classroom 
-                courseId={currentCourseId} 
+                courseId={currentParam} 
                 currentUser={currentUser} 
                 onBack={() => navigateTo(Page.LEARNING)}
             />
