@@ -1,21 +1,21 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  PlayCircle, Clock, ChevronLeft, ChevronDown, Plus,
-  Activity, Terminal, 
-  Network, BarChart3, 
-  GitMerge, Layers, Shield, Loader2,
-  Layout, Cpu, Briefcase, FileText, RefreshCw, CloudLightning, 
-  DollarSign, Target, X, 
-  History, BookOpen,
-  ArrowRight, Zap, Save,
-  AlertTriangle, Play,
-  CheckCircle2,
-  Lock, Award, FileDown
+import {
+    PlayCircle, Clock, ChevronLeft, ChevronDown, Plus,
+    Activity, Terminal,
+    Network, BarChart3,
+    GitMerge, Layers, Shield, Loader2,
+    Layout, Cpu, Briefcase, FileText, RefreshCw, CloudLightning,
+    DollarSign, Target, X,
+    History, BookOpen,
+    ArrowRight, Zap, Save,
+    AlertTriangle, Play,
+    CheckCircle2,
+    Lock, Award, FileDown
 } from 'lucide-react';
-import { 
-  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, ReferenceLine, Bar, Legend, Line, ComposedChart, Area
+import {
+    XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+    ResponsiveContainer, ReferenceLine, Bar, Legend, Line, ComposedChart, Area
 } from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -37,14 +37,14 @@ const getApiKey = () => {
         if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
             return process.env.API_KEY;
         }
-    } catch (e) {}
+    } catch (e) { }
     try {
         // @ts-ignore
         if (typeof import.meta !== 'undefined' && import.meta.env) {
             // @ts-ignore
             return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
         }
-    } catch (e) {}
+    } catch (e) { }
     return '';
 };
 
@@ -125,7 +125,7 @@ const CLASSIC_CASES = [
 
 // --- CPM ALGORITHM ENGINE ---
 interface CpmTask {
-    id: string; name: string; duration: number; predecessors: string[]; 
+    id: string; name: string; duration: number; predecessors: string[];
     es: number; ef: number; ls: number; lf: number; slack: number;
     isCritical: boolean; level: number;
 }
@@ -133,7 +133,7 @@ interface CpmTask {
 class CpmEngine {
     static calculate(tasks: CpmTask[]): CpmTask[] {
         const taskMap = new Map(tasks.map(t => [t.id, { ...t, es: 0, ef: 0, ls: Infinity, lf: Infinity, slack: 0, isCritical: false, level: 0 }]));
-        
+
         // 1. Forward Pass
         let changed = true;
         while (changed) {
@@ -181,7 +181,7 @@ class CpmEngine {
             task.slack = task.ls - task.es;
             // Floating point tolerance
             if (Math.abs(task.slack) < 0.001) {
-                task.slack = 0; 
+                task.slack = 0;
                 task.isCritical = true;
             } else {
                 task.isCritical = false;
@@ -196,22 +196,22 @@ class CpmEngine {
 // 1. Chronos Flow CPM (Advanced Design)
 const CpmStudio = () => {
     const [tasks, setTasks] = useState<CpmTask[]>([
-        { id: 'A', name: '需求分析', duration: 3, predecessors: [], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0 },
-        { id: 'B', name: '原型设计', duration: 5, predecessors: ['A'], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0 },
-        { id: 'C', name: '后端架构', duration: 4, predecessors: ['A'], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0 },
-        { id: 'D', name: '前端开发', duration: 6, predecessors: ['B'], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0 },
-        { id: 'E', name: 'API开发', duration: 5, predecessors: ['C'], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0 },
-        { id: 'F', name: '集成测试', duration: 3, predecessors: ['D', 'E'], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0 },
+        { id: 'A', name: '需求分析', duration: 3, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        { id: 'B', name: '原型设计', duration: 5, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        { id: 'C', name: '后端架构', duration: 4, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        { id: 'D', name: '前端开发', duration: 6, predecessors: ['B'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        { id: 'E', name: 'API开发', duration: 5, predecessors: ['C'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        { id: 'F', name: '集成测试', duration: 3, predecessors: ['D', 'E'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
     ]);
     const [calculatedTasks, setCalculatedTasks] = useState<CpmTask[]>([]);
     const [projectDuration, setProjectDuration] = useState(0);
     const [criticalCount, setCriticalCount] = useState(0);
-    
+
     // UI State: Controls whether the critical path is revealed
     const [isCalculated, setIsCalculated] = useState(false);
 
     // Auto-calculate logic (for layout only)
-    useEffect(() => { 
+    useEffect(() => {
         const result = CpmEngine.calculate(tasks);
         setCalculatedTasks(result);
         setProjectDuration(Math.max(0, ...result.map(t => t.ef)));
@@ -224,20 +224,20 @@ const CpmStudio = () => {
     };
 
     const getTaskPos = (task: CpmTask) => {
-        const levelNodes = calculatedTasks.filter(t => t.level === task.level).sort((a,b) => a.id.localeCompare(b.id));
+        const levelNodes = calculatedTasks.filter(t => t.level === task.level).sort((a, b) => a.id.localeCompare(b.id));
         const indexInLevel = levelNodes.findIndex(t => t.id === task.id);
-        
+
         // Dynamic Layout
         const xBase = 100;
         const xStep = 220;
         const yStep = 140;
-        
+
         const x = xBase + (task.level * xStep);
         // Center vertically based on number of nodes in level
         const totalHeight = levelNodes.length * yStep;
         const yOffset = (600 - totalHeight) / 2; // Assuming container height ~600
         const y = yOffset + (indexInLevel * yStep);
-        
+
         return { x, y };
     };
 
@@ -245,9 +245,9 @@ const CpmStudio = () => {
         const newTasks = [...tasks];
         // @ts-ignore
         newTasks[idx][field] = value;
-        if(field === 'predecessors') {
-             // @ts-ignore
-             newTasks[idx][field] = value.split(/[,，]/).map(s=>s.trim().toUpperCase()).filter(s=>s);
+        if (field === 'predecessors') {
+            // @ts-ignore
+            newTasks[idx][field] = value.split(/[,，]/).map(s => s.trim().toUpperCase()).filter(s => s);
         }
         setTasks(newTasks);
         setIsCalculated(false); // Reset visualization on edit
@@ -266,19 +266,19 @@ const CpmStudio = () => {
             `}</style>
 
             {/* 1. Infinite Canvas Background */}
-            <div className="absolute inset-0 pointer-events-none opacity-[0.05]" 
-                 style={{backgroundImage: 'radial-gradient(#000 1.5px, transparent 1.5px)', backgroundSize: '24px 24px'}}>
+            <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
+                style={{ backgroundImage: 'radial-gradient(#000 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }}>
             </div>
 
             {/* 2. Floating Glass Console (Left) */}
             <div className="absolute top-6 left-6 bottom-6 w-80 bg-white/70 backdrop-blur-2xl border border-white/40 shadow-2xl rounded-[2rem] z-30 flex flex-col overflow-hidden transition-all duration-300">
                 <div className="p-6 border-b border-white/20 bg-white/40">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <Network size={20} className="text-blue-600"/> 任务控制台
+                        <Network size={20} className="text-blue-600" /> 任务控制台
                     </h3>
                     <p className="text-xs text-gray-500 mt-1">配置任务依赖关系与工期</p>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
                     {tasks.map((task, i) => (
                         <div key={i} className="group bg-white/80 p-4 rounded-2xl border border-white shadow-sm hover:shadow-md transition-all relative">
@@ -287,69 +287,68 @@ const CpmStudio = () => {
                                     <div className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold shadow-md">
                                         {task.id}
                                     </div>
-                                    <input 
-                                        className="w-full bg-transparent text-sm font-bold text-gray-800 outline-none placeholder:text-gray-400" 
-                                        value={task.name} 
-                                        onChange={(e)=>updateTask(i, 'name', e.target.value)} 
+                                    <input
+                                        className="w-full bg-transparent text-sm font-bold text-gray-800 outline-none placeholder:text-gray-400"
+                                        value={task.name}
+                                        onChange={(e) => updateTask(i, 'name', e.target.value)}
                                         placeholder="Task Name"
                                     />
                                 </div>
-                                <button onClick={()=>setTasks(tasks.filter((_,idx)=>idx!==i))} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity">
-                                    <X size={14}/>
+                                <button onClick={() => setTasks(tasks.filter((_, idx) => idx !== i))} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity">
+                                    <X size={14} />
                                 </button>
                             </div>
-                            
+
                             <div className="grid grid-cols-2 gap-3 mt-3">
                                 <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 focus-within:border-blue-300 focus-within:bg-white transition-colors">
                                     <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Duration</label>
-                                    <input 
-                                        type="number" 
-                                        className="w-full bg-transparent text-xs font-bold text-gray-700 outline-none" 
-                                        value={task.duration} 
-                                        onChange={(e)=>updateTask(i, 'duration', Number(e.target.value))} 
+                                    <input
+                                        type="number"
+                                        className="w-full bg-transparent text-xs font-bold text-gray-700 outline-none"
+                                        value={task.duration}
+                                        onChange={(e) => updateTask(i, 'duration', Number(e.target.value))}
                                     />
                                 </div>
                                 <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 focus-within:border-blue-300 focus-within:bg-white transition-colors">
                                     <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Predecessors</label>
-                                    <input 
-                                        className="w-full bg-transparent text-xs font-bold text-gray-700 outline-none uppercase" 
-                                        value={task.predecessors.join(',')} 
-                                        onChange={(e)=>updateTask(i, 'predecessors', e.target.value)} 
+                                    <input
+                                        className="w-full bg-transparent text-xs font-bold text-gray-700 outline-none uppercase"
+                                        value={task.predecessors.join(',')}
+                                        onChange={(e) => updateTask(i, 'predecessors', e.target.value)}
                                         placeholder="Ex: A,B"
                                     />
                                 </div>
                             </div>
                         </div>
                     ))}
-                    
-                    <button 
-                        onClick={()=>setTasks([...tasks, {id: String.fromCharCode(65+tasks.length), name:'New Task', duration:1, predecessors:[], es:0, ef:0, ls:0, lf:0, slack:0, isCritical:false, level:0}])} 
+
+                    <button
+                        onClick={() => setTasks([...tasks, { id: String.fromCharCode(65 + tasks.length), name: 'New Task', duration: 1, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 }])}
                         className="w-full py-4 border-2 border-dashed border-gray-300/50 rounded-2xl text-gray-400 font-bold hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-2 mb-2"
                     >
-                        <Plus size={16}/> Add Task
+                        <Plus size={16} /> Add Task
                     </button>
                 </div>
 
                 {/* Calculate Button Area */}
                 <div className="p-4 bg-white/50 border-t border-white/20">
-                     <button 
+                    <button
                         onClick={handleStartCalculation}
-                        className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
-                            isCalculated 
-                            ? 'bg-gray-900 text-white cursor-default' 
-                            : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl'
-                        }`}
-                     >
-                         {isCalculated ? (
-                             <>
-                                <CheckCircle2 size={18} className="text-green-400"/> Calculation Done
-                             </>
-                         ) : (
-                             <>
-                                <Play size={18} fill="currentColor"/> 开始计算 (Calculate)
-                             </>
-                         )}
-                     </button>
+                        className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isCalculated
+                                ? 'bg-gray-900 text-white cursor-default'
+                                : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl'
+                            }`}
+                    >
+                        {isCalculated ? (
+                            <>
+                                <CheckCircle2 size={18} className="text-green-400" /> Calculation Done
+                            </>
+                        ) : (
+                            <>
+                                <Play size={18} fill="currentColor" /> 开始计算 (Calculate)
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
 
@@ -374,7 +373,7 @@ const CpmStudio = () => {
             {/* 4. Graph Canvas Area */}
             <div className="flex-1 ml-80 overflow-auto relative custom-scrollbar">
                 <div className="min-w-[1000px] min-h-[800px] relative p-20">
-                    
+
                     {/* SVG Layer (Edges) */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
                         <defs>
@@ -387,40 +386,40 @@ const CpmStudio = () => {
                         </defs>
                         {calculatedTasks.map((task) => {
                             const end = getTaskPos(task);
-                            const endX = end.x; 
+                            const endX = end.x;
                             const endY = end.y + 35;
 
                             return task.predecessors.map(pid => {
                                 const parent = calculatedTasks.find(t => t.id === pid);
-                                if(!parent) return null;
+                                if (!parent) return null;
                                 const start = getTaskPos(parent);
-                                const startX = start.x + 160; 
+                                const startX = start.x + 160;
                                 const startY = start.y + 35;
 
                                 // Determine if this specific connection is critical
-                                const isCriticalLink = task.isCritical && parent.isCritical && (Math.abs(parent.ef - task.es) < 0.01); 
-                                
+                                const isCriticalLink = task.isCritical && parent.isCritical && (Math.abs(parent.ef - task.es) < 0.01);
+
                                 // Show critical style ONLY if button clicked AND it is critical
                                 const showCritical = isCalculated && isCriticalLink;
 
                                 const midX = (startX + endX) / 2;
                                 const path = `M${startX},${startY} C${midX},${startY} ${midX},${endY} ${endX},${endY}`;
-                                
+
                                 return (
                                     <g key={`${pid}-${task.id}`}>
-                                        <path 
-                                            d={path} 
-                                            fill="none" 
-                                            stroke={showCritical ? "#FF3B30" : "#E5E7EB"} 
-                                            strokeWidth={showCritical ? 3 : 2} 
+                                        <path
+                                            d={path}
+                                            fill="none"
+                                            stroke={showCritical ? "#FF3B30" : "#E5E7EB"}
+                                            strokeWidth={showCritical ? 3 : 2}
                                             markerEnd={showCritical ? "url(#arrow-critical)" : "url(#arrow)"}
-                                            strokeDasharray={showCritical ? "8,4" : "none"} 
+                                            strokeDasharray={showCritical ? "8,4" : "none"}
                                             className={showCritical ? "animate-flow" : "transition-colors duration-1000"}
                                             style={{ opacity: showCritical ? 1 : 0.4 }}
                                         />
                                         {/* Slack Label on Line if Slack > 0 */}
                                         {isCalculated && !isCriticalLink && task.slack > 0 && (
-                                            <text x={(startX+endX)/2} y={(startY+endY)/2} fill="#34C759" fontSize="10" fontWeight="bold" textAnchor="middle" dy="-5">
+                                            <text x={(startX + endX) / 2} y={(startY + endY) / 2} fill="#34C759" fontSize="10" fontWeight="bold" textAnchor="middle" dy="-5">
                                                 +{task.slack}d
                                             </text>
                                         )}
@@ -436,11 +435,11 @@ const CpmStudio = () => {
                         const isCriticalNode = isCalculated && task.isCritical;
 
                         return (
-                            <div 
+                            <div
                                 key={task.id}
                                 className={`absolute w-40 h-20 rounded-xl p-3 flex flex-col justify-between transition-all duration-500 z-10
-                                    ${isCriticalNode 
-                                        ? 'bg-white border-2 border-[#FF3B30] shadow-[0_8px_30px_rgba(255,59,48,0.25)] scale-105' 
+                                    ${isCriticalNode
+                                        ? 'bg-white border-2 border-[#FF3B30] shadow-[0_8px_30px_rgba(255,59,48,0.25)] scale-105'
                                         : 'bg-white border border-gray-200 shadow-sm opacity-90'
                                     }`}
                                 style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
@@ -451,7 +450,7 @@ const CpmStudio = () => {
                                         {task.id}
                                     </span>
                                 </div>
-                                
+
                                 <div className="flex justify-between items-end">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] text-gray-400 font-bold uppercase">Duration</span>
@@ -460,9 +459,9 @@ const CpmStudio = () => {
                                     <div className="flex flex-col items-end opacity-80">
                                         <span className="text-[9px] text-gray-400 font-bold uppercase">ES / EF</span>
                                         {isCalculated ? (
-                                             <span className="text-[10px] font-mono text-gray-500">{task.es} → {task.ef}</span>
+                                            <span className="text-[10px] font-mono text-gray-500">{task.es} → {task.ef}</span>
                                         ) : (
-                                             <span className="text-[10px] font-mono text-gray-300">- → -</span>
+                                            <span className="text-[10px] font-mono text-gray-300">- → -</span>
                                         )}
                                     </div>
                                 </div>
@@ -491,14 +490,14 @@ const FinModeler = () => {
     const data = useMemo(() => {
         let cumulative = -initInv;
         return cashFlows.map((flow, i) => {
-            const pv = flow / Math.pow(1 + discountRate/100, i+1);
+            const pv = flow / Math.pow(1 + discountRate / 100, i + 1);
             cumulative += pv;
-            return { year: `Y${i+1}`, flow: flow, pv: Math.round(pv), cumulative: Math.round(cumulative) };
+            return { year: `Y${i + 1}`, flow: flow, pv: Math.round(pv), cumulative: Math.round(cumulative) };
         });
     }, [initInv, cashFlows, discountRate]);
 
-    const npv = data[data.length-1]?.cumulative || -initInv;
-    const roi = ((data.reduce((a,b)=>a+b.flow, 0) - initInv) / initInv) * 100;
+    const npv = data[data.length - 1]?.cumulative || -initInv;
+    const roi = ((data.reduce((a, b) => a + b.flow, 0) - initInv) / initInv) * 100;
     const breakEvenIndex = data.findIndex(d => d.cumulative >= 0);
     const payBackPeriod = breakEvenIndex === -1 ? 'N/A' : `${breakEvenIndex + 1} Years`;
 
@@ -506,35 +505,35 @@ const FinModeler = () => {
         <div className="h-full flex flex-col lg:flex-row gap-8 p-6 animate-fade-in">
             <div className="w-full lg:w-80 space-y-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2"><DollarSign className="text-green-600"/> 核心参数</h3>
-                    <div><label className="text-xs font-bold text-gray-400 uppercase">Initial Investment</label><input type="number" className="w-full text-xl font-bold border-b border-gray-200 outline-none py-1" value={initInv} onChange={(e)=>setInitInv(Number(e.target.value))}/></div>
-                    <div><label className="text-xs font-bold text-gray-400 uppercase">Discount Rate (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="20" className="flex-1 accent-green-600" value={discountRate} onChange={(e)=>setDiscountRate(Number(e.target.value))}/><span className="text-sm font-mono">{discountRate}%</span></div></div>
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2"><DollarSign className="text-green-600" /> 核心参数</h3>
+                    <div><label className="text-xs font-bold text-gray-400 uppercase">Initial Investment</label><input type="number" className="w-full text-xl font-bold border-b border-gray-200 outline-none py-1" value={initInv} onChange={(e) => setInitInv(Number(e.target.value))} /></div>
+                    <div><label className="text-xs font-bold text-gray-400 uppercase">Discount Rate (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="20" className="flex-1 accent-green-600" value={discountRate} onChange={(e) => setDiscountRate(Number(e.target.value))} /><span className="text-sm font-mono">{discountRate}%</span></div></div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center"><h3 className="font-bold text-gray-900">现金流预测</h3><button onClick={()=>setCashFlows([...cashFlows, 20000])} className="p-1 bg-black text-white rounded hover:bg-gray-800"><Plus size={14}/></button></div>
+                    <div className="flex justify-between items-center"><h3 className="font-bold text-gray-900">现金流预测</h3><button onClick={() => setCashFlows([...cashFlows, 20000])} className="p-1 bg-black text-white rounded hover:bg-gray-800"><Plus size={14} /></button></div>
                     <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-2">
                         {cashFlows.map((cf, i) => (
-                            <div key={i} className="flex items-center gap-2 text-sm"><span className="w-8 font-bold text-gray-400">Y{i+1}</span><input type="number" className="flex-1 bg-gray-50 rounded px-2 py-1 text-right" value={cf} onChange={(e)=>{const n = [...cashFlows]; n[i] = Number(e.target.value); setCashFlows(n);}}/><button onClick={()=>setCashFlows(cashFlows.filter((_,idx)=>idx!==i))} className="text-red-300 hover:text-red-500"><X size={14}/></button></div>
+                            <div key={i} className="flex items-center gap-2 text-sm"><span className="w-8 font-bold text-gray-400">Y{i + 1}</span><input type="number" className="flex-1 bg-gray-50 rounded px-2 py-1 text-right" value={cf} onChange={(e) => { const n = [...cashFlows]; n[i] = Number(e.target.value); setCashFlows(n); }} /><button onClick={() => setCashFlows(cashFlows.filter((_, idx) => idx !== i))} className="text-red-300 hover:text-red-500"><X size={14} /></button></div>
                         ))}
                     </div>
                 </div>
             </div>
             <div className="flex-1 flex flex-col gap-6">
                 <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-black text-white p-5 rounded-2xl"><p className="text-xs font-bold text-gray-500 uppercase">NPV (净现值)</p><p className={`text-2xl font-mono font-bold ${npv>0?'text-green-400':'text-red-400'}`}>${npv.toLocaleString()}</p></div>
-                    <div className="bg-white border border-gray-200 p-5 rounded-2xl"><p className="text-xs font-bold text-gray-400 uppercase">ROI</p><p className={`text-2xl font-mono font-bold ${roi>0?'text-green-600':'text-red-500'}`}>{roi.toFixed(1)}%</p></div>
+                    <div className="bg-black text-white p-5 rounded-2xl"><p className="text-xs font-bold text-gray-500 uppercase">NPV (净现值)</p><p className={`text-2xl font-mono font-bold ${npv > 0 ? 'text-green-400' : 'text-red-400'}`}>${npv.toLocaleString()}</p></div>
+                    <div className="bg-white border border-gray-200 p-5 rounded-2xl"><p className="text-xs font-bold text-gray-400 uppercase">ROI</p><p className={`text-2xl font-mono font-bold ${roi > 0 ? 'text-green-600' : 'text-red-500'}`}>{roi.toFixed(1)}%</p></div>
                     <div className="bg-white border border-gray-200 p-5 rounded-2xl"><p className="text-xs font-bold text-gray-400 uppercase">Payback Period</p><p className="text-2xl font-mono font-bold text-blue-600">{payBackPeriod}</p></div>
                 </div>
                 <div className="flex-1 bg-white rounded-3xl border border-gray-200 p-6 shadow-sm relative">
                     <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={[{year: 'Start', flow: 0, cumulative: -initInv}, ...data]} margin={{top: 20, right: 20, bottom: 20, left: 20}}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6"/>
-                            <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{fill:'#9CA3AF', fontSize:10}} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill:'#9CA3AF', fontSize:10}}/>
-                            <RechartsTooltip contentStyle={{borderRadius:'12px', border:'none', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)'}}/>
+                        <ComposedChart data={[{ year: 'Start', flow: 0, cumulative: -initInv }, ...data]} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                            <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 10 }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 10 }} />
+                            <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                             <ReferenceLine y={0} stroke="#000" strokeOpacity={0.2} />
-                            <Bar dataKey="flow" fill="#E5E7EB" radius={[4,4,0,0]} name="Annual Flow"/>
-                            <Line type="monotone" dataKey="cumulative" stroke="#2563EB" strokeWidth={3} dot={{r:4, fill:'#2563EB'}} name="Cumulative NPV"/>
+                            <Bar dataKey="flow" fill="#E5E7EB" radius={[4, 4, 0, 0]} name="Annual Flow" />
+                            <Line type="monotone" dataKey="cumulative" stroke="#2563EB" strokeWidth={3} dot={{ r: 4, fill: '#2563EB' }} name="Cumulative NPV" />
                         </ComposedChart>
                     </ResponsiveContainer>
                 </div>
@@ -552,12 +551,12 @@ const AgileBurn = () => {
         const arr = [];
         let actual = totalPoints;
         let scope = totalPoints;
-        for(let i=0; i<=days; i++) {
-            const ideal = totalPoints - (totalPoints/days)*i;
-            if(i > 0 && i < days) {
+        for (let i = 0; i <= days; i++) {
+            const ideal = totalPoints - (totalPoints / days) * i;
+            if (i > 0 && i < days) {
                 actual -= Math.floor(Math.random() * 12); // Sim burn
-                if(actual < 0) actual = 0;
-                if(Math.random() > 0.8) scope += Math.floor(Math.random() * 10); // Sim creep
+                if (actual < 0) actual = 0;
+                if (Math.random() > 0.8) scope += Math.floor(Math.random() * 10); // Sim creep
             }
             arr.push({ day: i, Ideal: Math.round(ideal), Actual: i > 8 ? null : actual, Scope: scope });
         }
@@ -567,30 +566,30 @@ const AgileBurn = () => {
         <div className="h-full flex flex-col p-6 space-y-6 animate-fade-in">
             <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
                 <div className="flex items-center gap-4">
-                    <div className="bg-orange-100 p-2 rounded-lg text-orange-600"><Zap size={20}/></div>
+                    <div className="bg-orange-100 p-2 rounded-lg text-orange-600"><Zap size={20} /></div>
                     <div><h3 className="font-bold text-gray-900">Sprint 42 Burn-down</h3><p className="text-xs text-gray-500">Velocity: 24pts / day</p></div>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={()=>setDays(days===14?21:14)} className="px-3 py-1 bg-white border rounded-lg text-xs font-bold">{days} Day Sprint</button>
-                    <button onClick={()=>setData([...data])} className="p-2 bg-white border rounded-lg text-gray-500 hover:text-black"><RefreshCw size={14}/></button>
+                    <button onClick={() => setDays(days === 14 ? 21 : 14)} className="px-3 py-1 bg-white border rounded-lg text-xs font-bold">{days} Day Sprint</button>
+                    <button onClick={() => setData([...data])} className="p-2 bg-white border rounded-lg text-gray-500 hover:text-black"><RefreshCw size={14} /></button>
                 </div>
             </div>
             <div className="flex-1 bg-white rounded-3xl border border-gray-200 p-6 shadow-sm relative">
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={data}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6"/>
-                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize:10}} label={{ value: 'Sprint Days', position: 'insideBottom', offset: -5, fontSize:10 }}/>
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize:10}} label={{ value: 'Story Points', angle: -90, position: 'insideLeft', fontSize:10 }}/>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} label={{ value: 'Sprint Days', position: 'insideBottom', offset: -5, fontSize: 10 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} label={{ value: 'Story Points', angle: -90, position: 'insideLeft', fontSize: 10 }} />
                         <RechartsTooltip />
-                        <Legend verticalAlign="top" height={36}/>
-                        <Line type="monotone" dataKey="Ideal" stroke="#9CA3AF" strokeDasharray="5 5" dot={false} strokeWidth={2}/>
+                        <Legend verticalAlign="top" height={36} />
+                        <Line type="monotone" dataKey="Ideal" stroke="#9CA3AF" strokeDasharray="5 5" dot={false} strokeWidth={2} />
                         <Area type="monotone" dataKey="Actual" stroke="#2563EB" fill="url(#colorActual)" strokeWidth={3} />
-                        <Line type="step" dataKey="Scope" stroke="#EF4444" strokeWidth={2} dot={false}/>
-                        <defs><linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/><stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/></linearGradient></defs>
+                        <Line type="step" dataKey="Scope" stroke="#EF4444" strokeWidth={2} dot={false} />
+                        <defs><linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} /><stop offset="95%" stopColor="#3B82F6" stopOpacity={0} /></linearGradient></defs>
                     </ComposedChart>
                 </ResponsiveContainer>
                 <div className="absolute top-16 right-10 bg-red-50 border border-red-100 p-3 rounded-xl flex items-center gap-2 animate-bounce-in">
-                    <AlertTriangle size={16} className="text-red-500"/>
+                    <AlertTriangle size={16} className="text-red-500" />
                     <div><p className="text-[10px] font-bold text-red-800 uppercase">Scope Creep Detected</p><p className="text-xs text-red-600">+15 pts added mid-sprint</p></div>
                 </div>
             </div>
@@ -644,17 +643,17 @@ const EvmCalculator = () => {
     }, [inputs]);
     return (
         <div className="h-full flex flex-col animate-fade-in">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><BarChart3 className="text-blue-600"/> 挣值管理 (EVM)</h2>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><BarChart3 className="text-blue-600" /> 挣值管理 (EVM)</h2>
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-4 bg-gray-50 p-6 rounded-3xl h-fit">
                     {['pv', 'ev', 'ac', 'bac'].map(k => (
-                        <div key={k} className="flex justify-between items-center"><label className="text-xs font-bold uppercase text-gray-500">{k.toUpperCase()}</label><input type="number" value={(inputs as any)[k]} onChange={e=>setInputs({...inputs, [k]: Number(e.target.value)})} className="w-24 p-2 rounded border text-right font-mono"/></div>
+                        <div key={k} className="flex justify-between items-center"><label className="text-xs font-bold uppercase text-gray-500">{k.toUpperCase()}</label><input type="number" value={(inputs as any)[k]} onChange={e => setInputs({ ...inputs, [k]: Number(e.target.value) })} className="w-24 p-2 rounded border text-right font-mono" /></div>
                     ))}
                 </div>
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-white border rounded-xl shadow-sm text-center"><div className="text-xs text-gray-400 font-bold uppercase">SPI</div><div className={`text-2xl font-bold ${res?.spi>=1?'text-green-500':'text-red-500'}`}>{res?.spi}</div></div>
-                        <div className="p-4 bg-white border rounded-xl shadow-sm text-center"><div className="text-xs text-gray-400 font-bold uppercase">CPI</div><div className={`text-2xl font-bold ${res?.cpi>=1?'text-green-500':'text-red-500'}`}>{res?.cpi}</div></div>
+                        <div className="p-4 bg-white border rounded-xl shadow-sm text-center"><div className="text-xs text-gray-400 font-bold uppercase">SPI</div><div className={`text-2xl font-bold ${res?.spi >= 1 ? 'text-green-500' : 'text-red-500'}`}>{res?.spi}</div></div>
+                        <div className="p-4 bg-white border rounded-xl shadow-sm text-center"><div className="text-xs text-gray-400 font-bold uppercase">CPI</div><div className={`text-2xl font-bold ${res?.cpi >= 1 ? 'text-green-500' : 'text-red-500'}`}>{res?.cpi}</div></div>
                     </div>
                     <div className="bg-black text-white p-6 rounded-2xl"><div className="flex justify-between items-end"><div><p className="text-xs font-bold text-gray-500 uppercase">EAC</p><p className="text-3xl font-mono font-bold">${res?.eac.toLocaleString()}</p></div></div></div>
                 </div>
@@ -668,10 +667,10 @@ const PertCalculator = () => {
     const e = (v.o + 4 * v.m + v.p) / 6; const sd = (v.p - v.o) / 6;
     return (
         <div className="h-full flex flex-col animate-fade-in max-w-2xl mx-auto justify-center">
-            <h2 className="text-xl font-bold mb-8 flex items-center gap-2"><Activity className="text-purple-600"/> PERT 三点估算</h2>
+            <h2 className="text-xl font-bold mb-8 flex items-center gap-2"><Activity className="text-purple-600" /> PERT 三点估算</h2>
             <div className="grid grid-cols-3 gap-6 mb-12">
                 {[{ id: 'o', label: 'Optimistic', c: 'text-green-600' }, { id: 'm', label: 'Most Likely', c: 'text-blue-600' }, { id: 'p', label: 'Pessimistic', c: 'text-red-600' }].map(f => (
-                    <div key={f.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><label className={`block text-xs font-bold uppercase mb-2 ${f.c}`}>{f.label}</label><input type="number" className="w-full text-2xl font-bold bg-transparent outline-none border-b border-gray-300" value={(v as any)[f.id]} onChange={e => setV({...v, [f.id]: Number(e.target.value)})}/></div>
+                    <div key={f.id} className="bg-gray-50 p-4 rounded-2xl border border-gray-100"><label className={`block text-xs font-bold uppercase mb-2 ${f.c}`}>{f.label}</label><input type="number" className="w-full text-2xl font-bold bg-transparent outline-none border-b border-gray-300" value={(v as any)[f.id]} onChange={e => setV({ ...v, [f.id]: Number(e.target.value) })} /></div>
                 ))}
             </div>
             <div className="bg-black text-white rounded-3xl p-8 shadow-xl flex justify-between items-center"><div><p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Expected</p><div className="text-5xl font-mono font-bold">{e.toFixed(1)}d</div></div><div><p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Std Dev</p><div className="text-3xl font-mono text-gray-300">± {sd.toFixed(2)}</div></div></div>
@@ -682,8 +681,8 @@ const PertCalculator = () => {
 const SwotBoard = () => {
     const q = [{ id: 's', t: 'Strengths', c: 'bg-green-50 border-green-200' }, { id: 'w', t: 'Weaknesses', c: 'bg-orange-50 border-orange-200' }, { id: 'o', t: 'Opportunities', c: 'bg-blue-50 border-blue-200' }, { id: 't', t: 'Threats', c: 'bg-red-50 border-red-200' }];
     const [items, setItems] = useState<any>({ s: ['团队经验丰富'], w: ['资金不足'], o: ['AI 市场爆发'], t: ['竞品价格战'] });
-    const add = (id: string) => { const t = prompt('Add:'); if(t) setItems({...items, [id]: [...items[id], t]}); };
-    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Shield className="text-blue-600"/> SWOT 战略分析</h2><div className="flex-1 grid grid-cols-2 gap-4">{q.map(x => (<div key={x.id} className={`rounded-2xl border p-4 flex flex-col ${x.c}`}><div className="flex justify-between items-center mb-3"><h3 className="font-bold text-sm uppercase">{x.t}</h3><button onClick={()=>add(x.id)}><ArrowRight size={16}/></button></div><ul className="space-y-2">{items[x.id].map((t:string,i:number)=><li key={i} className="text-sm bg-white/60 p-2 rounded">{t}</li>)}</ul></div>))}</div></div>;
+    const add = (id: string) => { const t = prompt('Add:'); if (t) setItems({ ...items, [id]: [...items[id], t] }); };
+    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Shield className="text-blue-600" /> SWOT 战略分析</h2><div className="flex-1 grid grid-cols-2 gap-4">{q.map(x => (<div key={x.id} className={`rounded-2xl border p-4 flex flex-col ${x.c}`}><div className="flex justify-between items-center mb-3"><h3 className="font-bold text-sm uppercase">{x.t}</h3><button onClick={() => add(x.id)}><ArrowRight size={16} /></button></div><ul className="space-y-2">{items[x.id].map((t: string, i: number) => <li key={i} className="text-sm bg-white/60 p-2 rounded">{t}</li>)}</ul></div>))}</div></div>;
 };
 
 // 2.4 Project Charter (AI)
@@ -705,11 +704,11 @@ const ProjectCharter = () => {
         } catch (e) { alert("AI Error"); } finally { setIsGenerating(false); }
     };
     return (
-        <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><FileText className="text-blue-500"/> 章程生成器</h2>
+        <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><FileText className="text-blue-500" /> 章程生成器</h2>
             <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full">
-                {step === 1 && (<div className="w-full space-y-4 animate-fade-in-up"><h3 className="text-lg font-bold">1. 项目名称</h3><input placeholder="Project Name" className="w-full p-4 bg-gray-50 rounded-xl border" value={data.name} onChange={e=>setData({...data, name: e.target.value})}/><button onClick={()=>setStep(2)} disabled={!data.name} className="w-full py-3 bg-black text-white rounded-xl font-bold">Next</button></div>)}
-                {step === 2 && (<div className="w-full space-y-4 animate-fade-in-up"><h3 className="text-lg font-bold">2. 项目目标</h3><textarea placeholder="SMART Goal..." className="w-full p-4 bg-gray-50 rounded-xl border h-32" value={data.goal} onChange={e=>setData({...data, goal: e.target.value})}/><div className="flex gap-3"><button onClick={()=>setStep(1)} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Back</button><button onClick={generateCharter} disabled={isGenerating||!data.goal} className="flex-1 py-3 bg-black text-white rounded-xl font-bold flex justify-center gap-2">{isGenerating?<Loader2 className="animate-spin" size={16}/>:<Zap size={16}/>} Generate</button></div></div>)}
-                {step === 3 && (<div className="w-full h-full flex flex-col space-y-6 animate-fade-in-up bg-yellow-50 p-8 rounded-3xl border border-yellow-200 shadow-sm relative overflow-hidden"><div className="flex-1 overflow-y-auto pr-2 custom-scrollbar"><div className="prose prose-sm font-serif whitespace-pre-line">{content}</div></div><button onClick={()=>alert('PDF!')} className="px-4 py-2 bg-black text-white rounded-lg text-xs font-bold w-fit"><Save size={14}/> Export</button></div>)}
+                {step === 1 && (<div className="w-full space-y-4 animate-fade-in-up"><h3 className="text-lg font-bold">1. 项目名称</h3><input placeholder="Project Name" className="w-full p-4 bg-gray-50 rounded-xl border" value={data.name} onChange={e => setData({ ...data, name: e.target.value })} /><button onClick={() => setStep(2)} disabled={!data.name} className="w-full py-3 bg-black text-white rounded-xl font-bold">Next</button></div>)}
+                {step === 2 && (<div className="w-full space-y-4 animate-fade-in-up"><h3 className="text-lg font-bold">2. 项目目标</h3><textarea placeholder="SMART Goal..." className="w-full p-4 bg-gray-50 rounded-xl border h-32" value={data.goal} onChange={e => setData({ ...data, goal: e.target.value })} /><div className="flex gap-3"><button onClick={() => setStep(1)} className="flex-1 py-3 bg-gray-100 rounded-xl font-bold">Back</button><button onClick={generateCharter} disabled={isGenerating || !data.goal} className="flex-1 py-3 bg-black text-white rounded-xl font-bold flex justify-center gap-2">{isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />} Generate</button></div></div>)}
+                {step === 3 && (<div className="w-full h-full flex flex-col space-y-6 animate-fade-in-up bg-yellow-50 p-8 rounded-3xl border border-yellow-200 shadow-sm relative overflow-hidden"><div className="flex-1 overflow-y-auto pr-2 custom-scrollbar"><div className="prose prose-sm font-serif whitespace-pre-line">{content}</div></div><button onClick={() => alert('PDF!')} className="px-4 py-2 bg-black text-white rounded-lg text-xs font-bold w-fit"><Save size={14} /> Export</button></div>)}
             </div>
         </div>
     );
@@ -717,7 +716,7 @@ const ProjectCharter = () => {
 
 // 2.3.3 Retro
 const RetroBoard = () => {
-    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><RefreshCw className="text-pink-500"/> 迭代回顾</h2><div className="flex-1 grid grid-cols-3 gap-6">{[{t:'Start',c:'bg-green-50 text-green-700'},{t:'Stop',c:'bg-red-50 text-red-700'},{t:'Continue',c:'bg-blue-50 text-blue-700'}].map((col,i)=><div key={i} className={`${col.c} p-6 rounded-3xl`}><h3 className="font-bold text-lg mb-4">{col.t}</h3><div className="bg-white/60 p-3 rounded-xl shadow-sm h-20"></div></div>)}</div></div>;
+    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><RefreshCw className="text-pink-500" /> 迭代回顾</h2><div className="flex-1 grid grid-cols-3 gap-6">{[{ t: 'Start', c: 'bg-green-50 text-green-700' }, { t: 'Stop', c: 'bg-red-50 text-red-700' }, { t: 'Continue', c: 'bg-blue-50 text-blue-700' }].map((col, i) => <div key={i} className={`${col.c} p-6 rounded-3xl`}><h3 className="font-bold text-lg mb-4">{col.t}</h3><div className="bg-white/60 p-3 rounded-xl shadow-sm h-20"></div></div>)}</div></div>;
 };
 
 // 2.5 User Story (AI)
@@ -725,10 +724,359 @@ const UserStorySplitter = () => {
     const [input, setInput] = useState(''); const [output, setOutput] = useState<string[]>([]); const [isThinking, setIsThinking] = useState(false);
     const handleSplit = async () => {
         setIsThinking(true); const apiKey = getApiKey();
-        if(!apiKey) { alert("No Key"); setIsThinking(false); return; }
-        try { const ai = new GoogleGenAI({apiKey}); const resp = await ai.models.generateContent({model:'gemini-3-flash-preview', contents:[{role:'user', parts:[{text:`Split this epic into 3 INVEST user stories: "${input}". List only.`}]}]}); setOutput((resp.text||'').split('\n').filter((l: string)=>l.trim())); } catch(e){console.error(e);} finally{setIsThinking(false);}
+        if (!apiKey) { alert("No Key"); setIsThinking(false); return; }
+        try { const ai = new GoogleGenAI({ apiKey }); const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: [{ role: 'user', parts: [{ text: `Split this epic into 3 INVEST user stories: "${input}". List only.` }] }] }); setOutput((resp.text || '').split('\n').filter((l: string) => l.trim())); } catch (e) { console.error(e); } finally { setIsThinking(false); }
     };
-    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-indigo-600"/> User Story 拆分</h2><div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="flex flex-col gap-4"><textarea className="flex-1 bg-gray-50 border rounded-2xl p-4 resize-none" placeholder="Enter Epic..." value={input} onChange={e=>setInput(e.target.value)}/><button onClick={handleSplit} disabled={isThinking||!input} className="py-3 bg-black text-white rounded-xl font-bold">{isThinking?'Thinking...':'Split Story'}</button></div><div className="bg-white rounded-2xl border p-6 overflow-y-auto"><ul className="space-y-3">{output.map((s,i)=><li key={i} className="bg-gray-50 p-3 rounded-lg text-sm">{s}</li>)}</ul></div></div></div>;
+    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-indigo-600" /> User Story 拆分</h2><div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="flex flex-col gap-4"><textarea className="flex-1 bg-gray-50 border rounded-2xl p-4 resize-none" placeholder="Enter Epic..." value={input} onChange={e => setInput(e.target.value)} /><button onClick={handleSplit} disabled={isThinking || !input} className="py-3 bg-black text-white rounded-xl font-bold">{isThinking ? 'Thinking...' : 'Split Story'}</button></div><div className="bg-white rounded-2xl border p-6 overflow-y-auto"><ul className="space-y-3">{output.map((s, i) => <li key={i} className="bg-gray-50 p-3 rounded-lg text-sm">{s}</li>)}</ul></div></div></div>;
+};
+
+// 2.6 Risk EMV Calculator
+interface RiskOption {
+    id: string;
+    label: string;
+    probability: number;
+    impact: number;
+    emv: number;
+}
+
+const RiskEmvCalculator = () => {
+    const [options, setOptions] = useState<RiskOption[]>([
+        { id: '1', label: '方案A: 快速迭代', probability: 0.7, impact: 150000, emv: 0 },
+        { id: '2', label: '方案B: 稳健推进', probability: 0.9, impact: 100000, emv: 0 },
+        { id: '3', label: '风险事件: 技术故障', probability: 0.3, impact: -80000, emv: 0 },
+    ]);
+
+    const [bestOption, setBestOption] = useState<string>('');
+
+    useEffect(() => {
+        const calculated = options.map(opt => ({
+            ...opt,
+            emv: opt.probability * opt.impact
+        }));
+        setOptions(calculated);
+
+        // Find best positive EMV
+        const positiveOptions = calculated.filter(o => o.emv > 0);
+        if (positiveOptions.length > 0) {
+            const best = positiveOptions.reduce((max, opt) => opt.emv > max.emv ? opt : max);
+            setBestOption(best.id);
+        }
+    }, [options.map(o => `${o.probability}-${o.impact}`).join(',')]);
+
+    const updateOption = (id: string, field: keyof RiskOption, value: any) => {
+        setOptions(options.map(opt =>
+            opt.id === id ? { ...opt, [field]: value } : opt
+        ));
+    };
+
+    const addOption = () => {
+        const newId = (parseInt(options[options.length - 1]?.id || '0') + 1).toString();
+        setOptions([...options, {
+            id: newId,
+            label: `新选项 ${newId}`,
+            probability: 0.5,
+            impact: 50000,
+            emv: 0
+        }]);
+    };
+
+    return (
+        <div className="h-full flex flex-col p-6 animate-fade-in">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                    <GitMerge className="text-purple-600" /> 风险 EMV 决策分析
+                </h2>
+                <button
+                    onClick={addOption}
+                    className="px-4 py-2 bg-black text-white rounded-xl text-sm font-bold hover:bg-gray-800 flex items-center gap-2"
+                >
+                    <Plus size={16} /> 添加选项
+                </button>
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left: Options Editor */}
+                <div className="lg:col-span-2 space-y-4 overflow-y-auto custom-scrollbar pr-2">
+                    {options.map((opt) => (
+                        <div
+                            key={opt.id}
+                            className={`bg-white p-6 rounded-2xl border-2 transition-all ${opt.id === bestOption
+                                    ? 'border-green-400 shadow-lg shadow-green-100 scale-[1.02]'
+                                    : 'border-gray-200'
+                                }`}
+                        >
+                            <div className="flex justify-between items-start mb-4">
+                                <input
+                                    type="text"
+                                    value={opt.label}
+                                    onChange={(e) => updateOption(opt.id, 'label', e.target.value)}
+                                    className="text-lg font-bold bg-transparent outline-none border-b border-transparent hover:border-gray-300 focus:border-blue-500 transition-colors flex-1 mr-4"
+                                />
+                                {opt.id === bestOption && (
+                                    <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">推荐</span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="bg-gray-50 p-4 rounded-xl">
+                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-2">
+                                        概率 (Probability)
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.1"
+                                            value={opt.probability}
+                                            onChange={(e) => updateOption(opt.id, 'probability', parseFloat(e.target.value))}
+                                            className="flex-1 accent-purple-600"
+                                        />
+                                        <span className="text-sm font-mono font-bold text-gray-700 min-w-[3rem] text-right">
+                                            {(opt.probability * 100).toFixed(0)}%
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 p-4 rounded-xl">
+                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-2">
+                                        影响值 (Impact $)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={opt.impact}
+                                        onChange={(e) => updateOption(opt.id, 'impact', parseFloat(e.target.value))}
+                                        className="w-full text-sm font-mono font-bold bg-white rounded px-3 py-2 border border-gray-200 outline-none focus:border-purple-400 text-right"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* EMV Display */}
+                            <div className={`p-4 rounded-xl ${opt.emv >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                                <div className="text-xs font-bold text-gray-400 uppercase mb-1">EMV (期望货币价值)</div>
+                                <div className={`text-2xl font-mono font-bold ${opt.emv >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ${opt.emv.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    = {(opt.probability * 100).toFixed(0)}% × ${opt.impact.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Right: Summary */}
+                <div className="space-y-6">
+                    <div className="bg-black text-white p-6 rounded-2xl">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">决策建议</h3>
+                        {bestOption ? (
+                            <>
+                                <p className="text-sm text-gray-300 mb-2">基于 EMV 分析,推荐选择:</p>
+                                <p className="text-lg font-bold text-white">
+                                    {options.find(o => o.id === bestOption)?.label}
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-sm text-gray-400">暂无正向收益选项</p>
+                        )}
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">EMV 排名</h3>
+                        <div className="space-y-2">
+                            {[...options].sort((a, b) => b.emv - a.emv).map((opt, idx) => (
+                                <div key={opt.id} className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-gray-700">{idx + 1}. {opt.label.substring(0, 15)}...</span>
+                                    <span className={`font-mono font-bold ${opt.emv >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                        ${(opt.emv / 1000).toFixed(0)}K
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <h4 className="text-xs font-bold text-blue-900 uppercase mb-2">💡 公式说明</h4>
+                        <p className="text-xs text-blue-800 leading-relaxed">
+                            <strong>EMV</strong> = 概率 × 影响值<br />
+                            用于量化不确定性下的决策价值。选择 EMV 最大的方案可最大化期望收益。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// 2.7 OKR Alignment Tool
+interface Objective {
+    id: string;
+    title: string;
+    keyResults: { kr: string; progress: number }[];
+    level: 'company' | 'department' | 'individual';
+}
+
+const OkrAlignment = () => {
+    const [objectives, setObjectives] = useState<Objective[]>([
+        {
+            id: 'c1',
+            level: 'company',
+            title: '成为亚洲领先的 SaaS 项目管理平台',
+            keyResults: [
+                { kr: '年度 ARR 达到 $10M', progress: 65 },
+                { kr: '付费企业客户数 > 500', progress: 72 },
+                { kr: 'NPS 评分 ≥ 70', progress: 58 },
+            ]
+        },
+        {
+            id: 'd1',
+            level: 'department',
+            title: '产品团队:打造行业最佳用户体验',
+            keyResults: [
+                { kr: 'MAU 增长 50%', progress: 40 },
+                { kr: '功能上线周期 < 2周', progress: 80 },
+                { kr: '用户留存率 > 85%', progress: 55 },
+            ]
+        },
+        {
+            id: 'i1',
+            level: 'individual',
+            title: 'Alex Chen: 完成 AI 驱动的智能助手模块',
+            keyResults: [
+                { kr: '实现 5+ 核心功能', progress: 100 },
+                { kr: 'AI 响应延迟 < 2s', progress: 90 },
+                { kr: '用户满意度 > 4.5/5', progress: 70 },
+            ]
+        }
+    ]);
+
+    const levelConfig = {
+        company: { label: '公司级', color: 'from-blue-600 to-indigo-600', icon: '🏢' },
+        department: { label: '部门级', color: 'from-purple-600 to-pink-600', icon: '👥' },
+        individual: { label: '个人级', color: 'from-emerald-500 to-teal-600', icon: '👤' }
+    };
+
+    const calculateAlignment = () => {
+        const avgProgress = objectives.reduce((sum, obj) => {
+            const objAvg = obj.keyResults.reduce((s, kr) => s + kr.progress, 0) / obj.keyResults.length;
+            return sum + objAvg;
+        }, 0) / objectives.length;
+        return Math.round(avgProgress);
+    };
+
+    return (
+        <div className="h-full flex flex-col p-6 animate-fade-in">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        <Target className="text-blue-600" /> OKR 对齐工具
+                    </h2>
+                    <p className="text-xs text-gray-500 mt-1">Objectives and Key Results Alignment</p>
+                </div>
+                <div className="bg-black text-white px-6 py-3 rounded-full">
+                    <span className="text-xs font-bold text-gray-400 uppercase">整体对齐度</span>
+                    <div className="text-2xl font-bold">{calculateAlignment()}%</div>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pb-10">
+                {objectives.map((obj) => {
+                    const config = levelConfig[obj.level];
+                    const avgProgress = obj.keyResults.reduce((s, kr) => s + kr.progress, 0) / obj.keyResults.length;
+
+                    return (
+                        <div
+                            key={obj.id}
+                            className="group relative animate-fade-in-up"
+                        >
+                            {/* Connector Line (except for company level) */}
+                            {obj.level !== 'company' && (
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-1 h-4 bg-gray-200"></div>
+                            )}
+
+                            <div className={`bg-gradient-to-br ${config.color} p-[2px] rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500`}>
+                                <div className="bg-white rounded-[calc(1.5rem-2px)] p-6">
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex items-start gap-3 flex-1">
+                                            <div className="text-3xl">{config.icon}</div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-gradient-to-r ${config.color} text-white`}>
+                                                        {config.label}
+                                                    </span>
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-900 leading-tight">
+                                                    {obj.title}
+                                                </h3>
+                                            </div>
+                                        </div>
+
+                                        {/* Progress Ring */}
+                                        <div className="relative w-16 h-16 shrink-0">
+                                            <svg className="w-16 h-16 transform -rotate-90">
+                                                <circle
+                                                    cx="32" cy="32" r="28"
+                                                    stroke="#E5E7EB" strokeWidth="6" fill="none"
+                                                />
+                                                <circle
+                                                    cx="32" cy="32" r="28"
+                                                    stroke="url(#gradient)" strokeWidth="6" fill="none"
+                                                    strokeDasharray={`${2 * Math.PI * 28}`}
+                                                    strokeDashoffset={`${2 * Math.PI * 28 * (1 - avgProgress / 100)}`}
+                                                    className="transition-all duration-1000"
+                                                />
+                                                <defs>
+                                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                        <stop offset="0%" stopColor="#3B82F6" />
+                                                        <stop offset="100%" stopColor="#8B5CF6" />
+                                                    </linearGradient>
+                                                </defs>
+                                            </svg>
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-sm font-bold text-gray-700">{Math.round(avgProgress)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Key Results */}
+                                    <div className="space-y-3 mt-6">
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase">Key Results</h4>
+                                        {obj.keyResults.map((kr, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-4 rounded-xl">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-sm font-medium text-gray-700">{kr.kr}</span>
+                                                    <span className="text-xs font-bold text-blue-600">{kr.progress}%</span>
+                                                </div>
+                                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full bg-gradient-to-r ${config.color} transition-all duration-1000 ease-out`}
+                                                        style={{ width: `${kr.progress}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                <div className="flex items-center justify-around text-xs">
+                    {Object.entries(levelConfig).map(([level, config]) => (
+                        <div key={level} className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${config.color}`}></div>
+                            <span className="font-medium text-gray-600">{config.label}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 };
 
 // --- SIMULATION COMPONENT (AI-Powered) ---
@@ -757,7 +1105,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
 
     const generateQuestionsByAI = async () => {
         const apiKey = getApiKey();
-        
+
         // 1. Fallback Data (Offline/No Key)
         if (!apiKey) {
             setQuestions([
@@ -778,18 +1126,18 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             setIsLoadingQ(false);
             return;
         }
-        
+
         // 2. AI Generation
         try {
             const ai = new GoogleGenAI({ apiKey });
             const prompt = `Create 5 project management multiple choice questions based on case: "${caseData.title}". Return JSON array only: [{ "question_text": "...", "options": ["A..","B.."], "correct_answer": "...", "explanation": "..." }]`;
-            
+
             const resp = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: { responseMimeType: 'application/json' }
             });
-            
+
             const text = resp.text || '[]';
             const generated = JSON.parse(text);
             setQuestions(generated);
@@ -829,7 +1177,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             doc.setFontSize(12);
             doc.text(`Date: ${new Date().toLocaleDateString()}`, 10, 30);
             doc.text(`Final Score: ${score} / 100`, 10, 40);
-            
+
             doc.line(10, 45, 200, 45);
             doc.text("Performance Analysis:", 10, 55);
             if (score >= 80) doc.text("- Excellent strategic decision making.", 10, 65);
@@ -837,7 +1185,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             else doc.text("- Needs improvement in risk management.", 10, 65);
 
             doc.save(`${caseData.id}_report.pdf`);
-        } catch(e) { console.error(e); }
+        } catch (e) { console.error(e); }
     };
 
     return (
@@ -846,7 +1194,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10">
                 <div className="flex items-center gap-4">
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors">
-                        <X size={20}/>
+                        <X size={20} />
                     </button>
                     <h1 className="font-bold text-gray-900 truncate max-w-md">{caseData.title}</h1>
                 </div>
@@ -858,33 +1206,33 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                     {view === 'overview' && (
                         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-center justify-center min-h-[calc(100vh-140px)]">
                             <div className="w-full lg:w-1/2 aspect-video bg-black rounded-2xl overflow-hidden relative shadow-2xl group ring-1 ring-black/5">
-                                <img src={caseData.cover_image} className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-700" alt="Case Cover"/>
+                                <img src={caseData.cover_image} className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity duration-700" alt="Case Cover" />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <PlayCircle size={80} className="text-white drop-shadow-lg cursor-pointer hover:scale-110 transition-transform opacity-90 hover:opacity-100" onClick={startQuiz}/>
+                                    <PlayCircle size={80} className="text-white drop-shadow-lg cursor-pointer hover:scale-110 transition-transform opacity-90 hover:opacity-100" onClick={startQuiz} />
                                 </div>
                             </div>
                             <div className="w-full lg:w-1/2 space-y-8">
                                 <div>
                                     <div className={`inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100 mb-4`}>
-                                        <Lock size={12}/> {caseData.difficulty} Case
+                                        <Lock size={12} /> {caseData.difficulty} Case
                                     </div>
                                     <h2 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-4">{caseData.title}</h2>
                                     <p className="text-lg text-gray-600 leading-relaxed border-l-4 border-gray-200 pl-4">{caseData.summary}</p>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                                     <h3 className="font-bold text-gray-900 flex items-center gap-2"><Terminal size={18}/> Mission Brief</h3>
-                                     <div className="text-sm text-gray-500 space-y-2">
-                                         <p>• Identify key risks in the project timeline.</p>
-                                         <p>• Make critical decisions under pressure.</p>
-                                         <p>• Analyze stakeholder impact.</p>
-                                     </div>
+                                    <h3 className="font-bold text-gray-900 flex items-center gap-2"><Terminal size={18} /> Mission Brief</h3>
+                                    <div className="text-sm text-gray-500 space-y-2">
+                                        <p>• Identify key risks in the project timeline.</p>
+                                        <p>• Make critical decisions under pressure.</p>
+                                        <p>• Analyze stakeholder impact.</p>
+                                    </div>
                                 </div>
-                                <button 
+                                <button
                                     onClick={startQuiz}
                                     disabled={isLoadingQ}
                                     className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-800 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200"
                                 >
-                                    {isLoadingQ ? <Loader2 className="animate-spin"/> : <Terminal size={20}/>}
+                                    {isLoadingQ ? <Loader2 className="animate-spin" /> : <Terminal size={20} />}
                                     {isLoadingQ ? 'Initializing AI Scenario...' : 'Enter Simulation Environment'}
                                 </button>
                             </div>
@@ -908,7 +1256,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                                         else bg = "bg-gray-50 border-gray-100 opacity-50";
                                     }
                                     return (
-                                        <button 
+                                        <button
                                             key={i}
                                             onClick={() => !isAnswered && handleAnswer(opt)}
                                             className={`w-full p-5 rounded-xl text-left border text-base font-medium transition-all ${bg}`}
@@ -921,7 +1269,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                             {isAnswered && (
                                 <div className="mt-8 animate-fade-in-up">
                                     <div className="p-5 bg-blue-50 rounded-xl text-sm text-blue-800 mb-6 border border-blue-100 flex gap-3">
-                                        <div className="shrink-0 mt-0.5"><Activity size={16}/></div>
+                                        <div className="shrink-0 mt-0.5"><Activity size={16} /></div>
                                         <div>
                                             <span className="font-bold block mb-1">Analysis:</span>
                                             {questions[currentQIndex].explanation}
@@ -942,14 +1290,14 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                             </div>
                             <h2 className="text-4xl font-black text-gray-900 mb-2">Simulation Complete</h2>
                             <p className="text-gray-500 mb-8">You have completed the scenario analysis.</p>
-                            
+
                             <div className="text-7xl font-black mb-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
                                 {score} <span className="text-2xl text-gray-400 font-bold">/ 100</span>
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                                 <button onClick={handleDownloadReport} className="flex-1 py-4 bg-gray-100 text-gray-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
-                                    <FileDown size={20}/> Download Report
+                                    <FileDown size={20} /> Download Report
                                 </button>
                                 <button onClick={onClose} className="flex-1 py-4 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors">
                                     Return to Hub
@@ -966,27 +1314,29 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
 // --- WRAPPER FOR TOOLS ---
 const LabToolView = ({ toolId, onClose }: { toolId: string, onClose: () => void }) => {
     const renderTool = () => {
-        switch(toolId) {
+        switch (toolId) {
             case 'cpm': return <CpmStudio />;
             case 'evm': return <EvmCalculator />;
             case 'pert': return <PertCalculator />;
             case 'roi': return <FinModeler />;
             case 'burn': return <AgileBurn />;
             case 'swot': return <SwotBoard />;
-            case 'charter': return <ProjectCharter />; 
+            case 'charter': return <ProjectCharter />;
             case 'wbs': return <WbsTree />;
             case 'retro': return <RetroBoard />;
             case 'userstory': return <UserStorySplitter />;
+            case 'risk': return <RiskEmvCalculator />;
+            case 'okr': return <OkrAlignment />;
             default: return <div className="flex justify-center items-center h-full text-gray-400">Tool Coming Soon</div>;
         }
     };
     return (
         <div className="fixed inset-0 z-[200] bg-[#F5F5F7] flex flex-col animate-fade-in">
-           <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
-               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex items-center gap-2 font-bold text-sm"><ChevronLeft size={20}/> 返回实验室</button>
-               <div className="font-bold text-gray-900">PM 实验室环境</div><div className="w-10"></div>
-           </div>
-           <div className="flex-1 overflow-auto p-6 md:p-10"><div className="max-w-6xl mx-auto h-full bg-white rounded-3xl shadow-sm border border-gray-200 p-8 overflow-hidden relative">{renderTool()}</div></div>
+            <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex items-center gap-2 font-bold text-sm"><ChevronLeft size={20} /> 返回实验室</button>
+                <div className="font-bold text-gray-900">PM 实验室环境</div><div className="w-10"></div>
+            </div>
+            <div className="flex-1 overflow-auto p-6 md:p-10"><div className="max-w-6xl mx-auto h-full bg-white rounded-3xl shadow-sm border border-gray-200 p-8 overflow-hidden relative">{renderTool()}</div></div>
         </div>
     );
 }
@@ -1021,72 +1371,72 @@ const AdvancedLabView = ({ onSelect }: { onSelect: (tool: any) => void }) => {
 
 // --- MAIN COMPONENT ---
 const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) => {
-  const [mainTab, setMainTab] = useState<MainCategory>('Foundation');
-  const [subTab, setSubTab] = useState<SubCategory>('Course');
-  const [selectedItem, setSelectedItem] = useState<any | null>(null);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+    const [mainTab, setMainTab] = useState<MainCategory>('Foundation');
+    const [subTab, setSubTab] = useState<SubCategory>('Course');
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [courses, setCourses] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-        if (mainTab !== 'Foundation') return;
-        setIsLoading(true);
-        const { data } = await supabase.from('app_courses').select('*').eq('category', subTab).eq('status', 'Published').order('created_at', { ascending: false });
-        if (data) setCourses(data);
-        setIsLoading(false);
-    };
-    fetchCourses();
-  }, [mainTab, subTab]);
+    useEffect(() => {
+        const fetchCourses = async () => {
+            if (mainTab !== 'Foundation') return;
+            setIsLoading(true);
+            const { data } = await supabase.from('app_courses').select('*').eq('category', subTab).eq('status', 'Published').order('created_at', { ascending: false });
+            if (data) setCourses(data);
+            setIsLoading(false);
+        };
+        fetchCourses();
+    }, [mainTab, subTab]);
 
-  return (
-    <>
-        <div className={`pt-28 pb-12 px-6 sm:px-10 max-w-7xl mx-auto min-h-screen transition-all ${selectedItem ? 'max-w-full px-0 pt-0 pb-0 overflow-hidden h-screen' : ''}`}>
-        {!selectedItem && (
-            <div className="flex flex-col gap-6 mb-10">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div><h1 className="text-4xl font-bold text-gray-900 tracking-tight">学海无涯</h1><p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">书山有路勤为径</p></div>
-                    <div className="bg-gray-200/50 p-1.5 rounded-full flex relative backdrop-blur-md shadow-inner">
-                        {[{ id: 'Foundation', label: '基础', icon: Layout }, { id: 'Advanced', label: '实验室', icon: Cpu }, { id: 'Implementation', label: '实战', icon: Briefcase }].map((tab) => (
-                            <button key={tab.id} onClick={() => setMainTab(tab.id as MainCategory)} className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-full transition-all ${mainTab === tab.id ? 'bg-white text-black shadow-md scale-100' : 'text-gray-500 hover:text-gray-800 scale-95'}`}><tab.icon size={16} /><span className="hidden sm:inline">{tab.label}</span></button>
-                        ))}
-                    </div>
-                </div>
-                {mainTab === 'Foundation' && (<div className="flex gap-4 animate-fade-in pl-1">{[{ id: 'Course', label: '体系课程' }, { id: 'Cert', label: '认证冲刺' }, { id: 'Official', label: '官方必修' }].map((sub) => (<button key={sub.id} onClick={() => setSubTab(sub.id as SubCategory)} className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${subTab === sub.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}>{sub.label}</button>))}</div>)}
-            </div>
-        )}
-
-        <div className="animate-fade-in-up w-full">
-            {mainTab === 'Foundation' && !selectedItem && (
-            <div className="min-h-[300px]">
-                {isLoading ? (<div className="flex justify-center h-64 items-center"><Loader2 className="animate-spin text-gray-400"/></div>) : courses.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
-                        {courses.map(item => (
-                            <div key={item.id} onClick={() => onNavigate(Page.CLASSROOM, item.id)} className="group bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer overflow-hidden border border-gray-100/50">
-                                <div className="aspect-[4/3] bg-gray-200 relative"><img src={item.image} className="w-full h-full object-cover" /><div className="absolute bottom-4 right-4 bg-white/90 px-3 py-1 rounded-lg text-xs font-bold">{item.duration || '2h 15m'}</div></div>
-                                <div className="p-6"><h3 className="font-bold text-gray-900 text-lg mb-2">{item.title}</h3><p className="text-xs text-gray-500">{item.author}</p></div>
+    return (
+        <>
+            <div className={`pt-28 pb-12 px-6 sm:px-10 max-w-7xl mx-auto min-h-screen transition-all ${selectedItem ? 'max-w-full px-0 pt-0 pb-0 overflow-hidden h-screen' : ''}`}>
+                {!selectedItem && (
+                    <div className="flex flex-col gap-6 mb-10">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                            <div><h1 className="text-4xl font-bold text-gray-900 tracking-tight">学海无涯</h1><p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">书山有路勤为径</p></div>
+                            <div className="bg-gray-200/50 p-1.5 rounded-full flex relative backdrop-blur-md shadow-inner">
+                                {[{ id: 'Foundation', label: '基础', icon: Layout }, { id: 'Advanced', label: '实验室', icon: Cpu }, { id: 'Implementation', label: '实战', icon: Briefcase }].map((tab) => (
+                                    <button key={tab.id} onClick={() => setMainTab(tab.id as MainCategory)} className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-full transition-all ${mainTab === tab.id ? 'bg-white text-black shadow-md scale-100' : 'text-gray-500 hover:text-gray-800 scale-95'}`}><tab.icon size={16} /><span className="hidden sm:inline">{tab.label}</span></button>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                ) : (<div className="text-center py-20 text-gray-400">暂无课程</div>)}
-            </div>
-            )}
-            {mainTab === 'Advanced' && !selectedItem && (<AdvancedLabView onSelect={(t: any) => setSelectedItem({ type: 'lab', ...t })} />)}
-            {mainTab === 'Implementation' && !selectedItem && (
-                <div className="pb-10 grid grid-cols-1 gap-8">
-                    {CLASSIC_CASES.map((caseItem) => (
-                        <div key={caseItem.id} onClick={() => setSelectedItem({ type: 'simulation', data: caseItem })} className="group bg-white rounded-[2.5rem] p-0 border border-gray-200 overflow-hidden cursor-pointer hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col md:flex-row h-auto md:h-[320px]">
-                            <div className="w-full md:w-1/2 h-48 md:h-full relative overflow-hidden"><img src={caseItem.cover_image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-8"><div className="text-white"><div className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${caseItem.difficulty === 'High' ? 'bg-red-500' : 'bg-blue-500'}`}>{caseItem.difficulty}</div><h3 className="text-2xl font-bold leading-tight">{caseItem.title}</h3></div></div></div>
-                            <div className="flex-1 p-8 flex flex-col justify-between relative"><div><div className="flex items-center gap-2 mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest"><Terminal size={14} className="text-blue-500"/>Interactive Simulation</div><p className="text-gray-600 text-sm leading-relaxed line-clamp-4">{caseItem.summary}</p></div><div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-6"><div className="flex items-center gap-4 text-xs font-bold text-gray-400"><span className="flex items-center gap-1"><History size={14}/> 0% Complete</span><span className="flex items-center gap-1"><Clock size={14}/> ~30 min</span></div><button className="flex items-center gap-2 text-xs font-bold bg-black text-white px-6 py-3 rounded-xl group-hover:bg-blue-600 transition-colors shadow-lg">Start Case <PlayCircle size={14} /></button></div></div>
                         </div>
-                    ))}
+                        {mainTab === 'Foundation' && (<div className="flex gap-4 animate-fade-in pl-1">{[{ id: 'Course', label: '体系课程' }, { id: 'Cert', label: '认证冲刺' }, { id: 'Official', label: '官方必修' }].map((sub) => (<button key={sub.id} onClick={() => setSubTab(sub.id as SubCategory)} className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${subTab === sub.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}>{sub.label}</button>))}</div>)}
+                    </div>
+                )}
+
+                <div className="animate-fade-in-up w-full">
+                    {mainTab === 'Foundation' && !selectedItem && (
+                        <div className="min-h-[300px]">
+                            {isLoading ? (<div className="flex justify-center h-64 items-center"><Loader2 className="animate-spin text-gray-400" /></div>) : courses.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-10">
+                                    {courses.map(item => (
+                                        <div key={item.id} onClick={() => onNavigate(Page.CLASSROOM, item.id)} className="group bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 cursor-pointer overflow-hidden border border-gray-100/50">
+                                            <div className="aspect-[4/3] bg-gray-200 relative"><img src={item.image} className="w-full h-full object-cover" /><div className="absolute bottom-4 right-4 bg-white/90 px-3 py-1 rounded-lg text-xs font-bold">{item.duration || '2h 15m'}</div></div>
+                                            <div className="p-6"><h3 className="font-bold text-gray-900 text-lg mb-2">{item.title}</h3><p className="text-xs text-gray-500">{item.author}</p></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (<div className="text-center py-20 text-gray-400">暂无课程</div>)}
+                        </div>
+                    )}
+                    {mainTab === 'Advanced' && !selectedItem && (<AdvancedLabView onSelect={(t: any) => setSelectedItem({ type: 'lab', ...t })} />)}
+                    {mainTab === 'Implementation' && !selectedItem && (
+                        <div className="pb-10 grid grid-cols-1 gap-8">
+                            {CLASSIC_CASES.map((caseItem) => (
+                                <div key={caseItem.id} onClick={() => setSelectedItem({ type: 'simulation', data: caseItem })} className="group bg-white rounded-[2.5rem] p-0 border border-gray-200 overflow-hidden cursor-pointer hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col md:flex-row h-auto md:h-[320px]">
+                                    <div className="w-full md:w-1/2 h-48 md:h-full relative overflow-hidden"><img src={caseItem.cover_image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-8"><div className="text-white"><div className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${caseItem.difficulty === 'High' ? 'bg-red-500' : 'bg-blue-500'}`}>{caseItem.difficulty}</div><h3 className="text-2xl font-bold leading-tight">{caseItem.title}</h3></div></div></div>
+                                    <div className="flex-1 p-8 flex flex-col justify-between relative"><div><div className="flex items-center gap-2 mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest"><Terminal size={14} className="text-blue-500" />Interactive Simulation</div><p className="text-gray-600 text-sm leading-relaxed line-clamp-4">{caseItem.summary}</p></div><div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-6"><div className="flex items-center gap-4 text-xs font-bold text-gray-400"><span className="flex items-center gap-1"><History size={14} /> 0% Complete</span><span className="flex items-center gap-1"><Clock size={14} /> ~30 min</span></div><button className="flex items-center gap-2 text-xs font-bold bg-black text-white px-6 py-3 rounded-xl group-hover:bg-blue-600 transition-colors shadow-lg">Start Case <PlayCircle size={14} /></button></div></div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
-        </div>
-        {selectedItem?.type === 'lab' && (<LabToolView toolId={selectedItem.id} onClose={() => setSelectedItem(null)}/>)}
-        {selectedItem?.type === 'simulation' && (<ProjectSimulationView caseData={selectedItem.data} onClose={() => setSelectedItem(null)} currentUser={currentUser}/>)}
-    </>
-  );
+            </div>
+            {selectedItem?.type === 'lab' && (<LabToolView toolId={selectedItem.id} onClose={() => setSelectedItem(null)} />)}
+            {selectedItem?.type === 'simulation' && (<ProjectSimulationView caseData={selectedItem.data} onClose={() => setSelectedItem(null)} currentUser={currentUser} />)}
+        </>
+    );
 };
 
 export default LearningHub;
