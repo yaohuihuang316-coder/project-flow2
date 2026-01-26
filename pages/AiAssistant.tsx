@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Copy, RefreshCw, Loader2, Eraser, Lightbulb } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Eraser, Lightbulb } from 'lucide-react';
 import { UserProfile, ChatMessage } from '../types';
 import { GoogleGenAI } from "@google/genai";
 

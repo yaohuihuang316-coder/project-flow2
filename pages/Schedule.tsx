@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Play, Pause, X, CloudRain, Coffee, Zap, Plus, Loader2, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MoreHorizontal, Play, Pause, X, Zap, Plus, Loader2, Trash2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -13,7 +13,6 @@ const Schedule: React.FC<ScheduleProps> = ({ currentUser }) => {
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [timeLeft, setTimeLeft] = useState(25 * 60); 
     const [isActive, setIsActive] = useState(false);
-    const [ambientSound, setAmbientSound] = useState<'rain' | 'cafe' | 'white' | null>(null);
 
     // --- Events State ---
     const [events, setEvents] = useState<any[]>([]);

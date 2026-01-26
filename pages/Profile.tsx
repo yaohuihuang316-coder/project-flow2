@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star, HelpCircle } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star } from 'lucide-react';
 import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -55,7 +55,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
               .eq('progress', 100);
 
           if (progressData && progressData.length > 0) {
-              const mappedCerts = progressData.map((p: any, idx) => ({
+              const mappedCerts = progressData.map((p: any) => ({
                   id: `CERT-${p.course_id}`,
                   title: p.app_courses?.title || 'Unknown Course',
                   titleEn: 'Certificate of Completion',

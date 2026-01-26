@@ -45,6 +45,10 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 .select('*')
                 .order('created_at', { ascending: false });
             
+            if (error) {
+                console.error("Error fetching posts:", error);
+            }
+
             if (data && data.length > 0) {
                 const formattedData = data.map(post => ({
                     ...post,
