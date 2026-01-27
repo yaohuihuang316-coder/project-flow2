@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, MessageSquare, Heart, Share2, MoreHorizontal, 
-  Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2
+import {
+    Search, MessageSquare, Heart, Share2, MoreHorizontal,
+    Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2
 } from 'lucide-react';
 import { UserProfile, Comment } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -27,15 +27,28 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
-    
+
     // Interaction States
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
     const [expandedPostId, setExpandedPostId] = useState<number | null>(null);
-    
+
     // Real Comments Map
     const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({});
     const [commentInput, setCommentInput] = useState('');
     const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+    // 获取用户已点赞的帖子
+    const fetchUserLikes = async () => {
+        if (!currentUser) return;
+        const { data } = await supabase
+            .from('app_user_likes')
+            .select('post_id')
+            .eq('user_id', currentUser.id);
+
+        if (data) {
+            setLikedPosts(new Set(data.map(like => like.post_id)));
+        }
+    };
 
     const fetchPosts = async () => {
         setIsLoading(true);
@@ -44,7 +57,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 .from('app_community_posts')
                 .select('*')
                 .order('created_at', { ascending: false });
-            
+
             if (error) {
                 console.error("Error fetching posts:", error);
             }
@@ -57,7 +70,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 setPosts(formattedData);
                 setFilteredPosts(formattedData);
             } else {
-                setPosts([]); 
+                setPosts([]);
                 setFilteredPosts([]);
             }
         } catch (err) {
@@ -69,7 +82,8 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
     useEffect(() => {
         fetchPosts();
-    }, []);
+        fetchUserLikes(); // 加载用户点赞状态
+    }, [currentUser]);
 
     // Handle Search
     useEffect(() => {
@@ -77,7 +91,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             setFilteredPosts(posts);
         } else {
             const lowerQuery = searchQuery.toLowerCase();
-            const filtered = posts.filter(post => 
+            const filtered = posts.filter(post =>
                 post.content?.toLowerCase().includes(lowerQuery) ||
                 post.user_name?.toLowerCase().includes(lowerQuery) ||
                 post.tags?.some((tag: string) => tag.toLowerCase().includes(lowerQuery))
@@ -87,24 +101,73 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     }, [searchQuery, posts]);
 
     const handleLike = async (postId: number, currentLikes: number) => {
+        if (!currentUser) {
+            showToast("请先登录", "error");
+            return;
+        }
+
         const isLiked = likedPosts.has(postId);
         const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
-        
+
+        // 乐观更新UI
         const updatedPosts = posts.map(p => p.id === postId ? { ...p, likes: newLikes } : p);
         setPosts(updatedPosts);
         setFilteredPosts(updatedPosts);
-        
+
         const newLikedSet = new Set(likedPosts);
         if (isLiked) newLikedSet.delete(postId);
         else newLikedSet.add(postId);
         setLikedPosts(newLikedSet);
 
-        await supabase.from('app_community_posts').update({ likes: newLikes }).eq('id', postId);
+        // ✅ 持久化到数据库
+        if (isLiked) {
+            // 取消点赞:删除点赞记录
+            await supabase
+                .from('app_user_likes')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('post_id', postId);
+        } else {
+            // 点赞:插入点赞记录
+            await supabase
+                .from('app_user_likes')
+                .insert({ user_id: currentUser.id, post_id: postId });
+        }
+
+        // 更新帖子点赞数
+        await supabase
+            .from('app_community_posts')
+            .update({ likes: newLikes })
+            .eq('id', postId);
     };
 
     const showToast = (msg: string, type: 'success' | 'error') => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3000);
+    };
+
+    // ✅ 图片上传到Supabase Storage
+    const handleImageUpload = async (file: File): Promise<string | null> => {
+        if (!currentUser) return null;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentUser.id}_${Date.now()}.${fileExt}`;
+        const filePath = `community/${fileName}`;
+
+        const { data, error } = await supabase.storage
+            .from('community-images')
+            .upload(filePath, file);
+
+        if (error) {
+            console.error('Upload error:', error);
+            return null;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('community-images')
+            .getPublicUrl(filePath);
+
+        return publicUrl;
     };
 
     const handlePost = async () => {
@@ -113,7 +176,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             alert("请先登录");
             return;
         }
-        
+
         setIsPosting(true);
 
         const { error } = await supabase.from('app_community_posts').insert({
@@ -134,7 +197,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         } else {
             showToast("发布成功！", "success");
             setNewPostContent('');
-            fetchPosts(); 
+            fetchPosts();
         }
     };
 
@@ -146,7 +209,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             .select('*')
             .eq('post_id', postId)
             .order('created_at', { ascending: true });
-        
+
         if (data) {
             setCommentsMap(prev => ({ ...prev, [postId]: data }));
         }
@@ -197,7 +260,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         // 3. Update Post Comment Count (Optimistic + DB)
         const currentPost = posts.find(p => p.id === postId);
         const newCount = (currentPost?.comments || 0) + 1;
-        
+
         const updatedPosts = posts.map(p => p.id === postId ? { ...p, comments: newCount } : p);
         setPosts(updatedPosts);
         setFilteredPosts(updatedPosts);
@@ -208,16 +271,15 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     return (
         <div className="pt-24 pb-12 px-4 sm:px-8 max-w-7xl mx-auto min-h-screen relative">
             {toast && (
-                <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm animate-bounce-in ${
-                    toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-black text-white'
-                }`}>
-                    {toast.type === 'error' ? <AlertTriangle size={16}/> : <CheckCircle2 size={16}/>}
+                <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm animate-bounce-in ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-black text-white'
+                    }`}>
+                    {toast.type === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
                     {toast.msg}
                 </div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
+
                 {/* --- Left Sidebar --- */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
                     <div className="glass-card rounded-[2rem] p-6 space-y-2 sticky top-24">
@@ -232,18 +294,18 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                         </button>
 
                         <div className="pt-6 mt-4 border-t border-gray-100">
-                             <h3 className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">热门话题</h3>
-                             <div className="space-y-1">
-                                 {TRENDING_TOPICS.map(topic => (
-                                     <button key={topic.id} className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 rounded-lg group transition-colors">
-                                         <div className="flex items-center gap-2">
-                                             <div className="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold">#</div>
-                                             <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{topic.name}</span>
-                                         </div>
-                                         <span className="text-[10px] text-gray-400">{topic.count}</span>
-                                     </button>
-                                 ))}
-                             </div>
+                            <h3 className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">热门话题</h3>
+                            <div className="space-y-1">
+                                {TRENDING_TOPICS.map(topic => (
+                                    <button key={topic.id} className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 rounded-lg group transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold">#</div>
+                                            <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{topic.name}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400">{topic.count}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -254,10 +316,10 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-shadow hover:shadow-md">
                         <div className="flex gap-4">
                             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
-                                {currentUser?.avatar ? <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" /> : <Users size={24} className="text-gray-400"/>}
+                                {currentUser?.avatar ? <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" /> : <Users size={24} className="text-gray-400" />}
                             </div>
                             <div className="flex-1">
-                                <textarea 
+                                <textarea
                                     placeholder={currentUser ? `分享你的想法, ${currentUser.name}...` : "请先登录以发布动态..."}
                                     value={newPostContent}
                                     onChange={(e) => setNewPostContent(e.target.value)}
@@ -266,15 +328,15 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                 />
                                 <div className="flex justify-between items-center mt-4">
                                     <div className="flex gap-2 text-gray-400">
-                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"><ImageIcon size={20}/></button>
-                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"><Hash size={20}/></button>
+                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"><ImageIcon size={20} /></button>
+                                        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"><Hash size={20} /></button>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={handlePost}
                                         disabled={!newPostContent.trim() || !currentUser || isPosting}
                                         className="bg-black text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg shadow-gray-200 min-w-[100px] justify-center"
                                     >
-                                        {isPosting ? <Loader2 size={16} className="animate-spin"/> : <>发布动态 <Send size={14}/></>}
+                                        {isPosting ? <Loader2 size={16} className="animate-spin" /> : <>发布动态 <Send size={14} /></>}
                                     </button>
                                 </div>
                             </div>
@@ -303,9 +365,9 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                 <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 animate-fade-in-up">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex items-center gap-3">
-                                            <img 
-                                                src={post.user_avatar || `https://ui-avatars.com/api/?name=${post.user_name}&background=random`} 
-                                                className="w-12 h-12 rounded-full bg-gray-100 object-cover border-2 border-white shadow-sm" 
+                                            <img
+                                                src={post.user_avatar || `https://ui-avatars.com/api/?name=${post.user_name}&background=random`}
+                                                className="w-12 h-12 rounded-full bg-gray-100 object-cover border-2 border-white shadow-sm"
                                                 alt={post.user_name}
                                             />
                                             <div>
@@ -321,7 +383,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                             </div>
                                         </div>
                                         <button className="text-gray-300 hover:text-black transition-colors p-2 hover:bg-gray-50 rounded-full">
-                                            <MoreHorizontal size={20}/>
+                                            <MoreHorizontal size={20} />
                                         </button>
                                     </div>
 
@@ -331,7 +393,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
                                     {post.image && (
                                         <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer">
-                                            <img src={post.image} className="w-full object-cover max-h-[400px] group-hover:scale-105 transition-transform duration-700" alt="Post attachment"/>
+                                            <img src={post.image} className="w-full object-cover max-h-[400px] group-hover:scale-105 transition-transform duration-700" alt="Post attachment" />
                                         </div>
                                     )}
 
@@ -344,29 +406,29 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     )}
 
                                     <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
-                                        <button 
+                                        <button
                                             onClick={() => handleLike(post.id, post.likes)}
                                             className={`flex items-center gap-2 text-sm font-bold transition-all group ${likedPosts.has(post.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
                                         >
                                             <div className={`p-2 rounded-full group-hover:bg-red-50 transition-colors ${likedPosts.has(post.id) ? 'bg-red-50' : ''}`}>
-                                                <Heart size={20} className={`transition-transform duration-300 group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current scale-110' : ''}`}/> 
+                                                <Heart size={20} className={`transition-transform duration-300 group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current scale-110' : ''}`} />
                                             </div>
                                             <span>{post.likes}</span>
                                         </button>
 
-                                        <button 
+                                        <button
                                             onClick={() => toggleComments(post.id)}
                                             className={`flex items-center gap-2 text-sm font-bold transition-all group ${expandedPostId === post.id ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'}`}
                                         >
                                             <div className={`p-2 rounded-full group-hover:bg-blue-50 transition-colors ${expandedPostId === post.id ? 'bg-blue-50' : ''}`}>
-                                                <MessageSquare size={20} /> 
+                                                <MessageSquare size={20} />
                                             </div>
                                             <span>{post.comments || 0}</span>
                                         </button>
-                                        
+
                                         <button className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm font-bold ml-auto group">
                                             <div className="p-2 rounded-full group-hover:bg-gray-100 transition-colors">
-                                                <Share2 size={20} /> 
+                                                <Share2 size={20} />
                                             </div>
                                         </button>
                                     </div>
@@ -376,12 +438,12 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                         <div className="mt-4 pt-4 border-t border-gray-50 bg-gray-50/50 -mx-6 px-6 pb-2 animate-fade-in rounded-b-[2rem]">
                                             <div className="space-y-4 mb-4">
                                                 {isLoadingComments && !commentsMap[post.id] ? (
-                                                    <div className="text-center py-4"><Loader2 className="animate-spin text-gray-400 mx-auto"/></div>
+                                                    <div className="text-center py-4"><Loader2 className="animate-spin text-gray-400 mx-auto" /></div>
                                                 ) : (
                                                     commentsMap[post.id]?.map(comment => (
                                                         <div key={comment.id} className="flex gap-3">
-                                                            <img 
-                                                                src={comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name}`} 
+                                                            <img
+                                                                src={comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name}`}
                                                                 className="w-8 h-8 rounded-full border border-white shadow-sm"
                                                             />
                                                             <div className="flex-1 bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
@@ -394,7 +456,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                                         </div>
                                                     ))
                                                 )}
-                                                
+
                                                 {(!isLoadingComments && (!commentsMap[post.id] || commentsMap[post.id].length === 0)) && (
                                                     <p className="text-center text-xs text-gray-400 py-2">暂无评论，来抢沙发吧！</p>
                                                 )}
@@ -402,8 +464,8 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
                                             {/* Comment Input */}
                                             <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-                                                <input 
-                                                    type="text" 
+                                                <input
+                                                    type="text"
                                                     placeholder={currentUser ? "写下你的评论..." : "登录后发表评论"}
                                                     value={commentInput}
                                                     onChange={e => setCommentInput(e.target.value)}
@@ -411,7 +473,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                                     disabled={!currentUser}
                                                     className="flex-1 pl-4 text-sm outline-none bg-transparent"
                                                 />
-                                                <button 
+                                                <button
                                                     onClick={() => handleSendComment(post.id)}
                                                     disabled={!commentInput.trim() || !currentUser}
                                                     className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 transition-colors"
@@ -426,7 +488,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                         ) : (
                             <div className="text-center py-20 text-gray-400 flex flex-col items-center">
                                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                                    <MessageSquare size={24} className="opacity-50"/>
+                                    <MessageSquare size={24} className="opacity-50" />
                                 </div>
                                 <p className="text-sm font-bold">社区冷冷清清，发个帖活跃一下？</p>
                             </div>
@@ -438,8 +500,8 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
                     <div className="bg-white rounded-[1.5rem] p-2 border border-gray-100 shadow-sm sticky top-24 z-10">
                         <div className="relative">
-                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                            <input 
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
                                 type="text"
                                 placeholder="搜索动态..."
                                 value={searchQuery}

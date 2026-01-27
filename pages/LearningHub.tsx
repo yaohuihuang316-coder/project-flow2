@@ -132,12 +132,21 @@ interface CpmTask {
 
 class CpmEngine {
     static calculate(tasks: CpmTask[]): CpmTask[] {
-        const taskMap = new Map(tasks.map(t => [t.id, { ...t, es: 0, ef: 0, ls: Infinity, lf: Infinity, slack: 0, isCritical: false, level: 0 }]));
+        // ✅ 边界处理: 空列表检查
+        if (!tasks || tasks.length === 0) {
+            return [];
+        }
 
-        // 1. Forward Pass
+        const taskMap = new Map(tasks.map(t => [t.id, { ...t, es: 0, ef: 0, ls: Infinity, lf: Infinity, slack: 0, isCritical: false, level: 0 }]));
+        const MAX_ITERATIONS = tasks.length * 2; // 防止循环依赖导致无限循环
+
+        // 1. Forward Pass (带循环检测)
         let changed = true;
-        while (changed) {
+        let forwardIterations = 0;
+        while (changed && forwardIterations < MAX_ITERATIONS) {
             changed = false;
+            forwardIterations++;
+
             for (const task of taskMap.values()) {
                 let maxPrevEf = 0;
                 let maxPrevLevel = -1;
@@ -155,38 +164,60 @@ class CpmEngine {
                 }
             }
         }
-        // 2. Backward Pass
+
+        // ⚠️ 循环依赖警告
+        if (forwardIterations >= MAX_ITERATIONS) {
+            console.warn('CPM Warning: 可能存在循环依赖,已达到最大迭代次数');
+        }
+
+        // 2. Backward Pass (优化收敛判断)
         const projectDuration = Math.max(0, ...Array.from(taskMap.values()).map(t => t.ef));
+
+        // ✅ 初始化所有终点任务的LF
         for (const task of taskMap.values()) {
-            // Find if task is a predecessor to anyone
-            const isPredecessorToSomeone = Array.from(taskMap.values()).some(t => t.predecessors.includes(task.id));
-            if (!isPredecessorToSomeone) {
+            const successors = Array.from(taskMap.values()).filter(t => t.predecessors.includes(task.id));
+            if (successors.length === 0 && task.lf === Infinity) {
                 task.lf = projectDuration;
                 task.ls = task.lf - task.duration;
             }
         }
-        // Iterate backwards through levels roughly by repeating scan
-        for (let i = 0; i < tasks.length + 2; i++) {
+
+        // 使用收敛判断替代固定迭代
+        let backwardChanged = true;
+        let backwardIterations = 0;
+        while (backwardChanged && backwardIterations < MAX_ITERATIONS) {
+            backwardChanged = false;
+            backwardIterations++;
+
             for (const task of taskMap.values()) {
                 const successors = Array.from(taskMap.values()).filter(t => t.predecessors.includes(task.id));
                 if (successors.length > 0) {
                     const minSuccLs = Math.min(...successors.map(s => s.ls));
-                    task.lf = minSuccLs;
-                    task.ls = task.lf - task.duration;
+                    const newLf = minSuccLs;
+                    const newLs = newLf - task.duration;
+
+                    // 只在值真正变化时标记
+                    if (task.lf !== newLf || task.ls !== newLs) {
+                        task.lf = newLf;
+                        task.ls = newLs;
+                        backwardChanged = true;
+                    }
                 }
             }
         }
-        // 3. Slack
+
+        // 3. Slack 计算 (✅ 提升浮点容差)
         for (const task of taskMap.values()) {
             task.slack = task.ls - task.es;
-            // Floating point tolerance
-            if (Math.abs(task.slack) < 0.001) {
+            // 浮点容差从 0.001 提升至 0.1
+            if (Math.abs(task.slack) < 0.1) {
                 task.slack = 0;
                 task.isCritical = true;
             } else {
                 task.isCritical = false;
             }
         }
+
         return Array.from(taskMap.values());
     }
 }
@@ -335,8 +366,8 @@ const CpmStudio = () => {
                     <button
                         onClick={handleStartCalculation}
                         className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isCalculated
-                                ? 'bg-gray-900 text-white cursor-default'
-                                : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl'
+                            ? 'bg-gray-900 text-white cursor-default'
+                            : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl'
                             }`}
                     >
                         {isCalculated ? (
@@ -801,8 +832,8 @@ const RiskEmvCalculator = () => {
                         <div
                             key={opt.id}
                             className={`bg-white p-6 rounded-2xl border-2 transition-all ${opt.id === bestOption
-                                    ? 'border-green-400 shadow-lg shadow-green-100 scale-[1.02]'
-                                    : 'border-gray-200'
+                                ? 'border-green-400 shadow-lg shadow-green-100 scale-[1.02]'
+                                : 'border-gray-200'
                                 }`}
                         >
                             <div className="flex justify-between items-start mb-4">
