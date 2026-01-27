@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { Page, AdminRole, UserProfile } from '../../types';
+import { Page, UserProfile } from '../../types';
 import {
-  LayoutDashboard, Users, FileText, Settings,
-  LogOut, Bell, ChevronRight, Shield, Activity, Menu, X, MessageSquare,
+  LayoutDashboard, Users, Settings,
+  LogOut, Bell, Activity, Menu, X, MessageSquare,
   ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, Calendar, BarChart3
 } from 'lucide-react';
 
@@ -133,12 +133,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
                     if (!item.roles.includes(role)) return null;
 
                     // Check active state (Page Match AND Param Match if param exists)
-                    const isActive = currentPage === item.page && (!item.param || item.param === currentTabParam);
+                    const itemParam = 'param' in item ? item.param : undefined;
+                    const isActive = currentPage === item.page && (!itemParam || itemParam === currentTabParam);
 
                     return (
                       <button
                         key={item.label}
-                        onClick={() => handleNavClick(item.page, item.param)}
+                        onClick={() => handleNavClick(item.page, 'param' in item ? item.param : undefined)}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
                           ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5'
                           : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
