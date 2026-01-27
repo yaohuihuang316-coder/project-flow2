@@ -6,8 +6,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import LearningHub from './pages/LearningHub';
 import Classroom from './pages/Classroom';
-import Community from './pages/Community'; 
-import AiAssistant from './pages/AiAssistant'; 
+import Community from './pages/Community';
+import AiAssistant from './pages/AiAssistant';
 import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
@@ -16,11 +16,15 @@ import Simulation from './pages/Simulation';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserTable from './pages/admin/UserTable';
+import AdminProgress from './pages/admin/AdminProgress';
 import AdminContent from './pages/admin/AdminContent';
-import AdminCommunity from './pages/admin/AdminCommunity'; 
+import AdminCommunity from './pages/admin/AdminCommunity';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements'; // New Import
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminMonitor from './pages/admin/AdminMonitor';
+import AdminEvents from './pages/admin/AdminEvents';
+import AdminSystem from './pages/admin/AdminSystem';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 import { Page, UserProfile } from './types';
 
 const App: React.FC = () => {
@@ -28,7 +32,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page>(Page.LOGIN);
   // 新增：通用 ID/Param 状态 (used for courseId AND admin tab params)
   const [currentParam, setCurrentParam] = useState<string>('default');
-  
+
   // 2. 用户身份状态 (Persisted User State)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
@@ -48,23 +52,23 @@ const App: React.FC = () => {
 
   // 辅助函数：判断是否为沉浸式全屏页面（不显示导航栏）
   const isImmersivePage = (page: Page) => {
-      return page === Page.LOGIN || page === Page.KNOWLEDGE_GRAPH || page === Page.SIMULATION;
+    return page === Page.LOGIN || page === Page.KNOWLEDGE_GRAPH || page === Page.SIMULATION;
   };
 
   // 3. 登录处理
   const handleLogin = (user: UserProfile) => {
-      setCurrentUser(user);
-      // 如果是管理员，去后台；否则去仪表盘
-      if (['SuperAdmin', 'Manager', 'Editor'].includes(user.role)) {
-          setCurrentPage(Page.ADMIN_DASHBOARD);
-      } else {
-          setCurrentPage(Page.DASHBOARD);
-      }
+    setCurrentUser(user);
+    // 如果是管理员，去后台；否则去仪表盘
+    if (['SuperAdmin', 'Manager', 'Editor'].includes(user.role)) {
+      setCurrentPage(Page.ADMIN_DASHBOARD);
+    } else {
+      setCurrentPage(Page.DASHBOARD);
+    }
   };
 
   const handleLogout = () => {
-      setCurrentUser(null);
-      setCurrentPage(Page.LOGIN);
+    setCurrentUser(null);
+    setCurrentPage(Page.LOGIN);
   };
 
   // 4. 动态组件渲染器
@@ -72,19 +76,23 @@ const App: React.FC = () => {
     // 优先处理后台页面
     if (isAdminPage(currentPage)) {
       return (
-        <AdminLayout 
-          currentPage={currentPage} 
+        <AdminLayout
+          currentPage={currentPage}
           onNavigate={navigateTo} // Pass navigation handler
-          currentUser={currentUser} 
+          currentUser={currentUser}
           onLogout={handleLogout}
           currentTabParam={currentParam} // Pass active param for highlighting
         >
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
+          {currentPage === Page.ADMIN_ANALYTICS && <AdminAnalytics />}
           {currentPage === Page.ADMIN_USERS && <UserTable currentRole={currentUser?.role || 'SuperAdmin'} />}
+          {currentPage === Page.ADMIN_PROGRESS && <AdminProgress />}
           {/* AdminContent now receives the param to switch tabs internally */}
           {currentPage === Page.ADMIN_CONTENT && <AdminContent initialTab={currentParam !== 'default' ? currentParam : 'courses'} />}
           {currentPage === Page.ADMIN_COMMUNITY && <AdminCommunity />}
+          {currentPage === Page.ADMIN_EVENTS && <AdminEvents />}
           {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
+          {currentPage === Page.ADMIN_SYSTEM && <AdminSystem />}
           {currentPage === Page.ADMIN_SETTINGS && <AdminSettings />}
           {currentPage === Page.ADMIN_MONITOR && <AdminMonitor />}
         </AdminLayout>
@@ -105,11 +113,11 @@ const App: React.FC = () => {
         return <Community currentUser={currentUser} />;
       case Page.CLASSROOM:
         return (
-            <Classroom 
-                courseId={currentParam} 
-                currentUser={currentUser} 
-                onBack={() => navigateTo(Page.LEARNING)}
-            />
+          <Classroom
+            courseId={currentParam}
+            currentUser={currentUser}
+            onBack={() => navigateTo(Page.LEARNING)}
+          />
         );
       case Page.PROFILE:
         return <Profile currentUser={currentUser} onLogout={handleLogout} />;
@@ -126,24 +134,24 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans selection:bg-blue-100 selection:text-blue-900 ${isAdminPage(currentPage) ? 'bg-[#F5F5F7]' : 'bg-[#F5F5F7]'}`}>
-      
+
       {/* Desktop Navbar (Hidden on Mobile) */}
       {!isAdminPage(currentPage) && !isImmersivePage(currentPage) && (
         <div className="hidden md:block">
-            <Navbar 
-                currentPage={currentPage} 
-                setPage={setCurrentPage} 
-                currentUser={currentUser}
-                onLogout={handleLogout}
-            />
+          <Navbar
+            currentPage={currentPage}
+            setPage={setCurrentPage}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
         </div>
       )}
-      
+
       {/* Mobile Tabbar (Hidden on Desktop & Immersive Pages) */}
       {!isAdminPage(currentPage) && !isImmersivePage(currentPage) && (
-          <MobileTabbar currentPage={currentPage} setPage={setCurrentPage} />
+        <MobileTabbar currentPage={currentPage} setPage={setCurrentPage} />
       )}
-      
+
       {/* Content Container - Add bottom padding on mobile for tabbar space */}
       <main className={`w-full min-h-screen relative ${!isAdminPage(currentPage) && !isImmersivePage(currentPage) ? 'pb-20 md:pb-0' : ''}`}>
         {renderPage()}

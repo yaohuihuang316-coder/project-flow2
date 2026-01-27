@@ -31,7 +31,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
         {
             id: '0',
             role: 'ai',
-            content: `Hello ${currentUser?.name || 'Explorer'}! I am the ProjectFlow AI Assistant. I can help you with project management knowledge, documentation, risk analysis, and more. What would you like to discuss today?`,
+            content: `你好 ${currentUser?.name || '探索者'}！我是 ProjectFlow 智能助手。我可以协助你进行项目管理知识解答、文档撰写、风险分析等工作。今天想聊点什么？`,
             timestamp: new Date()
         }
     ]);
@@ -113,30 +113,30 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             const userContext = await buildUserContext(currentUser);
 
             // Dynamic System Instruction based on user context
-            const systemPrompt = `You are ProjectFlow AI, an expert Enterprise Project Management assistant.
+            const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
 
-**User Profile**:
-- Name: ${currentUser?.name || 'User'}
-- Role: ${currentUser?.role || 'Student'}  
-- XP: ${currentUser?.xp || 0} points
-- Streak: ${currentUser?.streak || 0} days
-${userContext.activeCourse ? `- Current Course: ${userContext.activeCourse.title}` : ''}
-${userContext.lastChapter ? `- Last Completed: ${userContext.lastChapter}` : ''}
-${userContext.progressPercent > 0 ? `- Progress: ${userContext.progressPercent}%` : ''}
+**用户信息**:
+- 姓名: ${currentUser?.name || '用户'}
+- 角色: ${currentUser?.role || 'Student'}
+- 当前 XP: ${currentUser?.xp || 0} 点
+- 连续学习: ${currentUser?.streak || 0} 天
+${userContext.activeCourse ? `- 正在学习: ${userContext.activeCourse.title}` : ''}
+${userContext.lastChapter ? `- 最近完成: ${userContext.lastChapter}` : ''}
+${userContext.progressPercent > 0 ? `- 课程进度: ${userContext.progressPercent}%` : ''}
 
-**Your Responsibilities**:
-1. Provide personalized PM knowledge based on user's current learning progress
-2. If user is taking a course, prioritize content related to that course
-3. Adjust answer complexity based on user's XP and role
-4. Use Markdown formatting for professional, concise, structured answers
-5. Suggest next learning steps or practice projects when appropriate
+**你的职责**:
+1. 根据用户当前学习进度，提供个性化的项目管理知识解答
+2. 如果用户正在学习某个课程，优先解答该课程相关的概念和问题
+3. 结合用户的 XP 和角色，提供适当难度的内容建议
+4. 使用 Markdown 格式，保持专业、简洁、结构化的回答风格
+5. 适时推荐下一步学习方向或实践项目
 
-**Answer Guidelines**:
-- Beginners (XP < 500): Focus on basic concepts with examples
-- Intermediate (XP 500-2000): Provide in-depth analysis and best practices
-- Advanced (XP > 2000): Discuss advanced applications and strategic decisions
+**回答准则**:
+- 对于初学者 (XP < 500): 侧重基础概念解释和实例演示
+- 对于进阶者 (XP 500-2000): 提供深度分析和最佳实践
+- 对于专家 (XP > 2000): 讨论高级应用场景和战略决策
 
-Always be friendly, professional, and encourage continuous learning.`;
+请始终保持友好、专业的态度，鼓励用户持续学习和实践。`;
 
             // Using gemini-3-flash-preview for general purpose
             const responseStream = await ai.models.generateContentStream({
@@ -163,8 +163,8 @@ Always be friendly, professional, and encourage continuous learning.`;
             console.error("Gemini Error:", err);
             setIsThinking(false);
             const errorMsg = err.message.includes("API Key")
-                ? "Error: API Key not configured. Please check your .env file."
-                : "Connection interrupted. Please try again later.";
+                ? "⚠️ 错误：未配置 API Key。请检查 .env 文件。"
+                : "⚠️ 连接中断，请稍后再试。";
 
             setMessages(prev => prev.map(msg =>
                 msg.id === aiMsgId ? { ...msg, content: errorMsg } : msg
@@ -173,15 +173,15 @@ Always be friendly, professional, and encourage continuous learning.`;
     };
 
     const handleClearChat = () => {
-        if (window.confirm("Are you sure you want to clear the chat history?")) {
+        if (window.confirm("确定要清空对话记录吗？")) {
             setMessages([messages[0]]); // Keep greeting
         }
     };
 
     const quickPrompts = [
-        { icon: Lightbulb, text: "Explain Critical Path Method", emoji: "🛤️" },
-        { icon: Lightbulb, text: "How to write a project charter?", emoji: "📋" },
-        { icon: Lightbulb, text: "What is Earned Value Management?", emoji: "📊" },
+        { icon: Lightbulb, text: "解释关键路径法 (CPM)", emoji: "🛤️" },
+        { icon: Lightbulb, text: "如何编写项目章程？", emoji: "📋" },
+        { icon: Lightbulb, text: "什么是挣值管理 (EVM)？", emoji: "📊" },
     ];
 
     return (
@@ -194,8 +194,8 @@ Always be friendly, professional, and encourage continuous learning.`;
                             <Sparkles className="text-white" size={20} />
                         </div>
                         <div>
-                            <h2 className="font-bold text-gray-900">AI Assistant</h2>
-                            <p className="text-xs text-gray-500">Powered by Google Gemini</p>
+                            <h2 className="font-bold text-gray-900">AI 智能助手</h2>
+                            <p className="text-xs text-gray-500">基于 Google Gemini 3.0</p>
                         </div>
                     </div>
                     <button
@@ -203,7 +203,7 @@ Always be friendly, professional, and encourage continuous learning.`;
                         className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                         <Eraser size={16} />
-                        Clear Chat
+                        清空对话
                     </button>
                 </div>
             </div>
@@ -222,7 +222,7 @@ Always be friendly, professional, and encourage continuous learning.`;
                                 {msg.role === 'ai' && msg.content === '' ? (
                                     <div className="flex items-center gap-2 text-gray-500">
                                         <Loader2 className="animate-spin" size={16} />
-                                        <span className="text-sm">Thinking...</span>
+                                        <span className="text-sm">思考中...</span>
                                     </div>
                                 ) : (
                                     <div className={`text-sm ${msg.role === 'user' ? 'text-white' : 'text-gray-800'} prose prose-sm max-w-none`}>
@@ -245,7 +245,7 @@ Always be friendly, professional, and encourage continuous learning.`;
                             <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm">
                                 <div className="flex items-center gap-2 text-gray-500">
                                     <Loader2 className="animate-spin" size={16} />
-                                    <span className="text-sm">AI is thinking...</span>
+                                    <span className="text-sm">AI 正在思考...</span>
                                 </div>
                             </div>
                         </div>
@@ -258,7 +258,7 @@ Always be friendly, professional, and encourage continuous learning.`;
             {messages.length === 1 && (
                 <div className="px-6 pb-4">
                     <div className="max-w-4xl mx-auto">
-                        <p className="text-sm text-gray-500 mb-3">Quick prompts:</p>
+                        <p className="text-sm text-gray-500 mb-3">快速提示：</p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {quickPrompts.map((prompt, idx) => (
                                 <button
@@ -288,7 +288,7 @@ Always be friendly, professional, and encourage continuous learning.`;
                                     handleSendMessage();
                                 }
                             }}
-                            placeholder="Ask me anything about project management..."
+                            placeholder="输入您的问题，比如：如何编写项目计划？"
                             className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             rows={2}
                         />
@@ -300,7 +300,7 @@ Always be friendly, professional, and encourage continuous learning.`;
                             <Send size={18} />
                         </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Press Enter to send, Shift+Enter for new line</p>
+                    <p className="text-xs text-gray-400 mt-2">按 Enter 发送，Shift+Enter 换行</p>
                 </div>
             </div>
         </div>

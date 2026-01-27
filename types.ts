@@ -13,9 +13,13 @@ export enum Page {
   // Admin Pages
   ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
   ADMIN_USERS = 'ADMIN_USERS',
+  ADMIN_PROGRESS = 'ADMIN_PROGRESS', // 学习进度管理
   ADMIN_CONTENT = 'ADMIN_CONTENT',
   ADMIN_COMMUNITY = 'ADMIN_COMMUNITY', // New Admin Page
+  ADMIN_EVENTS = 'ADMIN_EVENTS', // 日程活动管理
   ADMIN_ANNOUNCEMENTS = 'ADMIN_ANNOUNCEMENTS', // New: Announcements Manager
+  ADMIN_SYSTEM = 'ADMIN_SYSTEM', // 系统配置管理
+  ADMIN_ANALYTICS = 'ADMIN_ANALYTICS', // 数据统计看板
   ADMIN_SETTINGS = 'ADMIN_SETTINGS',
   ADMIN_MONITOR = 'ADMIN_MONITOR'
 }
@@ -61,19 +65,19 @@ export interface ActivityLog {
 }
 
 export interface ChatMessage {
-    id: string;
-    role: 'user' | 'ai';
-    content: string;
-    timestamp: Date;
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  timestamp: Date;
 }
 
 export interface Comment {
-    id: number;
-    post_id: number;
-    user_id: string;
-    user_name: string;
-    user_avatar: string;
-    content: string;
-    created_at: string;
-    likes: number;
+  id: number;
+  post_id: number;
+  user_id: string;
+  user_name: string;
+  user_avatar: string;
+  content: string;
+  created_at: string;
+  likes: number;
 }
