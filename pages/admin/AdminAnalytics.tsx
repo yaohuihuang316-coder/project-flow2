@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart3, Users, BookOpen, TrendingUp, MessageSquare, Award, Calendar, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -159,7 +159,7 @@ const AdminAnalytics = () => {
 
             if (topUsers) {
                 const userPostCount: { [key: string]: { name: string; count: number } } = {};
-                topUsers.forEach(post => {
+                topUsers.forEach((post: any) => {
                     const userId = post.user_id;
                     const userName = post.app_users?.name || '未知用户';
                     if (!userPostCount[userId]) {
@@ -315,7 +315,7 @@ const AdminAnalytics = () => {
 
 // ========== SUB COMPONENTS ==========
 const StatCard = ({ icon, title, value, subtitle, color }: any) => {
-    const colorClasses = {
+    const colorClasses: { [key: string]: string } = {
         blue: 'bg-blue-50 border-blue-200',
         green: 'bg-green-50 border-green-200',
         purple: 'bg-purple-50 border-purple-200',
@@ -349,7 +349,7 @@ const ChartCard = ({ title, icon, children }: any) => (
 );
 
 const QuickStat = ({ label, value, color }: any) => {
-    const colorClasses = {
+    const colorClasses: { [key: string]: string } = {
         blue: 'text-blue-600 bg-blue-100',
         green: 'text-green-600 bg-green-100',
         purple: 'text-purple-600 bg-purple-100',

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Share2, Terminal, Play, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Terminal, Play, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 
@@ -9,7 +9,7 @@ interface SimulationProps {
     currentUser?: UserProfile | null;
 }
 
-const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
+const Simulation: React.FC<SimulationProps> = ({ onBack }) => {
     // State
     const [scenarios, setScenarios] = useState<any[]>([]);
     const [activeScenario, setActiveScenario] = useState<any>(null);
@@ -53,10 +53,10 @@ const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
     const handleChoice = (option: any) => {
         const points = option.score || 0;
         setScore(s => s + points);
-        setHistory(prev => [...prev, { 
-            step: activeScenario.script[currentStepIndex].message, 
-            choice: option.text, 
-            points 
+        setHistory(prev => [...prev, {
+            step: activeScenario.script[currentStepIndex].message,
+            choice: option.text,
+            points
         }]);
 
         if (currentStepIndex < activeScenario.script.length - 1) {
@@ -72,23 +72,23 @@ const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
         return (
             <div className="w-full h-screen bg-[#F5F5F7] flex flex-col p-6 overflow-y-auto">
                 <div className="flex items-center gap-4 mb-8">
-                    <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-lg"><ChevronLeft/></button>
+                    <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-lg"><ChevronLeft /></button>
                     <h1 className="text-2xl font-bold text-gray-900">实战模拟中心 (Simulation Hub)</h1>
                 </div>
-                {isLoading ? <div className="text-center"><Loader2 className="animate-spin mx-auto"/> Loading Scenarios...</div> : (
+                {isLoading ? <div className="text-center"><Loader2 className="animate-spin mx-auto" /> Loading Scenarios...</div> : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {scenarios.map(s => (
                             <div key={s.id} className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all cursor-pointer group border border-gray-100" onClick={() => startScenario(s)}>
                                 <div className="h-40 bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Play className="text-white fill-white" size={48}/>
+                                        <Play className="text-white fill-white" size={48} />
                                     </div>
-                                    <img src={s.image || 'https://images.unsplash.com/photo-1553877606-3c72bd63c9d2?auto=format&fit=crop&q=80'} className="w-full h-full object-cover"/>
+                                    <img src={s.image || 'https://images.unsplash.com/photo-1553877606-3c72bd63c9d2?auto=format&fit=crop&q=80'} className="w-full h-full object-cover" />
                                 </div>
                                 <h3 className="text-xl font-bold mb-2">{s.title}</h3>
                                 <p className="text-sm text-gray-500 line-clamp-2">{s.author}</p>
                                 <div className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg w-fit">
-                                    <Terminal size={14}/> {s.script?.length || 0} Events
+                                    <Terminal size={14} /> {s.script?.length || 0} Events
                                 </div>
                             </div>
                         ))}
@@ -111,11 +111,11 @@ const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
         <div className="w-full h-screen bg-[#1c1c1e] text-white flex flex-col relative overflow-hidden">
             {/* Background Atmosphere */}
             <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 to-black pointer-events-none"></div>
-            
+
             {/* Header */}
             <div className="relative z-10 px-6 py-4 flex justify-between items-center border-b border-white/10">
                 <button onClick={() => setActiveScenario(null)} className="text-gray-400 hover:text-white flex items-center gap-2 font-bold text-sm">
-                    <ChevronLeft size={16}/> 退出模拟
+                    <ChevronLeft size={16} /> 退出模拟
                 </button>
                 <div className="text-center">
                     <h2 className="font-bold">{activeScenario.title}</h2>
@@ -131,7 +131,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
                 {isFinished ? (
                     <div className="text-center animate-fade-in-up">
                         <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center text-black mx-auto mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]">
-                            <CheckCircle2 size={48}/>
+                            <CheckCircle2 size={48} />
                         </div>
                         <h1 className="text-4xl font-bold mb-4">模拟完成</h1>
                         <p className="text-gray-400 mb-8">最终得分: <span className="text-white font-bold text-xl">{score}</span></p>
@@ -155,7 +155,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
                         {/* Event Card */}
                         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] shadow-2xl">
                             <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                <AlertTriangle size={14}/> {currentEvent.trigger}
+                                <AlertTriangle size={14} /> {currentEvent.trigger}
                             </div>
                             <h3 className="text-2xl font-medium leading-relaxed">
                                 {currentEvent.message}
@@ -166,7 +166,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack, currentUser }) => {
                         <div className="grid gap-4">
                             {currentEvent.options && currentEvent.options.length > 0 ? (
                                 currentEvent.options.map((opt: any, i: number) => (
-                                    <button 
+                                    <button
                                         key={i}
                                         onClick={() => handleChoice(opt)}
                                         className="w-full p-4 rounded-xl bg-white text-black font-bold text-left hover:bg-gray-200 hover:scale-[1.01] transition-all flex justify-between group"
