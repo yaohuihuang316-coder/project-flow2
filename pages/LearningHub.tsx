@@ -418,14 +418,14 @@ const CpmStudio = () => {
                         {calculatedTasks.map((task) => {
                             const end = getTaskPos(task);
                             const endX = end.x;
-                            const endY = end.y + 35;
+                            const endY = end.y + 40; // 节点高度80px，中心在40px处
 
                             return task.predecessors.map(pid => {
                                 const parent = calculatedTasks.find(t => t.id === pid);
                                 if (!parent) return null;
                                 const start = getTaskPos(parent);
-                                const startX = start.x + 160;
-                                const startY = start.y + 35;
+                                const startX = start.x + 160; // 节点宽度160px，右边缘
+                                const startY = start.y + 40; // 节点中心
 
                                 // Determine if this specific connection is critical
                                 const isCriticalLink = task.isCritical && parent.isCritical && (Math.abs(parent.ef - task.es) < 0.01);
@@ -484,13 +484,13 @@ const CpmStudio = () => {
 
                                 <div className="flex justify-between items-end">
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase">Duration</span>
+                                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Duration</span>
                                         <span className="text-sm font-mono font-bold text-gray-700">{task.duration}d</span>
                                     </div>
-                                    <div className="flex flex-col items-end opacity-80">
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase">ES / EF</span>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">ES / EF</span>
                                         {isCalculated ? (
-                                            <span className="text-[10px] font-mono text-gray-500">{task.es} → {task.ef}</span>
+                                            <span className="text-[10px] font-mono text-gray-600 font-semibold">{task.es} → {task.ef}</span>
                                         ) : (
                                             <span className="text-[10px] font-mono text-gray-300">- → -</span>
                                         )}
