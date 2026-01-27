@@ -1,0 +1,76 @@
+﻿import React, { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User, Sparkles, Loader2, Eraser, Lightbulb } from 'lucide-react';
+import { UserProfile, ChatMessage } from '../types';
+import { GoogleGenAI } from "@google/genai";
+import { supabase } from '../lib/supabaseClient';
+
+interface AiAssistantProps {
+    currentUser?: UserProfile | null;
+}
+
+const getApiKey = () => {
+    try {
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+            return process.env.API_KEY;
+        }
+    } catch (e) { }
+    try {
+        if (typeof import.meta !== 'undefined' && import.meta.env) {
+            return import.meta.env.VITE_GEMINI_API_KEY;
+        }
+    } catch (e) { }
+    return null;
+};
+
+const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
+    const [messages, setMessages] = useState<ChatMessage[]>([
+        { 
+            id: '0', 
+            role: 'ai', 
+            content: `Hello ${currentUser?.name || 'Explorer'}! I am the ProjectFlow AI Assistant. I can help you with project management knowledge, documentation, risk analysis, and more. What would you like to discuss today?`, 
+            timestamp: new Date() 
+        }
+    ]);
+    const [input, setInput] = useState('');
+    const [isThinking, setIsThinking] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isThinking]);
+
+    const buildUserContext = async (user: any) => {
+        if (!user) return { activeCourse: null, lastChapter: null, progressPercent: 0 };
+        
+        try {
+            const { data, error } = await supabase
+                .from('app_user_progress')
+                .select('*, app_courses(*)')
+                .eq('user_id', user.id)
+                .order('last_accessed', { ascending: false })
+                .limit(1);
+
+            if (error || !data || data.length === 0) {
+                return { activeCourse: null, lastChapter: null, progressPercent: 0 };
+            }
+
+            const progress = data[0];
+            const completedChapters = progress.completed_chapters || [];
+            const lastChapter = completedChapters.length > 0 
+                ? completedChapters[completedChapters.length - 1] 
+                : null;
+
+            return {
+                activeCourse: progress.app_courses,
+                lastChapter: lastChapter,
+                progressPercent: progress.progress || 0
+            };
+        } catch (err) {
+            console.error('Context fetch error:', err);
+            return { activeCourse: null, lastChapter: null, progressPercent: 0 };
+        }
+    };
