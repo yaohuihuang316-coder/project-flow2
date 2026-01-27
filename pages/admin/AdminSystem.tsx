@@ -16,12 +16,11 @@ const AdminSystem = () => {
 
     // Edges
     const [edges, setEdges] = useState<any[]>([]);
-    const [nodes, setNodes] = useState<any[]>([]);
 
     useEffect(() => {
         if (activeTab === 'announcements') fetchAnnouncements();
         else if (activeTab === 'topics') fetchTopics();
-        else if (activeTab === 'edges') { fetchEdges(); fetchNodes(); }
+        else if (activeTab === 'edges') fetchEdges();
     }, [activeTab]);
 
     // ========== ANNOUNCEMENTS ==========
@@ -138,13 +137,7 @@ const AdminSystem = () => {
         setEdges(data || []);
     };
 
-    const fetchNodes = async () => {
-        const { data } = await supabase
-            .from('app_kb_nodes')
-            .select('id, label')
-            .order('label');
-        setNodes(data || []);
-    };
+
 
     const handleDeleteEdge = async (id: number) => {
         if (!window.confirm('确定要删除这条知识关联吗?')) return;
