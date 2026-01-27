@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, RefreshCw, Trash2, TrendingUp, Award, Clock, Download } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 

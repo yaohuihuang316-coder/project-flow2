@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings, Megaphone, Tag, Network, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -176,8 +176,8 @@ const AdminSystem = () => {
                 <button
                     onClick={() => setActiveTab('announcements')}
                     className={`px-4 py-2 font-medium transition-colors ${activeTab === 'announcements'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-900'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                 >
                     <Megaphone size={16} className="inline mr-2" />
@@ -186,8 +186,8 @@ const AdminSystem = () => {
                 <button
                     onClick={() => setActiveTab('topics')}
                     className={`px-4 py-2 font-medium transition-colors ${activeTab === 'topics'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-900'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                 >
                     <Tag size={16} className="inline mr-2" />
@@ -196,8 +196,8 @@ const AdminSystem = () => {
                 <button
                     onClick={() => setActiveTab('edges')}
                     className={`px-4 py-2 font-medium transition-colors ${activeTab === 'edges'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-900'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                 >
                     <Network size={16} className="inline mr-2" />
@@ -232,7 +232,6 @@ const AdminSystem = () => {
             {activeTab === 'edges' && (
                 <EdgesManager
                     edges={edges}
-                    nodes={nodes}
                     onDelete={handleDeleteEdge}
                 />
             )}
@@ -341,8 +340,8 @@ const AnnouncementsManager = ({ announcements, newAnnouncement, setNewAnnounceme
                                     <p className="text-gray-700 mb-3">{announcement.content}</p>
                                     <div className="flex items-center gap-3 text-sm">
                                         <span className={`px-2 py-1 rounded text-xs font-medium ${announcement.priority === 'high' ? 'bg-red-100 text-red-600' :
-                                                announcement.priority === 'normal' ? 'bg-blue-100 text-blue-600' :
-                                                    'bg-gray-100 text-gray-600'
+                                            announcement.priority === 'normal' ? 'bg-blue-100 text-blue-600' :
+                                                'bg-gray-100 text-gray-600'
                                             }`}>
                                             {announcement.priority === 'high' ? '高优先级' :
                                                 announcement.priority === 'normal' ? '普通' : '低优先级'}
@@ -418,7 +417,7 @@ const TopicsManager = ({ topics, newTopic, setNewTopic, onCreate, onDelete }: an
     </div>
 );
 
-const EdgesManager = ({ edges, nodes, onDelete }: any) => (
+const EdgesManager = ({ edges, onDelete }: any) => (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {edges.length === 0 ? (
             <div className="p-12 text-center text-gray-500">暂无知识关联</div>
