@@ -948,7 +948,7 @@ interface Objective {
 }
 
 const OkrAlignment = () => {
-    const [objectives, setObjectives] = useState<Objective[]>([
+    const objectives: Objective[] = [
         {
             id: 'c1',
             level: 'company',
@@ -979,7 +979,7 @@ const OkrAlignment = () => {
                 { kr: '用户满意度 > 4.5/5', progress: 70 },
             ]
         }
-    ]);
+    ];
 
     const levelConfig = {
         company: { label: '公司级', color: 'from-blue-600 to-indigo-600', icon: '🏢' },

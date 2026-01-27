@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, Trash2, Calendar, Clock, Download, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, RefreshCw, Trash2, Calendar, Download, TrendingUp } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 const AdminEvents = () => {
@@ -170,8 +170,8 @@ const AdminEvents = () => {
                 <button
                     onClick={() => { setActiveTab('events'); setSearchQuery(''); }}
                     className={`px-4 py-2 font-medium transition-colors ${activeTab === 'events'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-900'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                 >
                     <Calendar size={16} className="inline mr-2" />
@@ -180,8 +180,8 @@ const AdminEvents = () => {
                 <button
                     onClick={() => { setActiveTab('logs'); setSearchQuery(''); }}
                     className={`px-4 py-2 font-medium transition-colors ${activeTab === 'logs'
-                            ? 'text-blue-600 border-b-2 border-blue-600'
-                            : 'text-gray-500 hover:text-gray-900'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                 >
                     <TrendingUp size={16} className="inline mr-2" />
@@ -362,9 +362,9 @@ const ActivityLogsList = ({ logs, loading }: any) => (
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-1 text-xs font-medium rounded ${log.action_type === 'complete_task' ? 'text-green-600 bg-green-100' :
-                                            log.action_type === 'finish_chapter' ? 'text-blue-600 bg-blue-100' :
-                                                log.action_type === 'post_community' ? 'text-purple-600 bg-purple-100' :
-                                                    'text-gray-600 bg-gray-100'
+                                        log.action_type === 'finish_chapter' ? 'text-blue-600 bg-blue-100' :
+                                            log.action_type === 'post_community' ? 'text-purple-600 bg-purple-100' :
+                                                'text-gray-600 bg-gray-100'
                                         }`}>
                                         {log.action_type === 'complete_task' ? '完成任务' :
                                             log.action_type === 'finish_chapter' ? '完成章节' :

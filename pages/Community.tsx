@@ -146,29 +146,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         setTimeout(() => setToast(null), 3000);
     };
 
-    // ✅ 图片上传到Supabase Storage
-    const handleImageUpload = async (file: File): Promise<string | null> => {
-        if (!currentUser) return null;
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${currentUser.id}_${Date.now()}.${fileExt}`;
-        const filePath = `community/${fileName}`;
-
-        const { data, error } = await supabase.storage
-            .from('community-images')
-            .upload(filePath, file);
-
-        if (error) {
-            console.error('Upload error:', error);
-            return null;
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-            .from('community-images')
-            .getPublicUrl(filePath);
-
-        return publicUrl;
-    };
 
     const handlePost = async () => {
         if (!newPostContent.trim()) return;

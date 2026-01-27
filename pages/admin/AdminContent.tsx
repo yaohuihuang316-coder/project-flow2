@@ -36,7 +36,7 @@ const AdminContent: React.FC<AdminContentProps> = ({ initialTab = 'courses' }) =
     const fetchContent = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('app_courses')
                 .select('*')
                 .order('created_at', { ascending: false });
