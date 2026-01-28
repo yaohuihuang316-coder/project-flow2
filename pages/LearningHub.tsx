@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
 import {
     PlayCircle, Clock, ChevronLeft, ChevronDown, Plus,
     Activity, Terminal,
@@ -21,6 +21,146 @@ import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { GoogleGenAI } from "@google/genai";
 import { jsPDF } from 'jspdf';
+
+// --- Toast System ---
+interface Toast {
+    id: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    message: string;
+    duration: number;
+}
+
+interface ToastContextValue {
+    showToast: (type: Toast['type'], message: string, duration?: number) => void;
+    success: (message: string) => void;
+    error: (message: string) => void;
+    info: (message: string) => void;
+    warning: (message: string) => void;
+}
+
+const ToastContext = createContext<ToastContextValue | null>(null);
+
+export const useToast = () => {
+    const context = useContext(ToastContext);
+    if (!context) throw new Error('useToast必须在ToastProvider内使用');
+    return context;
+};
+
+const ToastContainer: React.FC<{ toasts: Toast[]; removeToast: (id: string) => void }> = ({ toasts, removeToast }) => {
+    return (
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md">
+            {toasts.map((toast) => (
+                <div
+                    key={toast.id}
+                    className={`
+                        flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg
+                        animate-slideIn backdrop-blur-sm border
+                        ${toast.type === 'success' ? 'bg-green-500/90 border-green-300 text-white' : ''}
+                        ${toast.type === 'error' ? 'bg-red-500/90 border-red-300 text-white' : ''}
+                        ${toast.type === 'info' ? 'bg-blue-500/90 border-blue-300 text-white' : ''}
+                        ${toast.type === 'warning' ? 'bg-orange-500/90 border-orange-300 text-white' : ''}
+                    `}
+                    style={{ animation: 'slideIn 0.3s ease-out' }}
+                >
+                    <span className="text-xl">
+                        {toast.type === 'success' && '✅'}
+                        {toast.type === 'error' && '❌'}
+                        {toast.type === 'info' && 'ℹ️'}
+                        {toast.type === 'warning' && '⚠️'}
+                    </span>
+                    <span className="flex-1 font-medium">{toast.message}</span>
+                    <button
+                        onClick={() => removeToast(toast.id)}
+                        className="hover:bg-white/20 rounded p-1 transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [toasts, setToasts] = useState<Toast[]>([]);
+
+    const removeToast = useCallback((id: string) => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, []);
+
+    const showToast = useCallback((type: Toast['type'], message: string, duration = 3000) => {
+        const id = Math.random().toString(36).substr(2, 9);
+        const newToast: Toast = { id, type, message, duration };
+
+        setToasts((prev) => [...prev.slice(-2), newToast]); // 最多显示3个
+
+        setTimeout(() => removeToast(id), duration);
+    }, [removeToast]);
+
+    const value: ToastContextValue = {
+        showToast,
+        success: (msg) => showToast('success', msg),
+        error: (msg) => showToast('error', msg),
+        info: (msg) => showToast('info', msg),
+        warning: (msg) => showToast('warning', msg),
+    };
+
+    return (
+        <ToastContext.Provider value={value}>
+            {children}
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+        </ToastContext.Provider>
+    );
+};
+
+// --- Skeleton Loading Components ---
+const Skeleton: React.FC<{ className?: string; width?: string; height?: string }> = ({
+    className = '',
+    width = 'w-full',
+    height = 'h-4'
+}) => (
+    <div className={`bg-gray-200 rounded animate-pulse ${width} ${height} ${className}`} />
+);
+
+const WbsTreeSkeleton = () => (
+    <div className="space-y-3 p-6">
+        <Skeleton width="w-3/4" height="h-6" />
+        <div className="ml-6 space-y-2">
+            <Skeleton width="w-2/3" height="h-5" />
+            <Skeleton width="w-1/2" height="h-5" />
+        </div>
+        <Skeleton width="w-3/4" height="h-6" />
+        <div className="ml-6 space-y-2">
+            <Skeleton width="w-2/3" height="h-5" />
+        </div>
+    </div>
+);
+
+const RetroCardSkeleton = () => (
+    <div className="grid grid-cols-3 gap-4 p-6">
+        {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-3">
+                <Skeleton width="w-1/2" height="h-6" />
+                <Skeleton height="h-24" />
+                <Skeleton height="h-20" />
+            </div>
+        ))}
+    </div>
+);
+
+const OkrItemSkeleton = () => (
+    <div className="space-y-4 p-6">
+        {[1, 2].map((i) => (
+            <div key={i} className="space-y-2">
+                <Skeleton width="w-2/3" height="h-6" />
+                <div className="ml-6 space-y-2">
+                    <Skeleton width="w-full" height="h-4" />
+                    <Skeleton width="w-5/6" height="h-4" />
+                </div>
+            </div>
+        ))}
+    </div>
+);
 
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
@@ -47,6 +187,7 @@ const getApiKey = () => {
     } catch (e) { }
     return '';
 };
+
 
 // --- 1. Data Configuration (Advanced Labs) ---
 const LAB_CATEGORIES = {
@@ -628,28 +769,115 @@ const AgileBurn = () => {
     );
 };
 
-// 4. WBS Tree (Advanced)
-interface WbsNodeProps {
-    data: any;
-    level: number;
+// 4. WBS Tree (Advanced) - INTERACTIVE VERSION
+interface WbsNodeData {
+    code: string;
+    name: string;
+    progress: number;
+    children?: WbsNodeData[];
 }
 
-const WbsNode: React.FC<WbsNodeProps> = ({ data, level }) => {
+interface WbsNodeProps {
+    data: WbsNodeData;
+    level: number;
+    onUpdate: (code: string, updates: Partial<WbsNodeData>) => void;
+    onDelete: (code: string) => void;
+    onAddChild: (parentCode: string) => void;
+}
+
+const WbsNode: React.FC<WbsNodeProps> = ({ data, level, onUpdate, onDelete, onAddChild }) => {
     const [expanded, setExpanded] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editName, setEditName] = useState(data.name);
     const progressColor = data.progress === 100 ? 'bg-green-500' : data.progress > 50 ? 'bg-blue-500' : 'bg-gray-300';
+
+    const handleNameSave = () => {
+        onUpdate(data.code, { name: editName });
+        setIsEditing(false);
+    };
+
     return (
         <div className="flex flex-col items-center relative">
             {level > 0 && <div className="h-6 w-px bg-gray-300"></div>}
-            <div className={`relative z-10 bg-white border-2 rounded-xl p-3 w-40 text-center shadow-sm cursor-pointer transition-all hover:scale-105 ${data.progress === 100 ? 'border-green-200' : 'border-gray-100'}`} onClick={() => setExpanded(!expanded)}>
+            <div className={`relative z-10 bg-white border-2 rounded-xl p-3 w-48 text-center shadow-sm transition-all hover:scale-105 ${data.progress === 100 ? 'border-green-200' : 'border-gray-100'}`}>
                 <div className="text-[10px] font-bold text-gray-400 mb-1">{data.code}</div>
-                <div className="text-sm font-bold text-gray-800 leading-tight mb-2">{data.name}</div>
-                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div className={`h-full ${progressColor}`} style={{ width: `${data.progress}%` }}></div></div>
-                {data.children && <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white border rounded-full p-0.5 text-gray-400 shadow-sm ${expanded ? 'rotate-180' : ''}`}><ChevronDown size={12} /></div>}
+
+                {isEditing ? (
+                    <input
+                        type="text"
+                        value={editName}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditName(e.target.value)}
+                        onBlur={handleNameSave}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNameSave()}
+                        className="text-sm font-bold text-gray-800 w-full px-1 border-b border-blue-500 outline-none text-center"
+                        autoFocus
+                    />
+                ) : (
+                    <div
+                        className="text-sm font-bold text-gray-800 leading-tight mb-2 cursor-pointer hover:text-blue-600"
+                        onClick={() => setIsEditing(true)}
+                    >
+                        {data.name}
+                    </div>
+                )}
+
+                <div className="mb-2">
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={data.progress}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onUpdate(data.code, { progress: parseInt(e.target.value) })}
+                        className="w-full h-1.5 bg-gray-100 rounded-full appearance-none cursor-pointer accent-blue-500"
+                    />
+                </div>
+
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden mb-2">
+                    <div className={`h-full ${progressColor} transition-all`} style={{ width: `${data.progress}%` }}></div>
+                </div>
+
+                <div className="text-xs font-mono font-bold text-gray-600">{data.progress}%</div>
+
+                <div className="flex gap-1 mt-2 justify-center">
+                    <button
+                        onClick={() => onAddChild(data.code)}
+                        className="p-1 bg-green-50 text-green-600 rounded hover:bg-green-100 text-xs"
+                        title="添加子任务"
+                    >
+                        <Plus size={12} />
+                    </button>
+                    {level > 0 && (
+                        <button
+                            onClick={() => onDelete(data.code)}
+                            className="p-1 bg-red-50 text-red-600 rounded hover:bg-red-100 text-xs"
+                            title="删除"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
+                    {data.children && data.children.length > 0 && (
+                        <button
+                            onClick={() => setExpanded(!expanded)}
+                            className="p-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 text-xs"
+                        >
+                            <ChevronDown size={12} className={expanded ? 'rotate-180' : ''} />
+                        </button>
+                    )}
+                </div>
             </div>
-            {expanded && data.children && (
+            {expanded && data.children && data.children.length > 0 && (
                 <div className="flex gap-4 mt-0 pt-0 relative">
-                    {data.children.length > 1 && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-10rem)] h-px bg-transparent"><div className="absolute top-0 left-0 right-0 h-px bg-gray-300"></div></div>}
-                    {data.children.map((child: any, i: number) => <WbsNode key={i} data={child} level={level + 1} />)}
+                    {data.children.length > 1 && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-12rem)] h-px bg-transparent"><div className="absolute top-0 left-0 right-0 h-px bg-gray-300"></div></div>}
+                    {data.children?.map((child: WbsNodeData) => (
+                        <WbsNode
+                            key={child.code}
+                            data={child}
+                            level={level + 1}
+                            onUpdate={onUpdate}
+                            onDelete={onDelete}
+                            onAddChild={onAddChild}
+                        />
+                    ))}
                 </div>
             )}
         </div>
@@ -657,9 +885,426 @@ const WbsNode: React.FC<WbsNodeProps> = ({ data, level }) => {
 };
 
 const WbsTree = () => {
-    const wbsData = { code: '1.0', name: 'New Mobile App', progress: 65, children: [{ code: '1.1', name: 'Planning', progress: 100, children: [{ code: '1.1.1', name: 'Market Research', progress: 100 }, { code: '1.1.2', name: 'Feasibility', progress: 100 }] }, { code: '1.2', name: 'Design', progress: 80, children: [{ code: '1.2.1', name: 'Prototyping', progress: 100 }, { code: '1.2.2', name: 'UI Assets', progress: 60 }] }, { code: '1.3', name: 'Development', progress: 40, children: [{ code: '1.3.1', name: 'Backend API', progress: 70 }, { code: '1.3.2', name: 'Frontend', progress: 10 }] }] };
-    return <div className="h-full bg-gray-50/50 rounded-3xl overflow-auto custom-scrollbar p-10 flex justify-center items-start animate-fade-in"><WbsNode data={wbsData} level={0} /></div>;
+    const initialData: WbsNodeData = {
+        code: '1.0',
+        name: '新建项目 (点击编辑)',
+        progress: 0,
+        children: []
+    };
+
+    const [wbsData, setWbsData] = useState<WbsNodeData>(initialData);
+    const [nextCode, setNextCode] = useState(2);
+    const [treeId, setTreeId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // 加载或创建WBS树
+    useEffect(() => {
+        const loadOrCreateTree = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
+
+                // 查找用户的WBS树
+                const { data: trees } = await supabase
+                    .from('lab_wbs_trees')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+
+                let currentTreeId: string;
+
+                if (trees && trees.length > 0) {
+                    // 使用现有树
+                    currentTreeId = trees[0].id;
+                } else {
+                    // 创建新树
+                    const { data: newTree } = await supabase
+                        .from('lab_wbs_trees')
+                        .insert({
+                            user_id: user.id,
+                            project_name: '我的WBS项目',
+                            description: '工作分解结构'
+                        })
+                        .select()
+                        .single();
+
+                    if (!newTree) {
+                        setLoading(false);
+                        return;
+                    }
+                    currentTreeId = newTree.id;
+
+                    // 创建根节点
+                    await supabase.from('lab_wbs_nodes').insert({
+                        tree_id: currentTreeId,
+                        code: '1.0',
+                        name: '新建项目 (点击编辑)',
+                        progress: 0,
+                        parent_code: null
+                    });
+                }
+
+                setTreeId(currentTreeId);
+
+                // 加载节点数据
+                const { data: nodes } = await supabase
+                    .from('lab_wbs_nodes')
+                    .select('*')
+                    .eq('tree_id', currentTreeId)
+                    .order('code');
+
+                if (nodes && nodes.length > 0) {
+                    // 构建树状结构
+                    const tree = buildTree(nodes);
+                    setWbsData(tree);
+
+                    // 计算下一个code
+                    const maxCode = Math.max(...nodes.map((n: any) => {
+                        const parts = n.code.split('.');
+                        return parseInt(parts[0]);
+                    }));
+                    setNextCode(maxCode + 1);
+                }
+
+                setLoading(false);
+            } catch (error) {
+                console.error('加载WBS数据失败:', error);
+                setLoading(false);
+            }
+        };
+
+        loadOrCreateTree();
+    }, []);
+
+    // 构建树状结构
+    const buildTree = (nodes: any[]): WbsNodeData => {
+        const nodeMap = new Map<string, WbsNodeData>();
+
+        // 创建所有节点
+        nodes.forEach((node: any) => {
+            nodeMap.set(node.code, {
+                code: node.code,
+                name: node.name,
+                progress: node.progress,
+                children: []
+            });
+        });
+
+        // 建立父子关系
+        let root: WbsNodeData | null = null;
+        nodes.forEach((node: any) => {
+            const current = nodeMap.get(node.code)!;
+            if (node.parent_code) {
+                const parent = nodeMap.get(node.parent_code);
+                if (parent) {
+                    parent.children = parent.children || [];
+                    parent.children.push(current);
+                }
+            } else {
+                root = current;
+            }
+        });
+
+        return root || initialData;
+    };
+
+    // 更新节点（数据库+本地）
+    const updateNode = async (code: string, updates: Partial<WbsNodeData>) => {
+        if (!treeId) return;
+
+        try {
+            // 更新数据库
+            await supabase
+                .from('lab_wbs_nodes')
+                .update({
+                    name: updates.name,
+                    progress: updates.progress
+                })
+                .eq('tree_id', treeId)
+                .eq('code', code);
+
+            // 更新本地状态
+            const updateNodeRecursive = (node: WbsNodeData): WbsNodeData => {
+                if (node.code === code) {
+                    return { ...node, ...updates };
+                }
+                if (node.children) {
+                    return {
+                        ...node,
+                        children: node.children.map(updateNodeRecursive)
+                    };
+                }
+                return node;
+            };
+
+            setWbsData(updateNodeRecursive(wbsData));
+        } catch (error) {
+            console.error('更新节点失败:', error);
+        }
+    };
+
+    // 删除节点（数据库+本地）
+    const deleteNode = async (code: string) => {
+        if (!treeId || !window.confirm('确定删除此节点及其所有子节点?')) return;
+
+        try {
+            // 递归获取所有要删除的节点code
+            const getCodes = (node: WbsNodeData): string[] => {
+                let codes = [node.code];
+                if (node.children) {
+                    node.children.forEach(child => {
+                        codes = codes.concat(getCodes(child));
+                    });
+                }
+                return codes;
+            };
+
+            const findNode = (node: WbsNodeData, targetCode: string): WbsNodeData | null => {
+                if (node.code === targetCode) return node;
+                if (node.children) {
+                    for (const child of node.children) {
+                        const found = findNode(child, targetCode);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+
+            const nodeToDelete = findNode(wbsData, code);
+            if (nodeToDelete) {
+                const codesToDelete = getCodes(nodeToDelete);
+
+                // 从数据库删除
+                await supabase
+                    .from('lab_wbs_nodes')
+                    .delete()
+                    .eq('tree_id', treeId)
+                    .in('code', codesToDelete);
+            }
+
+            // 更新本地状态
+            const deleteNodeRecursive = (node: WbsNodeData): WbsNodeData | null => {
+                if (node.code === code) return null;
+                if (node.children) {
+                    return {
+                        ...node,
+                        children: node.children
+                            .map(deleteNodeRecursive)
+                            .filter((n): n is WbsNodeData => n !== null)
+                    };
+                }
+                return node;
+            };
+
+            const updated = deleteNodeRecursive(wbsData);
+            if (updated) setWbsData(updated);
+        } catch (error) {
+            console.error('删除节点失败:', error);
+        }
+    };
+
+    // 添加子节点（数据库+本地）
+    const addChild = async (parentCode: string) => {
+        if (!treeId) return;
+
+        const childName = prompt('输入子任务名称:');
+        if (!childName || !childName.trim()) return;
+
+        try {
+            const newCode = `${parentCode}.${nextCode}`;
+
+            // 插入数据库
+            await supabase.from('lab_wbs_nodes').insert({
+                tree_id: treeId,
+                code: newCode,
+                name: childName.trim(),
+                progress: 0,
+                parent_code: parentCode
+            });
+
+            // 更新本地状态
+            const addChildRecursive = (node: WbsNodeData): WbsNodeData => {
+                if (node.code === parentCode) {
+                    return {
+                        ...node,
+                        children: [
+                            ...(node.children || []),
+                            {
+                                code: newCode,
+                                name: childName.trim(),
+                                progress: 0,
+                                children: []
+                            }
+                        ]
+                    };
+                }
+                if (node.children) {
+                    return {
+                        ...node,
+                        children: node.children.map(addChildRecursive)
+                    };
+                }
+                return node;
+            };
+
+            setWbsData(addChildRecursive(wbsData));
+            setNextCode(nextCode + 1);
+        } catch (error) {
+            console.error('添加子节点失败:', error);
+        }
+    };
+
+    // 重置（数据库+本地）
+    const handleReset = async () => {
+        if (!treeId || !window.confirm('确定要重置整个WBS树吗？')) return;
+
+        try {
+            // 删除所有节点
+            await supabase
+                .from('lab_wbs_nodes')
+                .delete()
+                .eq('tree_id', treeId);
+
+            // 创建新根节点
+            await supabase.from('lab_wbs_nodes').insert({
+                tree_id: treeId,
+                code: '1.0',
+                name: '新建项目 (点击编辑)',
+                progress: 0,
+                parent_code: null
+            });
+
+            setWbsData(initialData);
+            setNextCode(2);
+        } catch (error) {
+            console.error('重置失败:', error);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="text-gray-500">加载中...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col bg-gray-50/50 rounded-3xl overflow-hidden animate-fade-in">
+            <div className="flex justify-between items-center p-4 bg-white border-b border-gray-200">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                    <Network className="text-blue-600" /> WBS 工作分解结构
+                </h2>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            // 导出WBS为PDF
+                            const doc = new jsPDF();
+                            let yPos = 20;
+
+                            // 封面
+                            doc.setFontSize(20);
+                            doc.text('WBS 工作分解结构报告', 105, yPos, { align: 'center' });
+                            yPos += 15;
+
+                            doc.setFontSize(12);
+                            doc.text(`项目: ${wbsData.name}`, 20, yPos);
+                            yPos += 8;
+                            doc.text(`生成日期: ${new Date().toLocaleDateString('zh-CN')}`, 20, yPos);
+                            yPos += 15;
+
+                            // 统计信息
+                            const countNodes = (node: WbsNodeData): number => {
+                                return 1 + (node.children?.reduce((sum, child) => sum + countNodes(child), 0) || 0);
+                            };
+                            const totalTasks = countNodes(wbsData);
+                            const calcAvgProgress = (node: WbsNodeData): number => {
+                                const self = node.progress;
+                                const childAvg = node.children && node.children.length > 0
+                                    ? node.children.reduce((sum, c) => sum + calcAvgProgress(c), 0) / node.children.length
+                                    : 0;
+                                return node.children && node.children.length > 0 ? (self + childAvg) / 2 : self;
+                            };
+                            const avgProgress = Math.round(calcAvgProgress(wbsData));
+
+                            doc.setFontSize(14);
+                            doc.text('项目概览', 20, yPos);
+                            yPos += 8;
+                            doc.setFontSize(10);
+                            doc.text(`总任务数: ${totalTasks}`, 25, yPos);
+                            yPos += 6;
+                            doc.text(`整体进度: ${avgProgress}%`, 25, yPos);
+                            yPos += 10;
+
+                            // 绘制WBS树
+                            doc.setFontSize(14);
+                            doc.text('任务分解结构', 20, yPos);
+                            yPos += 8;
+
+                            const renderNode = (node: WbsNodeData, level: number, y: number): number => {
+                                if (y > 270) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+
+                                const indent = 20 + level * 10;
+                                doc.setFontSize(10);
+                                doc.text(`${node.code} ${node.name}`, indent, y);
+                                doc.text(`${node.progress}%`, 180, y);
+
+                                // 进度条
+                                doc.setDrawColor(200, 200, 200);
+                                doc.rect(150, y - 3, 25, 4);
+                                doc.setFillColor(66, 133, 244);
+                                doc.rect(150, y - 3, 25 * (node.progress / 100), 4, 'F');
+
+                                y += 7;
+
+                                if (node.children) {
+                                    for (const child of node.children) {
+                                        y = renderNode(child, level + 1, y);
+                                    }
+                                }
+
+                                return y;
+                            };
+
+                            renderNode(wbsData, 0, yPos);
+
+                            doc.save(`WBS_${wbsData.code}_${new Date().toISOString().split('T')[0]}.pdf`);
+                        }}
+                        className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 flex items-center gap-2"
+                    >
+                        <FileDown size={14} />
+                        导出PDF
+                    </button>
+                    <button
+                        onClick={handleReset}
+                        className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 flex items-center gap-2"
+                    >
+                        <RefreshCw size={14} />
+                        重置
+                    </button>
+                </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <WbsNode
+                    data={wbsData}
+                    level={0}
+                    onUpdate={updateNode}
+                    onDelete={deleteNode}
+                    onAddChild={addChild}
+                />
+            </div>
+        </div>
+    );
 };
+
+
 
 // 5. Simple Tools Implementation
 const EvmCalculator = () => {
@@ -745,9 +1390,277 @@ const ProjectCharter = () => {
     );
 };
 
-// 2.3.3 Retro
+// 2.3.3 Retro - INTERACTIVE VERSION WITH DATABASE
 const RetroBoard = () => {
-    return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><RefreshCw className="text-pink-500" /> 迭代回顾</h2><div className="flex-1 grid grid-cols-3 gap-6">{[{ t: 'Start', c: 'bg-green-50 text-green-700' }, { t: 'Stop', c: 'bg-red-50 text-red-700' }, { t: 'Continue', c: 'bg-blue-50 text-blue-700' }].map((col, i) => <div key={i} className={`${col.c} p-6 rounded-3xl`}><h3 className="font-bold text-lg mb-4">{col.t}</h3><div className="bg-white/60 p-3 rounded-xl shadow-sm h-20"></div></div>)}</div></div>;
+    const [notes, setNotes] = useState({
+        start: [] as string[],
+        stop: [] as string[],
+        continue: [] as string[]
+    });
+    const [boardId, setBoardId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // 加载或创建回顾板
+    useEffect(() => {
+        const loadOrCreateBoard = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
+
+                // 查找用户的回顾板
+                const { data: boards } = await supabase
+                    .from('lab_retro_boards')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+
+                let currentBoardId: string;
+
+                if (boards && boards.length > 0) {
+                    currentBoardId = boards[0].id;
+                } else {
+                    // 创建新回顾板
+                    const { data: newBoard } = await supabase
+                        .from('lab_retro_boards')
+                        .insert({
+                            user_id: user.id,
+                            sprint_name: '我的迭代回顾',
+                            sprint_date: new Date().toISOString().split('T')[0]
+                        })
+                        .select()
+                        .single();
+
+                    if (!newBoard) {
+                        setLoading(false);
+                        return;
+                    }
+                    currentBoardId = newBoard.id;
+                }
+
+                setBoardId(currentBoardId);
+
+                // 加载便签
+                const { data: notesData } = await supabase
+                    .from('lab_retro_notes')
+                    .select('*')
+                    .eq('board_id', currentBoardId);
+
+                if (notesData && notesData.length > 0) {
+                    const categorized = {
+                        start: notesData.filter((n: any) => n.column_type === 'start').map((n: any) => n.content),
+                        stop: notesData.filter((n: any) => n.column_type === 'stop').map((n: any) => n.content),
+                        continue: notesData.filter((n: any) => n.column_type === 'continue').map((n: any) => n.content)
+                    };
+                    setNotes(categorized);
+                }
+
+                setLoading(false);
+            } catch (error) {
+                console.error('加载回顾板数据失败:', error);
+                setLoading(false);
+            }
+        };
+
+        loadOrCreateBoard();
+    }, []);
+
+    // 添加便签（数据库+本地）
+    const addNote = async (column: 'start' | 'stop' | 'continue') => {
+        if (!boardId) return;
+
+        const text = prompt(`添加到 ${column.toUpperCase()} 栏:`);
+        if (!text || !text.trim()) return;
+
+        try {
+            //插入数据库
+            await supabase.from('lab_retro_notes').insert({
+                board_id: boardId,
+                column_type: column,
+                content: text.trim()
+            });
+
+            // 更新本地状态
+            setNotes({
+                ...notes,
+                [column]: [...notes[column], text.trim()]
+            });
+        } catch (error) {
+            console.error('添加便签失败:', error);
+        }
+    };
+
+    // 删除便签（数据库+本地）
+    const deleteNote = async (column: 'start' | 'stop' | 'continue', index: number) => {
+        if (!boardId) return;
+
+        const noteContent = notes[column][index];
+
+        try {
+            // 从数据库删除（根据内容匹配）
+            await supabase
+                .from('lab_retro_notes')
+                .delete()
+                .eq('board_id', boardId)
+                .eq('column_type', column)
+                .eq('content', noteContent);
+
+            // 更新本地状态
+            setNotes({
+                ...notes,
+                [column]: notes[column].filter((_, i) => i !== index)
+            });
+        } catch (error) {
+            console.error('删除便签失败:', error);
+        }
+    };
+
+    // 清空全部（数据库+本地）
+    const clearAll = async () => {
+        if (!boardId || !window.confirm('确定要清空所有便签吗？')) return;
+
+        try {
+            // 从数据库删除所有便签
+            await supabase
+                .from('lab_retro_notes')
+                .delete()
+                .eq('board_id', boardId);
+
+            setNotes({ start: [], stop: [], continue: [] });
+        } catch (error) {
+            console.error('清空失败:', error);
+        }
+    };
+
+    const columns = [
+        { key: 'start' as const, title: 'Start Doing', color: 'bg-green-50 border-green-200', textColor: 'text-green-700', icon: '🚀' },
+        { key: 'stop' as const, title: 'Stop Doing', color: 'bg-red-50 border-red-200', textColor: 'text-red-700', icon: '🛑' },
+        { key: 'continue' as const, title: 'Continue', color: 'bg-blue-50 border-blue-200', textColor: 'text-blue-700', icon: '✅' }
+    ];
+
+    if (loading) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="text-gray-500">加载中...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col animate-fade-in">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                    <RefreshCw className="text-pink-500" /> 迭代回顾
+                </h2>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            // 导出为Markdown
+                            const totalNotes = notes.start.length + notes.stop.length + notes.continue.length;
+                            const markdown = `# 迭代回顾 - Sprint Review
+
+**日期**: ${new Date().toLocaleDateString('zh-CN')}
+**参与人**: ${'项目团队'}
+
+---
+
+## 🚀 Start Doing (开始做)
+
+${notes.start.length > 0 ? notes.start.map((note: string) => `- ${note}`).join('\n') : '*暂无内容*'}
+
+## 🛑 Stop Doing (停止做)
+
+${notes.stop.length > 0 ? notes.stop.map((note: string) => `- ${note}`).join('\n') : '*暂无内容*'}
+
+## ✅ Continue (继续保持)
+
+${notes.continue.length > 0 ? notes.continue.map((note: string) => `- ${note}`).join('\n') : '*暂无内容*'}
+
+---
+
+## 总结
+
+- **Start Doing**: ${notes.start.length} 条建议
+- **Stop Doing**: ${notes.stop.length} 条建议
+- **Continue**: ${notes.continue.length} 条建议
+- **总计**: ${totalNotes} 条反馈
+
+---
+
+*生成时间: ${new Date().toLocaleString('zh-CN')}*
+`;
+                            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `retro_${new Date().toISOString().split('T')[0]}.md`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }}
+                        className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 flex items-center gap-2"
+                    >
+                        <FileDown size={14} />
+                        导出MD
+                    </button>
+                    <button
+                        onClick={clearAll}
+                        className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 flex items-center gap-2"
+                    >
+                        <X size={14} />
+                        清空全部
+                    </button>
+                </div>
+            </div>
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {columns.map((col) => (
+                    <div key={col.key} className={`${col.color} p-6 rounded-3xl border-2 flex flex-col`}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className={`font-bold text-lg ${col.textColor} flex items-center gap-2`}>
+                                <span>{col.icon}</span>
+                                {col.title}
+                            </h3>
+                            <button
+                                onClick={() => addNote(col.key)}
+                                className={`p-2 ${col.color} ${col.textColor} rounded-lg hover:opacity-70`}
+                            >
+                                <Plus size={16} />
+                            </button>
+                        </div>
+                        <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+                            {notes[col.key].length === 0 ? (
+                                <div className="text-center text-gray-400 text-sm py-8">
+                                    点击 + 添加便签
+                                </div>
+                            ) : (
+                                notes[col.key].map((note: string, index: number) => (
+                                    <div
+                                        key={index}
+                                        className="group bg-white/80 p-3 rounded-xl shadow-sm flex justify-between items-start gap-2 hover:shadow-md transition-shadow"
+                                    >
+                                        <span className="text-sm text-gray-700 flex-1">{note}</span>
+                                        <button
+                                            onClick={() => deleteNote(col.key, index)}
+                                            className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="mt-4 text-xs text-gray-500 text-center">
+                            {notes[col.key].length} 条便签
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 // 2.5 User Story (AI)
@@ -939,47 +1852,21 @@ const RiskEmvCalculator = () => {
     );
 };
 
-// 2.7 OKR Alignment Tool
+// 2.7 OKR Alignment Tool - INTERACTIVE VERSION WITH DATABASE
 interface Objective {
     id: string;
     title: string;
-    keyResults: { kr: string; progress: number }[];
+    keyResults: { id?: string; kr: string; progress: number }[];
     level: 'company' | 'department' | 'individual';
 }
 
+type KeyResult = { id?: string; kr: string; progress: number };
+
 const OkrAlignment = () => {
-    const objectives: Objective[] = [
-        {
-            id: 'c1',
-            level: 'company',
-            title: '成为亚洲领先的 SaaS 项目管理平台',
-            keyResults: [
-                { kr: '年度 ARR 达到 $10M', progress: 65 },
-                { kr: '付费企业客户数 > 500', progress: 72 },
-                { kr: 'NPS 评分 ≥ 70', progress: 58 },
-            ]
-        },
-        {
-            id: 'd1',
-            level: 'department',
-            title: '产品团队:打造行业最佳用户体验',
-            keyResults: [
-                { kr: 'MAU 增长 50%', progress: 40 },
-                { kr: '功能上线周期 < 2周', progress: 80 },
-                { kr: '用户留存率 > 85%', progress: 55 },
-            ]
-        },
-        {
-            id: 'i1',
-            level: 'individual',
-            title: 'Alex Chen: 完成 AI 驱动的智能助手模块',
-            keyResults: [
-                { kr: '实现 5+ 核心功能', progress: 100 },
-                { kr: 'AI 响应延迟 < 2s', progress: 90 },
-                { kr: '用户满意度 > 4.5/5', progress: 70 },
-            ]
-        }
-    ];
+    const [objectives, setObjectives] = useState<Objective[]>([]);
+    const [periodId, setPeriodId] = useState<string | null>(null);
+    const [periodName, setPeriodName] = useState<string>('');
+    const [loading, setLoading] = useState(true);
 
     const levelConfig = {
         company: { label: '公司级', color: 'from-blue-600 to-indigo-600', icon: '🏢' },
@@ -987,13 +1874,243 @@ const OkrAlignment = () => {
         individual: { label: '个人级', color: 'from-emerald-500 to-teal-600', icon: '👤' }
     };
 
+    // 加载或创建OKR周期
+    useEffect(() => {
+        const loadOrCreatePeriod = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
+
+                // 查找用户的OKR周期
+                const { data: periods } = await supabase
+                    .from('lab_okr_periods')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+
+                let currentPeriodId: string;
+                let currentPeriodName: string;
+
+                if (periods && periods.length > 0) {
+                    currentPeriodId = periods[0].id;
+                    currentPeriodName = periods[0].period_name || 'OKR Period';
+                } else {
+                    // 创建新周期
+                    const currentYear = new Date().getFullYear();
+                    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+                    const newPeriodName = `${currentYear} Q${currentQuarter}`;
+                    const { data: newPeriod } = await supabase
+                        .from('lab_okr_periods')
+                        .insert({
+                            user_id: user.id,
+                            period_name: newPeriodName,
+                            start_date: new Date().toISOString().split('T')[0],
+                            end_date: new Date(currentYear, currentQuarter * 3, 0).toISOString().split('T')[0]
+                        })
+                        .select()
+                        .single();
+
+                    if (!newPeriod) {
+                        setLoading(false);
+                        return;
+                    }
+                    currentPeriodId = newPeriod.id;
+                    currentPeriodName = newPeriodName;
+                }
+
+                setPeriodId(currentPeriodId);
+                setPeriodName(currentPeriodName);
+
+                // 加载objectives
+                const { data: objectivesData } = await supabase
+                    .from('lab_okr_objectives')
+                    .select('*')
+                    .eq('period_id', currentPeriodId);
+
+                if (objectivesData && objectivesData.length > 0) {
+                    // 加载key results
+                    const objIds = objectivesData.map((obj: any) => obj.id);
+                    const { data: krsData } = await supabase
+                        .from('lab_okr_key_results')
+                        .select('*')
+                        .in('objective_id', objIds);
+
+                    const formattedObjs: Objective[] = objectivesData.map((obj: any) => ({
+                        id: obj.id,
+                        title: obj.title,
+                        level: obj.level,
+                        keyResults: (krsData || [])
+                            .filter((kr: any) => kr.objective_id === obj.id)
+                            .map((kr: any) => ({
+                                id: kr.id,
+                                kr: kr.kr_text,
+                                progress: kr.progress
+                            }))
+                    }));
+
+                    setObjectives(formattedObjs);
+                }
+
+                setLoading(false);
+            } catch (error) {
+                console.error('加载OKR数据失败:', error);
+                setLoading(false);
+            }
+        };
+
+        loadOrCreatePeriod();
+    }, []);
+
+    // 添加Objective（数据库+本地）
+    const addObjective = async (level: 'company' | 'department' | 'individual') => {
+        if (!periodId) return;
+
+        const title = prompt(`添加${levelConfig[level].label}目标:`);
+        if (!title || !title.trim()) return;
+
+        try {
+            const { data: newObj } = await supabase
+                .from('lab_okr_objectives')
+                .insert({
+                    period_id: periodId,
+                    title: title.trim(),
+                    level: level
+                })
+                .select()
+                .single();
+
+            if (newObj) {
+                const objective: Objective = {
+                    id: newObj.id,
+                    level: level,
+                    title: title.trim(),
+                    keyResults: []
+                };
+                setObjectives([...objectives, objective]);
+            }
+        } catch (error) {
+            console.error('添加Objective失败:', error);
+        }
+    };
+
+    // 删除Objective（数据库+本地）
+    const deleteObjective = async (id: string) => {
+        if (!window.confirm('确定要删除此 OKR 吗？')) return;
+
+        try {
+            await supabase
+                .from('lab_okr_objectives')
+                .delete()
+                .eq('id', id);
+
+            setObjectives(objectives.filter(obj => obj.id !== id));
+        } catch (error) {
+            console.error('删除Objective失败:', error);
+        }
+    };
+
+    // 添加Key Result（数据库+本地）
+    const addKeyResult = async (objId: string) => {
+        const kr = prompt('添加 Key Result:');
+        if (!kr || !kr.trim()) return;
+
+        try {
+            const { data: newKR } = await supabase
+                .from('lab_okr_key_results')
+                .insert({
+                    objective_id: objId,
+                    kr_text: kr.trim(),
+                    progress: 0
+                })
+                .select()
+                .single();
+
+            if (newKR) {
+                setObjectives(objectives.map(obj =>
+                    obj.id === objId
+                        ? { ...obj, keyResults: [...obj.keyResults, { id: newKR.id, kr: kr.trim(), progress: 0 }] }
+                        : obj
+                ));
+            }
+        } catch (error) {
+            console.error('添加Key Result失败:', error);
+        }
+    };
+
+    // 删除Key Result（数据库+本地）
+    const deleteKeyResult = async (objId: string, krIndex: number) => {
+        const obj = objectives.find(o => o.id === objId);
+        if (!obj) return;
+
+        const krId = obj.keyResults[krIndex].id;
+        if (!krId) return;
+
+        try {
+            await supabase
+                .from('lab_okr_key_results')
+                .delete()
+                .eq('id', krId);
+
+            setObjectives(objectives.map(obj =>
+                obj.id === objId
+                    ? { ...obj, keyResults: obj.keyResults.filter((_, i) => i !== krIndex) }
+                    : obj
+            ));
+        } catch (error) {
+            console.error('删除Key Result失败:', error);
+        }
+    };
+
+    // 更新进度（数据库+本地）
+    const updateProgress = async (objId: string, krIndex: number, newProgress: number) => {
+        const obj = objectives.find(o => o.id === objId);
+        if (!obj) return;
+
+        const krId = obj.keyResults[krIndex].id;
+        if (!krId) return;
+
+        try {
+            await supabase
+                .from('lab_okr_key_results')
+                .update({ progress: newProgress })
+                .eq('id', krId);
+
+            setObjectives(objectives.map(obj =>
+                obj.id === objId
+                    ? {
+                        ...obj,
+                        keyResults: obj.keyResults.map((kr, i) =>
+                            i === krIndex ? { ...kr, progress: newProgress } : kr
+                        )
+                    }
+                    : obj
+            ));
+        } catch (error) {
+            console.error('更新进度失败:', error);
+        }
+    };
+
     const calculateAlignment = () => {
-        const avgProgress = objectives.reduce((sum, obj) => {
-            const objAvg = obj.keyResults.reduce((s, kr) => s + kr.progress, 0) / obj.keyResults.length;
+        if (objectives.length === 0) return 0;
+        const avgProgress = objectives.reduce((sum: number, obj: Objective) => {
+            if (obj.keyResults.length === 0) return sum;
+            const objAvg = obj.keyResults.reduce((s: number, kr: KeyResult) => s + kr.progress, 0) / obj.keyResults.length;
             return sum + objAvg;
         }, 0) / objectives.length;
         return Math.round(avgProgress);
     };
+
+    if (loading) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="text-gray-500">加载中...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-full flex flex-col p-6 animate-fade-in">
@@ -1004,98 +2121,242 @@ const OkrAlignment = () => {
                     </h2>
                     <p className="text-xs text-gray-500 mt-1">Objectives and Key Results Alignment</p>
                 </div>
-                <div className="bg-black text-white px-6 py-3 rounded-full">
-                    <span className="text-xs font-bold text-gray-400 uppercase">整体对齐度</span>
-                    <div className="text-2xl font-bold">{calculateAlignment()}%</div>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => {
+                            // 导出OKR为PDF
+                            const doc = new jsPDF();
+                            let yPos = 20;
+
+                            // 封面
+                            doc.setFontSize(20);
+                            doc.text('OKR 对齐报告', 105, yPos, { align: 'center' });
+                            yPos += 15;
+
+                            doc.setFontSize(12);
+                            doc.text(`周期: ${periodName}`, 20, yPos);
+                            yPos += 6;
+                            doc.text(`生成日期: ${new Date().toLocaleDateString('zh-CN')}`, 20, yPos);
+                            yPos += 6;
+                            doc.text(`整体对齐度: ${calculateAlignment()}%`, 20, yPos);
+                            yPos += 15;
+
+                            // 统计
+                            doc.setFontSize(14);
+                            doc.text('概览', 20, yPos);
+                            yPos += 8;
+                            doc.setFontSize(10);
+                            doc.text(`Objectives总数: ${objectives.length}`, 25, yPos);
+                            yPos += 6;
+                            const totalKRs = objectives.reduce((sum: number, obj: Objective) => sum + obj.keyResults.length, 0);
+                            doc.text(`Key Results总数: ${totalKRs}`, 25, yPos);
+                            yPos += 12;
+
+                            // 按级别分类
+                            ['company', 'department', 'individual'].forEach(level => {
+                                const objs = objectives.filter((obj: Objective) => obj.level === level);
+                                if (objs.length === 0) return;
+
+                                const levelConfig: any = {
+                                    company: { label: '公司级', color: [255, 59, 48] },
+                                    department: { label: '部门级', color: [255, 149, 0] },
+                                    individual: { label: '个人级', color: [52, 199, 89] }
+                                };
+
+                                doc.setFontSize(14);
+                                doc.setTextColor(levelConfig[level].color[0], levelConfig[level].color[1], levelConfig[level].color[2]);
+                                doc.text(levelConfig[level].label + ' OKR', 20, yPos);
+                                doc.setTextColor(0, 0, 0);
+                                yPos += 8;
+
+                                objs.forEach((obj: Objective) => {
+                                    if (yPos > 260) {
+                                        doc.addPage();
+                                        yPos = 20;
+                                    }
+
+                                    doc.setFontSize(11);
+                                    doc.text(`O: ${obj.title}`, 25, yPos);
+                                    yPos += 7;
+
+                                    obj.keyResults.forEach((kr: KeyResult, idx: number) => {
+                                        doc.setFontSize(9);
+                                        doc.text(`KR${idx + 1}: ${kr.kr}`, 30, yPos); // Changed kr.description to kr.kr
+                                        doc.text(`${kr.progress}%`, 180, yPos);
+
+                                        // 进度条
+                                        doc.setDrawColor(200);
+                                        doc.rect(150, yPos - 3, 25, 3);
+                                        doc.setFillColor(66, 133, 244);
+                                        doc.rect(150, yPos - 3, 25 * (kr.progress / 100), 3, 'F');
+
+                                        yPos += 6;
+                                    });
+                                    yPos += 3;
+                                });
+                                yPos += 5;
+                            });
+
+                            doc.save(`OKR_${periodName.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+                        }}
+                        className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 flex items-center gap-2"
+                    >
+                        <FileDown size={14} />
+                        导出PDF
+                    </button>
+                    <div className="bg-black text-white px-6 py-3 rounded-full">
+                        <span className="text-xs font-bold text-gray-400 uppercase">整体对齐度</span>
+                        <div className="text-2xl font-bold">{calculateAlignment()}%</div>
+                    </div>
+                    <div className="relative group">
+                        <button className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2">
+                            <Plus size={16} />
+                            添加 OKR
+                        </button>
+                        <div className="absolute right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-40 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-10">
+                            {Object.entries(levelConfig).map(([level, config]) => (
+                                <button
+                                    key={level}
+                                    onClick={() => addObjective(level as 'company' | 'department' | 'individual')}
+                                    className="w-full px-4 py-2 text-left hover:bg-gray-50 text-sm flex items-center gap-2"
+                                >
+                                    <span>{config.icon}</span>
+                                    {config.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pb-10">
-                {objectives.map((obj) => {
-                    const config = levelConfig[obj.level];
-                    const avgProgress = obj.keyResults.reduce((s, kr) => s + kr.progress, 0) / obj.keyResults.length;
+                {objectives.length === 0 ? (
+                    <div className="text-center py-20 text-gray-400">
+                        <Target size={48} className="mx-auto mb-4 opacity-50" />
+                        <p>暂无 OKR，点击右上角添加</p>
+                    </div>
+                ) : (
+                    objectives.map((obj: Objective) => {
+                        const config = levelConfig[obj.level];
+                        const avgProgress = obj.keyResults.length > 0
+                            ? obj.keyResults.reduce((s: number, kr: KeyResult) => s + kr.progress, 0) / obj.keyResults.length
+                            : 0;
 
-                    return (
-                        <div
-                            key={obj.id}
-                            className="group relative animate-fade-in-up"
-                        >
-                            {/* Connector Line (except for company level) */}
-                            {obj.level !== 'company' && (
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-1 h-4 bg-gray-200"></div>
-                            )}
+                        return (
+                            <div key={obj.id} className="group relative animate-fade-in-up">
+                                {obj.level !== 'company' && (
+                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-1 h-4 bg-gray-200"></div>
+                                )}
 
-                            <div className={`bg-gradient-to-br ${config.color} p-[2px] rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500`}>
-                                <div className="bg-white rounded-[calc(1.5rem-2px)] p-6">
-                                    {/* Header */}
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-start gap-3 flex-1">
-                                            <div className="text-3xl">{config.icon}</div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-gradient-to-r ${config.color} text-white`}>
-                                                        {config.label}
-                                                    </span>
+                                <div className={`bg-gradient-to-br ${config.color} p-[2px] rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500`}>
+                                    <div className="bg-white rounded-[calc(1.5rem-2px)] p-6">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-start gap-3 flex-1">
+                                                <div className={`text-2xl flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br ${config.color} flex items-center justify-center shadow-lg`}>
+                                                    <span className="text-white">{config.icon}</span>
                                                 </div>
-                                                <h3 className="text-lg font-bold text-gray-900 leading-tight">
-                                                    {obj.title}
-                                                </h3>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-gradient-to-r ${config.color} text-white`}>
+                                                            {config.label}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="text-lg font-bold text-gray-900">{obj.title}</h3>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <div className="relative w-16 h-16">
+                                                    <svg className="w-full h-full transform -rotate-90">
+                                                        <circle
+                                                            cx="32" cy="32" r="28"
+                                                            stroke="#E5E7EB" strokeWidth="6" fill="none"
+                                                        />
+                                                        <circle
+                                                            cx="32" cy="32" r="28"
+                                                            stroke="url(#gradient)" strokeWidth="6" fill="none"
+                                                            strokeDasharray={`${2 * Math.PI * 28}`}
+                                                            strokeDashoffset={`${2 * Math.PI * 28 * (1 - avgProgress / 100)}`}
+                                                            className="transition-all duration-1000"
+                                                        />
+                                                        <defs>
+                                                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                                <stop offset="0%" stopColor="#3B82F6" />
+                                                                <stop offset="100%" stopColor="#8B5CF6" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                    </svg>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-sm font-bold text-gray-700">{Math.round(avgProgress)}%</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => deleteObjective(obj.id)}
+                                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <X size={16} />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        {/* Progress Ring */}
-                                        <div className="relative w-16 h-16 shrink-0">
-                                            <svg className="w-16 h-16 transform -rotate-90">
-                                                <circle
-                                                    cx="32" cy="32" r="28"
-                                                    stroke="#E5E7EB" strokeWidth="6" fill="none"
-                                                />
-                                                <circle
-                                                    cx="32" cy="32" r="28"
-                                                    stroke="url(#gradient)" strokeWidth="6" fill="none"
-                                                    strokeDasharray={`${2 * Math.PI * 28}`}
-                                                    strokeDashoffset={`${2 * Math.PI * 28 * (1 - avgProgress / 100)}`}
-                                                    className="transition-all duration-1000"
-                                                />
-                                                <defs>
-                                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                        <stop offset="0%" stopColor="#3B82F6" />
-                                                        <stop offset="100%" stopColor="#8B5CF6" />
-                                                    </linearGradient>
-                                                </defs>
-                                            </svg>
-                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-sm font-bold text-gray-700">{Math.round(avgProgress)}%</span>
+                                        <div className="space-y-3 mt-6">
+                                            <div className="flex justify-between items-center">
+                                                <h4 className="text-xs font-bold text-gray-400 uppercase">Key Results</h4>
+                                                <button
+                                                    onClick={() => addKeyResult(obj.id)}
+                                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                                >
+                                                    <Plus size={12} />
+                                                    添加 KR
+                                                </button>
                                             </div>
+                                            {obj.keyResults.length === 0 ? (
+                                                <div className="text-center py-4 text-gray-400 text-sm">
+                                                    暂无 Key Result
+                                                </div>
+                                            ) : (
+                                                obj.keyResults.map((kr: KeyResult, idx: number) => (
+                                                    <div key={idx} className="bg-gray-50 p-4 rounded-xl group/kr">
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <span className="text-sm font-medium text-gray-700 flex-1">{kr.kr}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-blue-600">{kr.progress}%</span>
+                                                                <button
+                                                                    onClick={() => deleteKeyResult(obj.id, idx)}
+                                                                    className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover/kr:opacity-100 transition-opacity"
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <input
+                                                                type="range"
+                                                                min="0"
+                                                                max="100"
+                                                                value={kr.progress}
+                                                                onChange={(e) => updateProgress(obj.id, idx, Number(e.target.value))}
+                                                                className="flex-1 h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600"
+                                                            />
+                                                        </div>
+                                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mt-2">
+                                                            <div
+                                                                className={`h-full bg-gradient-to-r ${config.color} transition-all duration-1000 ease-out`}
+                                                                style={{ width: `${kr.progress}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
                                         </div>
-                                    </div>
-
-                                    {/* Key Results */}
-                                    <div className="space-y-3 mt-6">
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase">Key Results</h4>
-                                        {obj.keyResults.map((kr, idx) => (
-                                            <div key={idx} className="bg-gray-50 p-4 rounded-xl">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="text-sm font-medium text-gray-700">{kr.kr}</span>
-                                                    <span className="text-xs font-bold text-blue-600">{kr.progress}%</span>
-                                                </div>
-                                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full bg-gradient-to-r ${config.color} transition-all duration-1000 ease-out`}
-                                                        style={{ width: `${kr.progress}%` }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        ))}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                )}
             </div>
 
-            {/* Legend */}
             <div className="mt-6 bg-gray-50 p-4 rounded-2xl border border-gray-200">
                 <div className="flex items-center justify-around text-xs">
                     {Object.entries(levelConfig).map(([level, config]) => (
@@ -1109,6 +2370,8 @@ const OkrAlignment = () => {
         </div>
     );
 };
+
+
 
 // --- SIMULATION COMPONENT (AI-Powered) ---
 interface Question {
@@ -1203,19 +2466,153 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
     const handleDownloadReport = () => {
         try {
             const doc = new jsPDF();
-            doc.setFontSize(18);
-            doc.text(`Simulation Report: ${caseData.title}`, 10, 20);
+            let yPos = 20;
+
+            // 封面
+            doc.setFontSize(20);
+            doc.text('项目管理实战模拟报告', 105, yPos, { align: 'center' });
+            yPos += 15;
+
             doc.setFontSize(12);
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, 10, 30);
-            doc.text(`Final Score: ${score} / 100`, 10, 40);
+            doc.text(`案例: ${caseData.title}`, 20, yPos);
+            yPos += 6;
+            doc.text(`完成时间: ${new Date().toLocaleString('zh-CN')}`, 20, yPos);
+            yPos += 6;
+            doc.text(`最终得分: ${score}/100`, 20, yPos);
+            yPos += 15;
 
-            doc.line(10, 45, 200, 45);
-            doc.text("Performance Analysis:", 10, 55);
-            if (score >= 80) doc.text("- Excellent strategic decision making.", 10, 65);
-            else if (score >= 60) doc.text("- Good understanding, but missed some risks.", 10, 65);
-            else doc.text("- Needs improvement in risk management.", 10, 65);
+            // 测验总览
+            doc.setFontSize(14);
+            doc.text('测验总览', 20, yPos);
+            yPos += 8;
 
-            doc.save(`${caseData.id}_report.pdf`);
+            const correctCount = Math.floor(score / 20);
+            const wrongCount = questions.length - correctCount;
+            const percentage = Math.round((score / 100) * 100);
+
+            doc.setFontSize(10);
+            doc.text(`总题数: ${questions.length}题`, 25, yPos);
+            yPos += 5;
+            doc.text(`正确数: ${correctCount}题`, 25, yPos);
+            yPos += 5;
+            doc.text(`错误数: ${wrongCount}题`, 25, yPos);
+            yPos += 5;
+
+            const grading = percentage >= 80 ? '优秀' : percentage >= 60 ? '良好' : '需改进';
+            doc.text(`评级: ${grading}`, 25, yPos);
+            yPos += 15;
+
+            // 逐题分析
+            doc.setFontSize(14);
+            doc.text('逐题分析', 20, yPos);
+            yPos += 10;
+
+            questions.forEach((q, idx) => {
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text(`第${idx + 1}题`, 20, yPos);
+                yPos += 6;
+
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(9);
+                const questionLines = doc.splitTextToSize(q.question_text, 170);
+                questionLines.forEach((line: string) => {
+                    doc.text(line, 25, yPos);
+                    yPos += 5;
+                });
+                yPos += 2;
+
+                doc.setFontSize(9);
+                doc.text(`正确答案: ${q.correct_answer}`, 25, yPos);
+                yPos += 6;
+
+                doc.setFontSize(8);
+                const explanationLines = doc.splitTextToSize(`解析: ${q.explanation}`, 170);
+                explanationLines.forEach((line: string) => {
+                    doc.text(line, 25, yPos);
+                    yPos += 4;
+                });
+                yPos += 8;
+            });
+
+            // 综合分析
+            if (yPos > 220) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            doc.setFontSize(14);
+            doc.text('综合分析', 20, yPos);
+            yPos += 10;
+
+            doc.setFontSize(10);
+            if (score >= 80) {
+                doc.text('知识强项:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('- 项目管理核心知识掌握扎实', 30, yPos);
+                yPos += 5;
+                doc.text('- 能够正确识别管理情景并应对', 30, yPos);
+                yPos += 8;
+
+                doc.setFontSize(10);
+                doc.text('建议:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('- 深入学习高级项目管理技术', 30, yPos);
+                yPos += 5;
+                doc.text('- 准备PMP/PRINCE2认证考试', 30, yPos);
+            } else if (score >= 60) {
+                doc.text('知识强项:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('- 基础项目管理概念理解正确', 30, yPos);
+                yPos += 8;
+
+                doc.setFontSize(10);
+                doc.text('需要加强:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('- 风险管理与应对策略', 30, yPos);
+                yPos += 5;
+                doc.text('- 相关方管理与沟通', 30, yPos);
+                yPos += 8;
+
+                doc.setFontSize(10);
+                doc.text('建议:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('- 系统学习PMBOK指南', 30, yPos);
+                yPos += 5;
+                doc.text('- 多做实战案例练习', 30, yPos);
+            } else {
+                doc.text('需要加强:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('- 项目管理基础知识', 30, yPos);
+                yPos += 5;
+                doc.text('- 流程与方法论理解', 30, yPos);
+                yPos += 5;
+                doc.text('- 实践经验积累', 30, yPos);
+                yPos += 8;
+
+                doc.setFontSize(10);
+                doc.text('建议学习路径:', 25, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.text('1. PMBOK指南第6版/第7版基础', 30, yPos);
+                yPos += 5;
+                doc.text('2. 项目管理入门课程', 30, yPos);
+                yPos += 5;
+                doc.text('3. 实战案例分析与模拟', 30, yPos);
+            }
+
+            doc.save(`Simulation_Report_${caseData.id}_${new Date().toISOString().split('T')[0]}.pdf`);
         } catch (e) { console.error(e); }
     };
 
@@ -1420,7 +2817,8 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
     }, [mainTab, subTab]);
 
     return (
-        <>
+        <ToastProvider>
+
             <div className={`pt-28 pb-12 px-6 sm:px-10 max-w-7xl mx-auto min-h-screen transition-all ${selectedItem ? 'max-w-full px-0 pt-0 pb-0 overflow-hidden h-screen' : ''}`}>
                 {!selectedItem && (
                     <div className="flex flex-col gap-6 mb-10">
@@ -1466,8 +2864,9 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
             </div>
             {selectedItem?.type === 'lab' && (<LabToolView toolId={selectedItem.id} onClose={() => setSelectedItem(null)} />)}
             {selectedItem?.type === 'simulation' && (<ProjectSimulationView caseData={selectedItem.data} onClose={() => setSelectedItem(null)} currentUser={currentUser} />)}
-        </>
+        </ToastProvider>
     );
 };
 
 export default LearningHub;
+

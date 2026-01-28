@@ -185,67 +185,86 @@ ${userContext.progressPercent > 0 ? `- 课程进度: ${userContext.progressPerce
     ];
 
     return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 via-white to-purple-50">
-            {/* Header */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-between max-w-4xl mx-auto">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <Sparkles className="text-white" size={20} />
+        <div className="h-full flex flex-col bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 relative overflow-hidden">
+            {/* Animated Background Orbs */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+            </div>
+
+            {/* Header with Glassmorphism */}
+            <div className="flex-shrink-0 backdrop-blur-xl bg-white/70 border-b border-white/20 shadow-lg px-6 py-4 relative z-10">
+                <div className="flex items-center justify-between max-w-5xl mx-auto">
+                    <div className="flex items-center gap-4">
+                        <div className="relative">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg animate-pulse">
+                                <Sparkles className="text-white" size={22} />
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                         </div>
                         <div>
-                            <h2 className="font-bold text-gray-900">AI 智能助手</h2>
-                            <p className="text-xs text-gray-500">基于 Google Gemini 3.0</p>
+                            <h2 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">AI 智能助手</h2>
+                            <p className="text-xs text-gray-600 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                Google Gemini 3.0 Flash
+                            </p>
                         </div>
                     </div>
                     <button
                         onClick={handleClearChat}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:text-gray-900 bg-white/50 hover:bg-white/80 backdrop-blur-sm rounded-xl border border-white/30 hover:border-gray-200 transition-all shadow-sm hover:shadow-md"
                     >
                         <Eraser size={16} />
-                        清空对话
+                        <span className="hidden sm:inline">清空对话</span>
                     </button>
                 </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-                <div className="max-w-4xl mx-auto space-y-6">
-                    {messages.map((msg) => (
-                        <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-8 relative z-10">
+                <div className="max-w-5xl mx-auto space-y-6">
+                    {messages.map((msg, index) => (
+                        <div
+                            key={msg.id}
+                            className={`flex gap-3 sm:gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                            style={{ animationDelay: `${index * 100}ms` }}
+                        >
                             {msg.role === 'ai' && (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                    <Bot size={18} className="text-white" />
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                    <Bot size={20} className="text-white" />
                                 </div>
                             )}
-                            <div className={`max-w-2xl ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'} rounded-2xl px-5 py-4 shadow-sm`}>
+                            <div className={`max-w-[85%] sm:max-w-2xl ${msg.role === 'user'
+                                    ? 'bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-xl shadow-blue-500/25'
+                                    : 'bg-white/80 backdrop-blur-xl border border-white/40 shadow-xl'
+                                } rounded-3xl px-5 py-4 transition-all hover:scale-[1.02]`}>
                                 {msg.role === 'ai' && msg.content === '' ? (
-                                    <div className="flex items-center gap-2 text-gray-500">
-                                        <Loader2 className="animate-spin" size={16} />
-                                        <span className="text-sm">思考中...</span>
+                                    <div className="flex items-center gap-3 text-gray-600">
+                                        <Loader2 className="animate-spin" size={18} />
+                                        <span className="text-sm font-medium">正在思考...</span>
                                     </div>
                                 ) : (
-                                    <div className={`text-sm ${msg.role === 'user' ? 'text-white' : 'text-gray-800'} prose prose-sm max-w-none`}>
+                                    <div className={`text-sm leading-relaxed ${msg.role === 'user' ? 'text-white' : 'text-gray-800'} prose prose-sm max-w-none`}>
                                         {msg.content}
                                     </div>
                                 )}
                             </div>
                             {msg.role === 'user' && (
-                                <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                                    <User size={18} className="text-gray-700" />
+                                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                    <User size={20} className="text-white" />
                                 </div>
                             )}
                         </div>
                     ))}
                     {isThinking && (
-                        <div className="flex gap-4 justify-start">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                <Bot size={18} className="text-white" />
+                        <div className="flex gap-4 justify-start animate-fadeIn">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                <Bot size={20} className="text-white" />
                             </div>
-                            <div className="bg-white border border-gray-200 rounded-2xl px-5 py-4 shadow-sm">
-                                <div className="flex items-center gap-2 text-gray-500">
-                                    <Loader2 className="animate-spin" size={16} />
-                                    <span className="text-sm">AI 正在思考...</span>
+                            <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-3xl px-5 py-4 shadow-xl">
+                                <div className="flex items-center gap-3 text-gray-600">
+                                    <Loader2 className="animate-spin" size={18} />
+                                    <span className="text-sm font-medium">AI 正在思考...</span>
                                 </div>
                             </div>
                         </div>
@@ -254,20 +273,23 @@ ${userContext.progressPercent > 0 ? `- 课程进度: ${userContext.progressPerce
                 </div>
             </div>
 
-            {/* Quick Prompts (shown when no messages) */}
+            {/* Quick Prompts */}
             {messages.length === 1 && (
-                <div className="px-6 pb-4">
-                    <div className="max-w-4xl mx-auto">
-                        <p className="text-sm text-gray-500 mb-3">快速提示：</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="px-4 sm:px-6 pb-6 relative z-10 animate-fadeIn">
+                    <div className="max-w-5xl mx-auto">
+                        <p className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                            <Lightbulb size={16} className="text-yellow-500" />
+                            快速开始探索
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {quickPrompts.map((prompt, idx) => (
                                 <button
                                     key={idx}
                                     onClick={() => handleSendMessage(prompt.text)}
-                                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all text-left"
+                                    className="group flex items-center gap-3 p-4 bg-white/70 backdrop-blur-xl border border-white/30 rounded-2xl hover:border-purple-300 hover:bg-white/90 hover:shadow-xl transition-all text-left transform hover:scale-105"
                                 >
-                                    <span className="text-2xl">{prompt.emoji}</span>
-                                    <span className="text-sm text-gray-700">{prompt.text}</span>
+                                    <div className="text-3xl transform group-hover:scale-110 transition-transform">{prompt.emoji}</div>
+                                    <span className="text-sm font-medium text-gray-800 group-hover:text-purple-700 transition-colors">{prompt.text}</span>
                                 </button>
                             ))}
                         </div>
@@ -275,34 +297,59 @@ ${userContext.progressPercent > 0 ? `- 课程进度: ${userContext.progressPerce
                 </div>
             )}
 
-            {/* Input Area */}
-            <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
-                <div className="max-w-4xl mx-auto">
+            {/* Input Area with Glassmorphism */}
+            <div className="flex-shrink-0 backdrop-blur-xl bg-white/70 border-t border-white/20 shadow-lg px-4 sm:px-6 py-5 relative z-10">
+                <div className="max-w-5xl mx-auto">
                     <div className="flex gap-3">
-                        <textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSendMessage();
-                                }
-                            }}
-                            placeholder="输入您的问题，比如：如何编写项目计划？"
-                            className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            rows={2}
-                        />
+                        <div className="flex-1 relative">
+                            <textarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendMessage();
+                                    }
+                                }}
+                                placeholder="输入您的问题，比如：如何编写项目计划？"
+                                className="w-full resize-none bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-2xl px-5 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm hover:shadow-md transition-all placeholder:text-gray-400"
+                                rows={2}
+                            />
+                        </div>
                         <button
                             onClick={() => handleSendMessage()}
                             disabled={!input.trim() || isThinking}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                            className="px-5 sm:px-7 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl hover:shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all flex items-center justify-center gap-2 transform hover:scale-105 active:scale-95 font-medium"
                         >
-                            <Send size={18} />
+                            <Send size={20} />
+                            <span className="hidden sm:inline">发送</span>
                         </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">按 Enter 发送，Shift+Enter 换行</p>
+                    <p className="text-xs text-gray-500 mt-3 flex items-center gap-2">
+                        <kbd className="px-2 py-1 bg-gray-200/50 rounded text-[10px] font-mono">Enter</kbd>
+                        发送消息
+                        <span className="text-gray-400">•</span>
+                        <kbd className="px-2 py-1 bg-gray-200/50 rounded text-[10px] font-mono">Shift + Enter</kbd>
+                        换行
+                    </p>
                 </div>
             </div>
+
+            <style jsx>{`
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                .animate-fadeIn {
+                    animation: fadeIn 0.3s ease-out forwards;
+                }
+            `}</style>
         </div>
     );
 };
