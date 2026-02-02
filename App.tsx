@@ -12,6 +12,7 @@ import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
 import Simulation from './pages/Simulation';
+import ToolsLab from './pages/ToolsLab';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -127,6 +128,8 @@ const App: React.FC = () => {
         return <KnowledgeGraph onBack={() => navigateTo(Page.DASHBOARD)} onNavigate={navigateTo} />;
       case Page.SIMULATION:
         return <Simulation onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />;
+      case Page.TOOLS_LAB:
+        return <ToolsLab onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }
