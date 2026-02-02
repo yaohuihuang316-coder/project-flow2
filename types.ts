@@ -27,6 +27,9 @@ export enum Page {
 
 export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor' | 'Student';
 
+// 会员等级类型
+export type MembershipTier = 'free' | 'pro' | 'pro_plus';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -37,6 +40,22 @@ export interface UserProfile {
   joined_at?: string;
   xp?: number; // Added XP
   streak?: number; // Added Streak
+  // 会员系统字段
+  membershipTier: MembershipTier;
+  membershipExpiresAt?: string;
+  completedCoursesCount: number;
+  isLifetimeMember: boolean;
+}
+
+// 会员权限要求配置
+export interface MembershipRequirement {
+  page: Page;
+  minTier: MembershipTier;
+  requiredCourses: number;
+  title: string;
+  description: string;
+  benefits: string[];
+  icon: string;
 }
 
 export interface Course {

@@ -4,6 +4,7 @@ import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from '
 import { Calendar, Trophy, ArrowUpRight, Activity, Share2, FileText, ChevronRight, FlaskConical } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import MembershipCard from '../components/MembershipCard';
 
 interface DashboardProps {
   onNavigate: (page: Page, id?: string) => void;
@@ -225,12 +226,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
              <KnowledgeGraphWidget />
         </div>
 
-        {/* --- Middle Right: Tools Lab (Span 1) --- */}
-        <div 
-            onClick={() => onNavigate(Page.TOOLS_LAB)}
-            className="md:col-span-1 h-[340px] cursor-pointer hover:scale-[1.02] transition-transform"
-        >
-             <ToolsLabWidget />
+        {/* --- Middle Right: Membership Card (Span 1) --- */}
+        <div className="md:col-span-1">
+            <MembershipCard user={currentUser} onNavigate={onNavigate} />
         </div>
 
         {/* --- Bottom: Profile Banner (Span 3) --- */}

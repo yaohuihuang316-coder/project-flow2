@@ -13,6 +13,7 @@ import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
 import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
+import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -127,9 +128,17 @@ const App: React.FC = () => {
       case Page.KNOWLEDGE_GRAPH:
         return <KnowledgeGraph onBack={() => navigateTo(Page.DASHBOARD)} onNavigate={navigateTo} />;
       case Page.SIMULATION:
-        return <Simulation onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />;
+        return (
+          <MembershipGuard user={currentUser} targetPage={Page.SIMULATION} onNavigate={navigateTo}>
+            <Simulation onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />
+          </MembershipGuard>
+        );
       case Page.TOOLS_LAB:
-        return <ToolsLab onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />;
+        return (
+          <MembershipGuard user={currentUser} targetPage={Page.TOOLS_LAB} onNavigate={navigateTo}>
+            <ToolsLab onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />
+          </MembershipGuard>
+        );
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }
