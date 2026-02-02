@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  LayoutKanban, Save, Download, Plus, Trash2, TrendingUp,
+  Kanban, Save, Download, Plus, Trash2, TrendingUp,
   Clock, Zap, BarChart3, AlertCircle, CheckCircle2, Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 
 interface KanbanItem {
@@ -260,18 +260,6 @@ Little's Law分析:
     showToast('success', '报告已导出');
   };
 
-  const statusColors = {
-    backlog: 'bg-gray-100 text-gray-600',
-    inProgress: 'bg-blue-100 text-blue-600',
-    done: 'bg-green-100 text-green-600'
-  };
-
-  const statusLabels = {
-    backlog: '待办',
-    inProgress: '进行中',
-    done: '已完成'
-  };
-
   const wipWarning = metrics.currentWIP > wipLimit;
 
   return (
@@ -292,7 +280,7 @@ Little's Law分析:
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-white">
-                <LayoutKanban size={20} />
+                <Kanban size={20} />
               </div>
               Kanban流动指标
             </h1>

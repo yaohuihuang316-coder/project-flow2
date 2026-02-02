@@ -44,7 +44,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     role: data.role as any,
                     avatar: data.avatar,
                     department: data.department,
-                    joined_at: data.created_at
+                    joined_at: data.created_at,
+                    membershipTier: data.membership_tier || 'free',
+                    completedCoursesCount: data.completed_courses_count || 0,
+                    isLifetimeMember: data.is_lifetime_member || false
                 });
             }, 800);
         } else {
@@ -97,7 +100,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               email: newUser.email,
               name: newUser.name,
               role: 'Student',
-              joined_at: newUser.created_at
+              joined_at: newUser.created_at,
+              membershipTier: 'free',
+              completedCoursesCount: 0,
+              isLifetimeMember: false
           });
 
       } catch (err: any) {
@@ -134,7 +140,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           role: demoUser.role as any,
           avatar: demoUser.avatar,
           department: demoUser.department,
-          joined_at: demoUser.created_at
+          joined_at: demoUser.created_at,
+          membershipTier: 'free',
+          completedCoursesCount: 0,
+          isLifetimeMember: false
       });
   };
 

@@ -1,12 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Gauge, Plus, Trash2, Save, Download, TrendingUp, Calendar, Target, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Gauge, Plus, Trash2, Save, Download, TrendingUp, Calendar, Target, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
-import { LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Area, AreaChart } from 'recharts';
+import { Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Area, AreaChart } from 'recharts';
 
 interface Sprint { id: string; name: string; plannedPoints: number; completedPoints: number; startDate: string; endDate: string; }
-interface VelocityTrend { sprintIndex: number; velocity: number; ma3: number | null; ma5: number | null; }
 interface VelocityTrackerProps { currentUser?: UserProfile | null; }
 
 function calculateMovingAverage(data: number[], period: number): (number | null)[] {

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { 
-  FlaskConical, Calculator, Users, LayoutKanban, 
+  FlaskConical, Calculator, Users, Kanban, 
   ChevronLeft, Sparkles, ArrowRight, TrendingDown,
   TrendingUp, Gauge, ShieldAlert, Link2, GitBranch,
   DollarSign
@@ -50,7 +50,7 @@ const p1Tools = [
     id: 'kanban-flow' as const,
     name: 'Kanban流动指标',
     description: '可视化累积流图，计算Lead Time、Cycle Time和吞吐量',
-    icon: LayoutKanban,
+    icon: Kanban,
     color: 'from-green-500 to-teal-600',
     badge: 'P1 核心'
   }

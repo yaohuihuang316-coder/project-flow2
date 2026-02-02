@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, Play, RotateCcw, Eye, EyeOff, CheckCircle2, 
+  Users, Play, RotateCcw, Eye, CheckCircle2, 
   Trophy, Save, Loader2, AlertCircle, Plus, Trash2, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -471,7 +471,7 @@ const PlanningPoker: React.FC<PlanningPokerProps> = ({ currentUser }) => {
                   </h4>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                    {allVotes.map((vote, index) => (
+                    {allVotes.map((vote) => (
                       <div key={vote.userId} className="text-center">
                         <div 
                           className={`w-16 h-24 mx-auto rounded-xl flex items-center justify-center text-xl font-bold mb-2 transition-all duration-500 ${

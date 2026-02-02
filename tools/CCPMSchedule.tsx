@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link2, Plus, Trash2, Save, Download, Clock, AlertCircle, CheckCircle2, Shield, Zap } from 'lucide-react';
+import { Link2, Plus, Trash2, Save, Download, AlertCircle, CheckCircle2, Shield, Zap } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface CCPMTask { id: string; name: string; duration: number; safeDuration: number; resources: string[]; dependencies: string[]; earlyStart: number; earlyFinish: number; lateStart: number; lateFinish: number; isCritical: boolean; }
 interface CCPMScheduleProps { currentUser?: UserProfile | null; }
