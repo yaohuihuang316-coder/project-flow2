@@ -12,7 +12,7 @@ import {
     AlertTriangle, Play,
     CheckCircle2,
     Lock, Award, FileDown,
-    FlaskConical, Crown
+    FlaskConical
 } from 'lucide-react';
 import {
     XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,

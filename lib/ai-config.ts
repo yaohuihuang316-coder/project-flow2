@@ -51,7 +51,7 @@ export const canUseAIModel = (
 // 获取用户可用的AI模型
 export const getAvailableModels = (userTier: MembershipTier): ('basic' | 'pro')[] => {
   if (userTier === 'free') return [];
-  if (userTier === 'basic' || userTier === 'pro') return ['basic'];
+  if (userTier === 'pro') return ['basic'];
   if (userTier === 'pro_plus') return ['basic', 'pro'];
   return [];
 };
@@ -90,7 +90,9 @@ export const getUsageLimitMessage = (
 // API Key 获取
 export const getGeminiApiKey = (): string | null => {
   try {
+    // @ts-ignore - Vite env
     if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore - Vite env
       return import.meta.env.VITE_GEMINI_API_KEY || null;
     }
   } catch (e) {
@@ -101,7 +103,9 @@ export const getGeminiApiKey = (): string | null => {
 
 export const getMoonshotApiKey = (): string | null => {
   try {
+    // @ts-ignore - Vite env
     if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore - Vite env
       return import.meta.env.VITE_MOONSHOT_API_KEY || null;
     }
   } catch (e) {

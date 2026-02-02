@@ -178,7 +178,7 @@ export function hasTier(
   minTier: MembershipTier
 ): boolean {
   if (!user) return false;
-  const levels: Record<MembershipTier, number> = { free: 0, basic: 1, pro: 2, pro_plus: 3 };
+  const levels: Record<MembershipTier, number> = { free: 0, pro: 1, pro_plus: 2 };
   return levels[user.membershipTier] >= levels[minTier];
 }
 
@@ -186,7 +186,7 @@ export function hasTier(
 export function getNextTierInfo(user: UserProfile | null) {
   if (!user) return null;
   
-  const tierOrder: MembershipTier[] = ['free', 'basic', 'pro', 'pro_plus'];
+  const tierOrder: MembershipTier[] = ['free', 'pro', 'pro_plus'];
   const currentIndex = tierOrder.indexOf(user.membershipTier);
   
   if (currentIndex >= tierOrder.length - 1) return null; // 已是最高级

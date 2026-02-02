@@ -48,7 +48,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     joined_at: data.created_at,
                     membershipTier: normalizeMembershipTier(data.subscription_tier),
                     completedCoursesCount: data.completed_courses_count || 0,
-                    isLifetimeMember: data.is_lifetime_member || false
+                    isLifetimeMember: data.is_lifetime_member || false,
+                    aiTier: data.ai_tier || 'none',
+                    aiDailyUsed: data.ai_daily_used || 0
                 });
             }, 800);
         } else {
@@ -104,7 +106,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               joined_at: newUser.created_at,
               membershipTier: 'free',
               completedCoursesCount: 0,
-              isLifetimeMember: false
+              isLifetimeMember: false,
+              aiTier: 'none',
+              aiDailyUsed: 0
           });
 
       } catch (err: any) {
@@ -144,7 +148,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           joined_at: demoUser.created_at,
           membershipTier: 'free',
           completedCoursesCount: 0,
-          isLifetimeMember: false
+          isLifetimeMember: false,
+          aiTier: 'none',
+          aiDailyUsed: 0
       });
   };
 

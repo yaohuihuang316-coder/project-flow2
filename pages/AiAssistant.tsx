@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, Loader2, Eraser, Lightbulb, AlertTriangle, Crown } from 'lucide-react';
-import { UserProfile, ChatMessage, Page } from '../types';
+import { UserProfile, ChatMessage } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabaseClient';
 import { 
