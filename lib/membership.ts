@@ -7,14 +7,23 @@
 import { Page, UserProfile, MembershipTier, MembershipRequirement } from '../types';
 
 // 会员等级配置
-export const MEMBERSHIP_CONFIG = {
+export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
+  level: number;
+  name: string;
+  badge: string;
+  color: string;
+  gradient: string;
+  icon: string;
+  requiredCourses: number;
+}> = {
   free: {
     level: 0,
     name: '免费会员',
     badge: 'FREE',
     color: 'bg-gray-100 text-gray-600',
     gradient: 'from-gray-400 to-gray-500',
-    icon: 'Star'
+    icon: 'Star',
+    requiredCourses: 0
   },
   pro: {
     level: 1,
@@ -161,10 +170,10 @@ export function getNextTierInfo(user: UserProfile | null) {
     tier: nextTier,
     name: config.name,
     badge: config.badge,
-    requiredCourses: config.requiredCourses || 0,
+    requiredCourses: config.requiredCourses,
     completedCourses: user.completedCoursesCount || 0,
-    remainingCourses: (config.requiredCourses || 0) - (user.completedCoursesCount || 0),
-    progress: Math.min(100, ((user.completedCoursesCount || 0) / (config.requiredCourses || 1)) * 100)
+    remainingCourses: config.requiredCourses - (user.completedCoursesCount || 0),
+    progress: Math.min(100, ((user.completedCoursesCount || 0) / Math.max(1, config.requiredCourses)) * 100)
   };
 }
 

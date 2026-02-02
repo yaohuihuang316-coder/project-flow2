@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Lock, Award, BookOpen, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Lock, BookOpen, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
-import { checkAccess, MEMBERSHIP_REQUIREMENTS, getMembershipDisplay } from '../lib/membership';
+import { checkAccess, MEMBERSHIP_REQUIREMENTS } from '../lib/membership';
 import MembershipBadge from './MembershipBadge';
 
 interface MembershipGuardProps {

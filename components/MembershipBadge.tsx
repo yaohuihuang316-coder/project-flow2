@@ -71,7 +71,6 @@ interface MembershipProgressProps {
 export const MembershipProgress: React.FC<MembershipProgressProps> = ({
   current,
   target,
-  tier,
   size = 'md'
 }) => {
   const progress = Math.min(100, (current / target) * 100);
