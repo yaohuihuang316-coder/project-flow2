@@ -309,7 +309,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6"
             >
                 <div className="max-w-5xl mx-auto space-y-5">
-                    {messages.map((msg, index) => (
+                    {messages.map((msg) => (
                         <div
                             key={msg.id}
                             className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}

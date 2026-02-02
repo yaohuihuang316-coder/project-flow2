@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Crown, Users, Search, Plus, Trash2, RefreshCw,
+  Users, Search, Plus, Trash2, RefreshCw,
   CheckCircle2, XCircle, Loader2, Gift, Download,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -85,7 +85,7 @@ const AdminMembership: React.FC = () => {
         setStats({
           totalUsers: formattedUsers.length,
           freeUsers: formattedUsers.filter(u => u.membershipTier === 'free').length,
-          basicUsers: formattedUsers.filter(u => u.membershipTier === 'basic').length,
+          basicUsers: 0, // 'basic' tier removed
           proUsers: formattedUsers.filter(u => u.membershipTier === 'pro').length,
           proPlusUsers: formattedUsers.filter(u => u.membershipTier === 'pro_plus').length
         });

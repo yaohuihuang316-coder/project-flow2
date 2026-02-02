@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { 
   FlaskConical, Calculator, Users, Kanban, 
-  ChevronLeft, Sparkles, ArrowRight, TrendingDown,
-  TrendingUp, Gauge, ShieldAlert, Link2, GitBranch,
-  DollarSign, Lock, Crown, AlertCircle
+  ChevronLeft, ArrowRight, TrendingDown,
+  TrendingUp, Link2, GitBranch,
+  DollarSign, Lock, Crown
 } from 'lucide-react';
 import { UserProfile, MembershipTier, Page } from '../types';
 import { MEMBERSHIP_CONFIG, hasTier } from '../lib/membership';
@@ -138,7 +138,7 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
 
   // 检查用户是否有权限使用工具
   const canUseTool = (tool: ToolConfig): boolean => {
-    return hasTier(currentUser, tool.requiredTier);
+    return hasTier(currentUser || null, tool.requiredTier);
   };
 
   // 处理工具点击

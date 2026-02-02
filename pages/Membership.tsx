@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Crown, Sparkles, Check, X, ChevronRight, 
+  Crown, Sparkles, Check, X,
   BookOpen, Zap, Target, Gift, Clock,
   Loader2, AlertCircle
 } from 'lucide-react';
@@ -14,12 +14,7 @@ interface MembershipProps {
   onNavigate: (page: Page, param?: string) => void;
 }
 
-interface MembershipCode {
-  id: string;
-  code: string;
-  tier: MembershipTier;
-  durationDays: number;
-}
+// MembershipCode type moved to types.ts
 
 const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'upgrade' | 'codes'>('overview');
@@ -33,7 +28,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
   });
 
   const currentTier = currentUser?.membershipTier || 'free';
-  const nextTierInfo = getNextTierInfo(currentUser);
+  const nextTierInfo = getNextTierInfo(currentUser || null);
 
   // 获取用户课程完成统计
   useEffect(() => {
@@ -47,7 +42,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
       
       if (data) {
         const completed = data.filter(d => d.progress >= 100).length;
-        const nextRequired = currentTier === 'free' ? 5 : currentTier === 'basic' ? 10 : 0;
+        const nextRequired = currentTier === 'free' ? 5 : currentTier === 'pro' ? 10 : 0;
         setStats({
           completedCourses: completed,
           nextTierProgress: Math.min(completed, nextRequired),
@@ -259,14 +254,14 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
       {activeTab === 'upgrade' && (
         <div className="space-y-6">
           <div className="grid md:grid-cols-3 gap-6">
-            {/* Basic Plan */}
-            <div className={`rounded-3xl p-6 border-2 ${currentTier === 'basic' ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}>
+            {/* Free Plan */}
+            <div className={`rounded-3xl p-6 border-2 ${currentTier === 'free' ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}>
               <div className="text-center mb-6">
                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <Sparkles size={24} className="text-blue-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">Basic</h3>
-                <p className="text-gray-500 text-sm mt-1">基础会员</p>
+                <h3 className="text-xl font-bold text-gray-900">Free</h3>
+                <p className="text-gray-500 text-sm mt-1">免费会员</p>
               </div>
               <div className="text-center mb-6">
                 <span className="text-3xl font-bold text-gray-900">免费</span>
@@ -279,7 +274,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
                   </li>
                 ))}
               </ul>
-              {currentTier === 'basic' ? (
+              {currentTier === 'free' ? (
                 <button disabled className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium">
                   当前等级
                 </button>
