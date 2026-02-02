@@ -1,5 +1,5 @@
 // AI 模型配置
-import { AIModelConfig, AITier, MembershipTier } from '../types';
+import { AIModelConfig, MembershipTier } from '../types';
 
 export const AI_MODELS: Record<'basic' | 'pro', AIModelConfig> = {
   basic: {
@@ -28,10 +28,9 @@ export const AI_MODELS: Record<'basic' | 'pro', AIModelConfig> = {
 
 // 每日调用限制
 export const AI_DAILY_LIMITS: Record<MembershipTier, number> = {
-  free: 0,
-  basic: 50,
-  pro: 100,
-  pro_plus: 300
+  free: 5,
+  pro: 20,
+  pro_plus: 50
 };
 
 // 检查用户是否有权限使用AI模型
@@ -41,11 +40,11 @@ export const canUseAIModel = (
 ): boolean => {
   const tierLevels: Record<MembershipTier, number> = {
     free: 0,
-    basic: 1,
-    pro: 2,
-    pro_plus: 3
+    pro: 1,
+    pro_plus: 2
   };
-  const requiredLevel = modelType === 'pro' ? 3 : 1; // pro模型需要pro_plus
+  // pro模型需要pro_plus, basic模型需要pro
+  const requiredLevel = modelType === 'pro' ? 2 : 1;
   return tierLevels[userTier] >= requiredLevel;
 };
 
