@@ -103,17 +103,17 @@ const FMEATool: React.FC<FMEAToolProps> = ({ currentUser }) => {
           <div className="bg-red-50 rounded-2xl border border-red-200 p-5">
             <div className="flex items-center gap-2 text-red-600 mb-1"><AlertTriangle size={16} /><span className="text-xs uppercase tracking-wider font-medium">高风险</span></div>
             <p className="text-3xl font-bold text-red-600">{stats.highRisk}</p>
-            <p className="text-xs text-red-400">RPN >= 200</p>
+            <p className="text-xs text-red-400">RPN {'>='} 200</p>
           </div>
           <div className="bg-amber-50 rounded-2xl border border-amber-200 p-5">
             <div className="flex items-center gap-2 text-amber-600 mb-1"><AlertCircle size={16} /><span className="text-xs uppercase tracking-wider font-medium">中风险</span></div>
             <p className="text-3xl font-bold text-amber-600">{stats.mediumRisk}</p>
-            <p className="text-xs text-amber-400">100 <= RPN < 200</p>
+            <p className="text-xs text-amber-400">100 {'<='} RPN {'<'} 200</p>
           </div>
           <div className="bg-green-50 rounded-2xl border border-green-200 p-5">
             <div className="flex items-center gap-2 text-green-600 mb-1"><CheckCircle2 size={16} /><span className="text-xs uppercase tracking-wider font-medium">低风险</span></div>
             <p className="text-3xl font-bold text-green-600">{stats.lowRisk}</p>
-            <p className="text-xs text-green-400">RPN < 100</p>
+            <p className="text-xs text-green-400">RPN {'<'} 100</p>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-5">
             <div className="flex items-center gap-2 text-gray-500 mb-1"><Filter size={16} /><span className="text-xs uppercase tracking-wider">平均RPN</span></div>
