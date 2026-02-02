@@ -114,7 +114,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 role: 'ai',
                 content: '⚠️ Kimi 2.5 需要 Pro+ 会员才能使用。请切换到 Gemini Flash 或升级会员。',
                 timestamp: new Date()
-            }]];
+            }]);
             return;
         }
 

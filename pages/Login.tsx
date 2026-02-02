@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { ArrowRight, Mail, User, Loader2, AlertCircle, CheckCircle2, Database } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { normalizeMembershipTier } from '../lib/membership';
 
 interface LoginProps {
   onLogin: (user: UserProfile) => void;
@@ -45,7 +46,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     avatar: data.avatar,
                     department: data.department,
                     joined_at: data.created_at,
-                    membershipTier: data.membership_tier || 'free',
+                    membershipTier: normalizeMembershipTier(data.subscription_tier),
                     completedCoursesCount: data.completed_courses_count || 0,
                     isLifetimeMember: data.is_lifetime_member || false
                 });

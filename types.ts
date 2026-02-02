@@ -28,8 +28,8 @@ export enum Page {
 
 export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor' | 'Student';
 
-// 会员等级类型
-export type MembershipTier = 'free' | 'basic' | 'pro' | 'pro_plus';
+// 会员等级类型 - 代码中使用小写，数据库读取时转换
+export type MembershipTier = 'free' | 'pro' | 'pro_plus';
 
 // AI 等级类型
 export type AITier = 'none' | 'basic' | 'pro';

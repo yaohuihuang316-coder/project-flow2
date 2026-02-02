@@ -11,7 +11,8 @@ import {
     ArrowRight, Zap, Save,
     AlertTriangle, Play,
     CheckCircle2,
-    Lock, Award, FileDown
+    Lock, Award, FileDown,
+    FlaskConical, Crown
 } from 'lucide-react';
 import {
     XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -174,6 +175,15 @@ const LAB_CATEGORIES = {
             { id: 'retro', name: '复盘回顾', icon: RefreshCw },
             { id: 'userstory', name: '用户故事', icon: BookOpen },
         ]
+    },
+    ProLab: {
+        label: 'Pro Lab (高级实验室)',
+        color: 'from-amber-500 to-orange-600',
+        desc: '专业会员专属高级工具集',
+        tools: [
+            { id: 'prolab', name: '进入 Pro Lab', icon: FlaskConical, isExternal: true },
+        ],
+        requiresMembership: 'pro'
     }
 };
 
@@ -500,11 +510,11 @@ const CpmStudio = () => {
                     {/* SVG Layer (Edges) */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
                         <defs>
-                            <marker id="arrow" markerWidth="6" markerHeight="6" refX="24" refY="3" orient="auto">
-                                <path d="M0,0 L0,6 L6,3 z" fill="#D1D5DB" />
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                <path d="M0,0 L0,10 L10,5 z" fill="#D1D5DB" />
                             </marker>
-                            <marker id="arrow-critical" markerWidth="6" markerHeight="6" refX="24" refY="3" orient="auto">
-                                <path d="M0,0 L0,6 L6,3 z" fill="#FF3B30" />
+                            <marker id="arrow-critical" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+                                <path d="M0,0 L0,10 L10,5 z" fill="#FF3B30" />
                             </marker>
                         </defs>
                         {calculatedTasks.map((task) => {
@@ -528,6 +538,12 @@ const CpmStudio = () => {
                                 const midX = (startX + endX) / 2;
                                 const path = `M${startX},${startY} C${midX},${startY} ${midX},${endY} ${endX},${endY}`;
 
+                                // Calculate bezier curve midpoint for label placement
+                                // Cubic bezier: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+                                // At t=0.5: x = (startX + 6*midX + endX) / 8, y = (startY + endY) / 2
+                                const labelX = (startX + 6 * midX + endX) / 8;
+                                const labelY = (startY + endY) / 2;
+
                                 return (
                                     <g key={`${pid}-${task.id}`}>
                                         <path
@@ -540,11 +556,23 @@ const CpmStudio = () => {
                                             className={showCritical ? "animate-flow" : "transition-colors duration-1000"}
                                             style={{ opacity: showCritical ? 1 : 0.4 }}
                                         />
-                                        {/* Slack Label on Line if Slack > 0 */}
-                                        {isCalculated && !isCriticalLink && task.slack > 0 && (
-                                            <text x={(startX + endX) / 2} y={(startY + endY) / 2} fill="#34C759" fontSize="10" fontWeight="bold" textAnchor="middle" dy="-5">
-                                                +{task.slack}d
-                                            </text>
+                                        {/* Slack Label on Curve if Slack > 0 */}
+                                        {isCalculated && !isCriticalLink && parent.slack > 0 && (
+                                            <g>
+                                                {/* Background for better readability */}
+                                                <circle cx={labelX} cy={labelY} r="12" fill="white" opacity="0.9" />
+                                                <text 
+                                                    x={labelX} 
+                                                    y={labelY} 
+                                                    fill="#34C759" 
+                                                    fontSize="10" 
+                                                    fontWeight="bold" 
+                                                    textAnchor="middle" 
+                                                    dominantBaseline="middle"
+                                                >
+                                                    +{parent.slack}d
+                                                </text>
+                                            </g>
                                         )}
                                     </g>
                                 );
@@ -2690,8 +2718,39 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
     );
 };
 
+// --- PRO LAB ENTRY VIEW ---
+const ProLabEntryView = ({ onNavigate }: { onNavigate: (page: Page) => void }) => {
+    return (
+        <div className="flex flex-col items-center justify-center h-full p-10">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mb-6 shadow-xl shadow-amber-500/20">
+                <FlaskConical size={48} className="text-white" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Pro Lab 高级实验室</h2>
+            <p className="text-gray-500 text-center max-w-md mb-8">
+                解锁10+高级项目管理工具：蒙特卡洛模拟、敏捷估算扑克、Kanban流动指标、
+                学习曲线分析、FMEA风险评估、CCPM关键链、鱼骨图分析等。
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+                {['蒙特卡洛', '估算扑克', 'Kanban流', '学习曲线', 'FMEA'].map((name, i) => (
+                    <div key={i} className="bg-gray-50 rounded-xl px-4 py-3 text-center">
+                        <span className="text-xs font-bold text-gray-600">{name}</span>
+                    </div>
+                ))}
+            </div>
+            <button 
+                onClick={() => onNavigate(Page.TOOLS_LAB)}
+                className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl font-bold text-lg hover:shadow-xl hover:scale-105 transition-all flex items-center gap-3"
+            >
+                <Zap size={20} fill="currentColor" />
+                进入 Pro Lab
+                <ArrowRight size={20} />
+            </button>
+        </div>
+    );
+};
+
 // --- WRAPPER FOR TOOLS ---
-const LabToolView = ({ toolId, onClose }: { toolId: string, onClose: () => void }) => {
+const LabToolView = ({ toolId, onClose, onNavigate }: { toolId: string, onClose: () => void, onNavigate?: (page: Page) => void }) => {
     const renderTool = () => {
         switch (toolId) {
             case 'cpm': return <CpmStudio />;
@@ -2706,6 +2765,7 @@ const LabToolView = ({ toolId, onClose }: { toolId: string, onClose: () => void 
             case 'userstory': return <UserStorySplitter />;
             case 'risk': return <RiskEmvCalculator />;
             case 'okr': return <OkrAlignment />;
+            case 'prolab': return onNavigate ? <ProLabEntryView onNavigate={onNavigate} /> : <div className="flex justify-center items-center h-full text-gray-400">Navigation not available</div>;
             default: return <div className="flex justify-center items-center h-full text-gray-400">Tool Coming Soon</div>;
         }
     };
@@ -2721,29 +2781,69 @@ const LabToolView = ({ toolId, onClose }: { toolId: string, onClose: () => void 
 }
 
 // --- ADVANCED LAB VIEW ---
-const AdvancedLabView = ({ onSelect }: { onSelect: (tool: any) => void }) => {
+const AdvancedLabView = ({ onSelect, userMembership }: { onSelect: (tool: any) => void, userMembership: string }) => {
     return (
         <div className="space-y-12 pb-10">
-            {Object.entries(LAB_CATEGORIES).map(([category, data]) => (
+            {Object.entries(LAB_CATEGORIES).map(([category, data]: [string, any]) => {
+                // Check membership requirement
+                const requiresMembership = data.requiresMembership;
+                const isLocked = requiresMembership && userMembership === 'free';
+                
+                return (
                 <div key={category} className="space-y-4">
                     <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                         {category === 'Quantitative' && <BarChart3 className="text-blue-500" />}
                         {category === 'Strategic' && <Shield className="text-purple-500" />}
                         {category === 'Toolkit' && <Layers className="text-green-500" />}
+                        {category === 'ProLab' && <FlaskConical className="text-amber-500" />}
                         {data.label}
+                        {requiresMembership && (
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                userMembership === 'pro_plus' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' :
+                                userMembership === 'pro' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' :
+                                'bg-gray-200 text-gray-600'
+                            }`}>
+                                {requiresMembership === 'pro' ? 'PRO' : 'PRO+'}
+                            </span>
+                        )}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {data.tools.map((tool: any) => (
-                            <div key={tool.id} onClick={() => onSelect(tool)} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group relative overflow-hidden">
+                            <div key={tool.id} 
+                                 onClick={() => !isLocked && onSelect(tool)} 
+                                 className={`bg-white p-6 rounded-2xl shadow-sm border transition-all relative overflow-hidden ${
+                                     isLocked 
+                                         ? 'border-gray-200 opacity-60 cursor-not-allowed' 
+                                         : 'border-gray-100 hover:shadow-xl hover:-translate-y-1 cursor-pointer group'
+                                 }`}>
+                                {isLocked && (
+                                    <div className="absolute inset-0 bg-gray-50/80 backdrop-blur-[1px] flex flex-col items-center justify-center z-10">
+                                        <Lock className="text-gray-400 mb-2" size={24} />
+                                        <span className="text-xs font-bold text-gray-500">需要 {requiresMembership === 'pro' ? 'Pro' : 'Pro+'} 会员</span>
+                                        <span className="text-[10px] text-gray-400 mt-1">完成 {requiresMembership === 'pro' ? '5' : '10'} 门课程解锁</span>
+                                    </div>
+                                )}
                                 <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110`}><tool.icon size={80} /></div>
-                                <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 mb-4 group-hover:bg-black group-hover:text-white transition-colors shadow-sm"><tool.icon size={24} /></div>
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors shadow-sm ${
+                                    category === 'ProLab' 
+                                        ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white' 
+                                        : 'bg-gray-50 text-gray-600 group-hover:bg-black group-hover:text-white'
+                                }`}>
+                                    <tool.icon size={24} />
+                                </div>
                                 <h4 className="font-bold text-gray-900 text-lg mb-1">{tool.name}</h4>
-                                <div className="mt-4 flex items-center gap-1 text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">进入实验室 <ArrowRight size={12} /></div>
+                                {category === 'ProLab' && (
+                                    <p className="text-xs text-gray-500 mb-2">蒙特卡洛、看板流、FMEA等10+高级工具</p>
+                                )}
+                                <div className="mt-4 flex items-center gap-1 text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
+                                    {category === 'ProLab' ? '进入高级实验室' : '进入实验室'} <ArrowRight size={12} />
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
@@ -2800,7 +2900,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                             ) : (<div className="text-center py-20 text-gray-400">暂无课程</div>)}
                         </div>
                     )}
-                    {mainTab === 'Advanced' && !selectedItem && (<AdvancedLabView onSelect={(t: any) => setSelectedItem({ type: 'lab', ...t })} />)}
+                    {mainTab === 'Advanced' && !selectedItem && (<AdvancedLabView onSelect={(t: any) => setSelectedItem({ type: 'lab', ...t })} userMembership={currentUser?.membershipTier || 'free'} />)}
                     {mainTab === 'Implementation' && !selectedItem && (
                         <div className="pb-10 grid grid-cols-1 gap-8">
                             {CLASSIC_CASES.map((caseItem) => (
@@ -2813,7 +2913,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                     )}
                 </div>
             </div>
-            {selectedItem?.type === 'lab' && (<LabToolView toolId={selectedItem.id} onClose={() => setSelectedItem(null)} />)}
+            {selectedItem?.type === 'lab' && (<LabToolView toolId={selectedItem.id} onClose={() => setSelectedItem(null)} onNavigate={onNavigate} />)}
             {selectedItem?.type === 'simulation' && (<ProjectSimulationView caseData={selectedItem.data} onClose={() => setSelectedItem(null)} currentUser={currentUser} />)}
         </ToastProvider>
     );

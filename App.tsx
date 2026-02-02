@@ -136,7 +136,11 @@ const App: React.FC = () => {
       case Page.TOOLS_LAB:
         return (
           <MembershipGuard user={currentUser} targetPage={Page.TOOLS_LAB} onNavigate={navigateTo}>
-            <ToolsLab onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />
+            <ToolsLab 
+              onBack={() => navigateTo(Page.DASHBOARD)} 
+              currentUser={currentUser}
+              onNavigate={navigateTo}
+            />
           </MembershipGuard>
         );
       case Page.MEMBERSHIP:

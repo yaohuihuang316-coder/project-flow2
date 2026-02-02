@@ -2,11 +2,39 @@
 /**
  * Membership System - Utilities
  * 会员系统工具函数
+ * 
+ * 注意：数据库 subscription_tier 使用 'Free'|'Pro'|'Pro+'
+ * 代码中使用小写 'free'|'pro'|'pro_plus'
  */
 
 import { Page, UserProfile, MembershipTier, MembershipRequirement } from '../types';
 
-// 会员等级配置
+/**
+ * 转换数据库会员等级值为代码格式
+ * 数据库: 'Free' | 'Pro' | 'Pro+'  →  代码: 'free' | 'pro' | 'pro_plus'
+ */
+export function normalizeMembershipTier(dbTier: string | null | undefined): MembershipTier {
+  if (!dbTier) return 'free';
+  const tier = dbTier.toLowerCase();
+  if (tier === 'pro+') return 'pro_plus';
+  if (tier === 'pro') return 'pro';
+  return 'free';
+}
+
+/**
+ * 转换代码会员等级值为数据库格式
+ * 代码: 'free' | 'pro' | 'pro_plus'  →  数据库: 'Free' | 'Pro' | 'Pro+'
+ */
+export function toDatabaseMembershipTier(tier: MembershipTier): string {
+  const tierMap: Record<MembershipTier, string> = {
+    free: 'Free',
+    pro: 'Pro',
+    pro_plus: 'Pro+'
+  };
+  return tierMap[tier] || 'Free';
+}
+
+// 会员等级配置 - 与数据库保持一致
 export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
   level: number;
   name: string;
@@ -25,32 +53,23 @@ export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
     icon: 'Star',
     requiredCourses: 0
   },
-  basic: {
-    level: 1,
-    name: '基础会员',
-    badge: 'BASIC',
-    color: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white',
-    gradient: 'from-blue-500 to-blue-600',
-    icon: 'Sparkles',
-    requiredCourses: 5
-  },
   pro: {
-    level: 2,
+    level: 1,
     name: '专业会员',
     badge: 'PRO',
-    color: 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white',
-    gradient: 'from-purple-500 to-indigo-500',
+    color: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
+    gradient: 'from-blue-500 to-cyan-500',
     icon: 'Crown',
-    requiredCourses: 10
+    requiredCourses: 5  // 5门课程解锁
   },
   pro_plus: {
-    level: 3,
+    level: 2,
     name: '高级会员',
     badge: 'PRO+',
     color: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
     gradient: 'from-amber-500 to-orange-500',
     icon: 'Crown',
-    requiredCourses: 15
+    requiredCourses: 10  // 10门课程解锁
   }
 };
 
@@ -124,7 +143,7 @@ export function checkAccess(
     return { allowed: true, currentTier: user.membershipTier };
   }
   
-  const tierLevels: Record<MembershipTier, number> = { free: 0, basic: 1, pro: 2, pro_plus: 3 };
+  const tierLevels: Record<MembershipTier, number> = { free: 0, pro: 1, pro_plus: 2 };
   const userLevel = tierLevels[user.membershipTier];
   const requiredLevel = tierLevels[req.minTier];
   
