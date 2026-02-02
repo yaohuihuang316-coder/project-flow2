@@ -5,7 +5,7 @@ import {
   BookOpen, Zap, Target, Gift, Clock,
   Loader2, AlertCircle
 } from 'lucide-react';
-import { Page, UserProfile, MembershipTier } from '../types';
+import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { MEMBERSHIP_CONFIG, getNextTierInfo } from '../lib/membership';
 
