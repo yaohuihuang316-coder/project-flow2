@@ -228,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
 
         {/* --- Middle Right: Membership Card (Span 1) --- */}
         <div className="md:col-span-1">
-            <MembershipCard user={currentUser} onNavigate={onNavigate} />
+            <MembershipCard user={currentUser || null} onNavigate={onNavigate} />
         </div>
 
         {/* --- Bottom: Profile Banner (Span 3) --- */}
@@ -351,11 +351,10 @@ const ToolsLabWidget = () => {
 
             <div className="flex-1 p-5 flex flex-col justify-center relative">
                 <div className="space-y-3">
-                    {tools.map((tool, idx) => (
+                    {tools.map((tool) => (
                         <div 
                             key={tool.name}
                             className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-purple-100/50"
-                            style={{ animationDelay: `${idx * 100}ms` }}
                         >
                             <div className={`w-8 h-8 ${tool.color} rounded-lg flex items-center justify-center text-white text-sm`}>
                                 {tool.icon}

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Gauge, Plus, Trash2, Save, Download, TrendingUp, Calendar, Target, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Gauge, Plus, Trash2, Save, Download, TrendingUp, Calendar, Target, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Area, AreaChart } from 'recharts';

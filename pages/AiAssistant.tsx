@@ -335,7 +335,7 @@ ${userContext.progressPercent > 0 ? `- 课程进度: ${userContext.progressPerce
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
                 @keyframes fadeIn {
                     from {
                         opacity: 0;

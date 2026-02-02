@@ -122,46 +122,6 @@ const Skeleton: React.FC<{ className?: string; width?: string; height?: string }
     <div className={`bg-gray-200 rounded animate-pulse ${width} ${height} ${className}`} />
 );
 
-const WbsTreeSkeleton = () => (
-    <div className="space-y-3 p-6">
-        <Skeleton width="w-3/4" height="h-6" />
-        <div className="ml-6 space-y-2">
-            <Skeleton width="w-2/3" height="h-5" />
-            <Skeleton width="w-1/2" height="h-5" />
-        </div>
-        <Skeleton width="w-3/4" height="h-6" />
-        <div className="ml-6 space-y-2">
-            <Skeleton width="w-2/3" height="h-5" />
-        </div>
-    </div>
-);
-
-const RetroCardSkeleton = () => (
-    <div className="grid grid-cols-3 gap-4 p-6">
-        {[1, 2, 3].map((i) => (
-            <div key={i} className="space-y-3">
-                <Skeleton width="w-1/2" height="h-6" />
-                <Skeleton height="h-24" />
-                <Skeleton height="h-20" />
-            </div>
-        ))}
-    </div>
-);
-
-const OkrItemSkeleton = () => (
-    <div className="space-y-4 p-6">
-        {[1, 2].map((i) => (
-            <div key={i} className="space-y-2">
-                <Skeleton width="w-2/3" height="h-6" />
-                <div className="ml-6 space-y-2">
-                    <Skeleton width="w-full" height="h-4" />
-                    <Skeleton width="w-5/6" height="h-4" />
-                </div>
-            </div>
-        ))}
-    </div>
-);
-
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
 type SubCategory = 'Course' | 'Cert' | 'Official';
