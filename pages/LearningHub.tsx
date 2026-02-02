@@ -113,15 +113,6 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     );
 };
 
-// --- Skeleton Loading Components ---
-const Skeleton: React.FC<{ className?: string; width?: string; height?: string }> = ({
-    className = '',
-    width = 'w-full',
-    height = 'h-4'
-}) => (
-    <div className={`bg-gray-200 rounded animate-pulse ${width} ${height} ${className}`} />
-);
-
 // --- Types ---
 type MainCategory = 'Foundation' | 'Advanced' | 'Implementation';
 type SubCategory = 'Course' | 'Cert' | 'Official';

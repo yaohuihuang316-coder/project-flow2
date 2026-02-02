@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from 'recharts';
-import { Calendar, Trophy, ArrowUpRight, Activity, Share2, FileText, ChevronRight, FlaskConical } from 'lucide-react';
+import { Calendar, Trophy, ArrowUpRight, Activity, Share2, FileText, ChevronRight } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import MembershipCard from '../components/MembershipCard';
@@ -330,57 +330,5 @@ const KnowledgeGraphWidget = () => {
         </div>
     );
 };
-
-// --- Sub-Component: Tools Lab Widget ---
-const ToolsLabWidget = () => {
-    const tools = [
-        { name: '蒙特卡洛', color: 'bg-blue-500', icon: '🎲' },
-        { name: '估算扑克', color: 'bg-orange-500', icon: '🃏' },
-        { name: 'Kanban', color: 'bg-green-500', icon: '📊' },
-    ];
-
-    return (
-        <div className="w-full h-full bg-gradient-to-br from-purple-50 to-pink-50 rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-inner border border-purple-100">
-            {/* Header */}
-            <div className="h-12 w-full flex items-center justify-center border-b border-purple-100/50 bg-white/50 backdrop-blur-md z-10">
-                <span className="text-xs font-semibold text-purple-600 flex items-center gap-1">
-                    <FlaskConical size={12} />
-                    工具实验室
-                </span>
-            </div>
-
-            <div className="flex-1 p-5 flex flex-col justify-center relative">
-                <div className="space-y-3">
-                    {tools.map((tool) => (
-                        <div 
-                            key={tool.name}
-                            className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-purple-100/50"
-                        >
-                            <div className={`w-8 h-8 ${tool.color} rounded-lg flex items-center justify-center text-white text-sm`}>
-                                {tool.icon}
-                            </div>
-                            <span className="text-sm font-medium text-gray-700">{tool.name}</span>
-                            <ChevronRight size={14} className="ml-auto text-gray-400" />
-                        </div>
-                    ))}
-                </div>
-                
-                {/* CTA */}
-                <div className="mt-4 text-center">
-                    <span className="text-xs text-purple-500 font-medium bg-purple-100 px-3 py-1.5 rounded-full">
-                        3个工具可用
-                    </span>
-                </div>
-                
-                {/* CTA Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-white/0 group-hover:bg-white/10 transition-colors">
-                     <div className="bg-purple-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
-                         进入实验室
-                     </div>
-                </div>
-            </div>
-        </div>
-    );
- };
 
 export default Dashboard;
