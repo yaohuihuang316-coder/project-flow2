@@ -13,6 +13,7 @@ import Schedule from './pages/Schedule';
 import KnowledgeGraph from './pages/KnowledgeGraph';
 import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
+import Membership from './pages/Membership'; // 会员中心
 import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
@@ -21,12 +22,12 @@ import UserTable from './pages/admin/UserTable';
 import AdminProgress from './pages/admin/AdminProgress';
 import AdminContent from './pages/admin/AdminContent';
 import AdminCommunity from './pages/admin/AdminCommunity';
-import AdminAnnouncements from './pages/admin/AdminAnnouncements'; // New Import
-import AdminSettings from './pages/admin/AdminSettings';
-import AdminMonitor from './pages/admin/AdminMonitor';
+import AdminAnnouncements from './pages/admin/AdminAnnouncements';
+import AdminMembership from './pages/admin/AdminMembership'; // 会员管理
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminSystem from './pages/admin/AdminSystem';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
+// 已删除: AdminSettings, AdminMonitor
 import { Page, UserProfile } from './types';
 
 const App: React.FC = () => {
@@ -95,8 +96,7 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_EVENTS && <AdminEvents />}
           {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
           {currentPage === Page.ADMIN_SYSTEM && <AdminSystem />}
-          {currentPage === Page.ADMIN_SETTINGS && <AdminSettings />}
-          {currentPage === Page.ADMIN_MONITOR && <AdminMonitor />}
+          {currentPage === Page.ADMIN_MEMBERSHIP && <AdminMembership />}
         </AdminLayout>
       );
     }
@@ -139,6 +139,8 @@ const App: React.FC = () => {
             <ToolsLab onBack={() => navigateTo(Page.DASHBOARD)} currentUser={currentUser} />
           </MembershipGuard>
         );
+      case Page.MEMBERSHIP:
+        return <Membership currentUser={currentUser} onNavigate={navigateTo} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }

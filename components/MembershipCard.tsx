@@ -109,7 +109,7 @@ const MembershipCard: React.FC<MembershipCardProps> = ({ user, onNavigate }) => 
   // 默认显示
   return (
     <div 
-      onClick={() => onNavigate('PROFILE')}
+      onClick={() => onNavigate('MEMBERSHIP')}
       className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all"
     >
       <div className="flex items-center justify-between">
@@ -117,7 +117,7 @@ const MembershipCard: React.FC<MembershipCardProps> = ({ user, onNavigate }) => 
           <MembershipBadge tier="free" size="lg" />
           <div>
             <h3 className="font-bold text-gray-900">免费会员</h3>
-            <p className="text-sm text-gray-500">开始学习解锁更多功能</p>
+            <p className="text-sm text-gray-500">点击升级解锁更多功能</p>
           </div>
         </div>
         <Sparkles size={20} className="text-amber-400" />

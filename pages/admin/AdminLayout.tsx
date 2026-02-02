@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { Page, UserProfile } from '../../types';
 import {
-  LayoutDashboard, Users, Settings,
-  LogOut, Bell, Activity, Menu, X, MessageSquare,
+  LayoutDashboard, Users, Settings, Crown,
+  LogOut, Bell, Menu, X, MessageSquare,
   ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, Calendar, BarChart3
 } from 'lucide-react';
 
@@ -54,6 +54,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         { label: '日程活动', page: Page.ADMIN_EVENTS, icon: Calendar, roles: ['SuperAdmin', 'Manager'] },
         { label: '内容审核', page: Page.ADMIN_COMMUNITY, icon: MessageSquare, roles: ['SuperAdmin', 'Manager'] },
         { label: '全站公告', page: Page.ADMIN_ANNOUNCEMENTS, icon: Megaphone, roles: ['SuperAdmin', 'Manager'] },
+        { label: '会员管理', page: Page.ADMIN_MEMBERSHIP, icon: Crown, roles: ['SuperAdmin', 'Manager'] },
       ]
     },
     {
@@ -61,8 +62,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
       label: '系统核心 (System)',
       items: [
         { label: '系统配置', page: Page.ADMIN_SYSTEM, icon: Settings, roles: ['SuperAdmin'] },
-        { label: '全局设置', page: Page.ADMIN_SETTINGS, icon: Settings, roles: ['SuperAdmin'] },
-        { label: '服务监控', page: Page.ADMIN_MONITOR, icon: Activity, roles: ['SuperAdmin'] },
+        // 已删除: 全局设置、服务监控 (合并到系统配置)
       ]
     }
   ];

@@ -25,23 +25,32 @@ export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
     icon: 'Star',
     requiredCourses: 0
   },
-  pro: {
+  basic: {
     level: 1,
-    name: '专业会员',
-    badge: 'PRO',
-    color: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
-    gradient: 'from-blue-500 to-cyan-500',
-    icon: 'Diamond',
+    name: '基础会员',
+    badge: 'BASIC',
+    color: 'bg-gradient-to-r from-blue-500 to-blue-600 text-white',
+    gradient: 'from-blue-500 to-blue-600',
+    icon: 'Sparkles',
     requiredCourses: 5
   },
-  pro_plus: {
+  pro: {
     level: 2,
+    name: '专业会员',
+    badge: 'PRO',
+    color: 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white',
+    gradient: 'from-purple-500 to-indigo-500',
+    icon: 'Crown',
+    requiredCourses: 10
+  },
+  pro_plus: {
+    level: 3,
     name: '高级会员',
     badge: 'PRO+',
     color: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
     gradient: 'from-amber-500 to-orange-500',
     icon: 'Crown',
-    requiredCourses: 10
+    requiredCourses: 15
   }
 };
 
@@ -115,7 +124,7 @@ export function checkAccess(
     return { allowed: true, currentTier: user.membershipTier };
   }
   
-  const tierLevels: Record<MembershipTier, number> = { free: 0, pro: 1, pro_plus: 2 };
+  const tierLevels: Record<MembershipTier, number> = { free: 0, basic: 1, pro: 2, pro_plus: 3 };
   const userLevel = tierLevels[user.membershipTier];
   const requiredLevel = tierLevels[req.minTier];
   
@@ -150,7 +159,7 @@ export function hasTier(
   minTier: MembershipTier
 ): boolean {
   if (!user) return false;
-  const levels: Record<MembershipTier, number> = { free: 0, pro: 1, pro_plus: 2 };
+  const levels: Record<MembershipTier, number> = { free: 0, basic: 1, pro: 2, pro_plus: 3 };
   return levels[user.membershipTier] >= levels[minTier];
 }
 
@@ -158,7 +167,7 @@ export function hasTier(
 export function getNextTierInfo(user: UserProfile | null) {
   if (!user) return null;
   
-  const tierOrder: MembershipTier[] = ['free', 'pro', 'pro_plus'];
+  const tierOrder: MembershipTier[] = ['free', 'basic', 'pro', 'pro_plus'];
   const currentIndex = tierOrder.indexOf(user.membershipTier);
   
   if (currentIndex >= tierOrder.length - 1) return null; // 已是最高级
@@ -172,7 +181,7 @@ export function getNextTierInfo(user: UserProfile | null) {
     badge: config.badge,
     requiredCourses: config.requiredCourses,
     completedCourses: user.completedCoursesCount || 0,
-    remainingCourses: config.requiredCourses - (user.completedCoursesCount || 0),
+    remainingCourses: Math.max(0, config.requiredCourses - (user.completedCoursesCount || 0)),
     progress: Math.min(100, ((user.completedCoursesCount || 0) / Math.max(1, config.requiredCourses)) * 100)
   };
 }
