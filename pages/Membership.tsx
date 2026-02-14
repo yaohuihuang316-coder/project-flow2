@@ -420,6 +420,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
             }`}
             disabled={currentTier === 'pro'}
+            onClick={() => currentTier !== 'pro' && onNavigate(Page.PAYMENT, 'pro')}
           >
             {currentTier === 'pro' ? '当前计划' : currentTier === 'pro_plus' ? '已拥有' : '立即升级'}
           </button>
@@ -468,6 +469,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
                 : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-xl hover:shadow-amber-200'
             }`}
             disabled={currentTier === 'pro_plus'}
+            onClick={() => currentTier !== 'pro_plus' && onNavigate(Page.PAYMENT, 'pro_plus')}
           >
             {currentTier === 'pro_plus' ? '当前计划' : '立即升级'}
           </button>

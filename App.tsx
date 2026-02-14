@@ -14,6 +14,7 @@ import KnowledgeGraph from './pages/KnowledgeGraph';
 import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
 import Membership from './pages/Membership'; // 会员中心
+import Payment from './pages/Payment'; // 支付页面
 import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
@@ -146,6 +147,8 @@ const App: React.FC = () => {
         );
       case Page.MEMBERSHIP:
         return <Membership currentUser={currentUser} onNavigate={navigateTo} />;
+      case Page.PAYMENT:
+        return <Payment currentUser={currentUser} onNavigate={navigateTo} targetTier={currentParam as 'pro' | 'pro_plus'} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }

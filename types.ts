@@ -12,6 +12,7 @@ export enum Page {
   SIMULATION = 'SIMULATION',
   TOOLS_LAB = 'TOOLS_LAB',
   MEMBERSHIP = 'MEMBERSHIP', // 会员中心
+  PAYMENT = 'PAYMENT', // 支付页面
   // Admin Pages
   ADMIN_DASHBOARD = 'ADMIN_DASHBOARD',
   ADMIN_USERS = 'ADMIN_USERS',
