@@ -355,9 +355,11 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
           <div className="flex items-center gap-4 mb-8">
             <button 
               onClick={onBack}
-              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-all"
+              title="返回上一页"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={20} />
+              <span className="text-sm font-medium">返回</span>
             </button>
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">

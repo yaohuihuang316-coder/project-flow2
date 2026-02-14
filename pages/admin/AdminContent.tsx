@@ -36,8 +36,16 @@ const AdminContent: React.FC<AdminContentProps> = ({ initialTab = 'courses' }) =
     const fetchContent = async () => {
         setIsLoading(true);
         try {
+            // 根据 activeTab 决定从哪个表读取数据
+            let tableName = 'app_courses';
+            if (activeTab === 'labs') {
+                tableName = 'app_tools';
+            } else if (activeTab === 'projects') {
+                tableName = 'app_simulation_scenarios';
+            }
+
             const { data } = await supabase
-                .from('app_courses')
+                .from(tableName)
                 .select('*')
                 .order('created_at', { ascending: false });
 

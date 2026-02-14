@@ -10,7 +10,7 @@ import Community from './pages/Community';
 import AiAssistant from './pages/AiAssistant';
 import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
-import KnowledgeGraph from './pages/KnowledgeGraph';
+import KnowledgeGraphV2 from './pages/KnowledgeGraphV2'; // 新版知识图谱
 import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
 import Membership from './pages/Membership'; // 会员中心
@@ -128,7 +128,7 @@ const App: React.FC = () => {
       case Page.SCHEDULE:
         return <Schedule currentUser={currentUser} />;
       case Page.KNOWLEDGE_GRAPH:
-        return <KnowledgeGraph onBack={() => navigateTo(Page.DASHBOARD)} onNavigate={navigateTo} />;
+        return <KnowledgeGraphV2 onNavigate={navigateTo} currentUser={currentUser} />;
       case Page.SIMULATION:
         return (
           <MembershipGuard user={currentUser} targetPage={Page.SIMULATION} onNavigate={navigateTo}>

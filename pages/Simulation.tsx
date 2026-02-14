@@ -349,33 +349,53 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
         const maxScore = calculateMaxScore(scenario);
         const percentage = Math.round((totalScore / maxScore) * 100);
         
-        // 创建一个临时的 DOM 元素用于渲染报告内容
-        const reportDiv = document.createElement('div');
-        reportDiv.style.cssText = `
+        // 创建一个隐藏的 iframe 用于渲染报告（隔离样式和字体）
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = `
             position: fixed;
             left: -9999px;
             top: 0;
             width: 794px;
-            padding: 40px;
-            background: white;
-            font-family: 'Microsoft YaHei', 'SimHei', 'PingFang SC', sans-serif;
-            color: #333;
+            height: 1200px;
+            border: none;
+            visibility: hidden;
         `;
+        document.body.appendChild(iframe);
+        
+        // 等待 iframe 加载
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            // 设置 iframe 内容
+            const doc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (doc) {
+                doc.open();
+                doc.write('<html><head></head><body></body></html>');
+                doc.close();
+                resolve(null);
+            }
+        });
+        
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (!iframeDoc) {
+            document.body.removeChild(iframe);
+            alert('PDF 生成失败，请重试');
+            return;
+        }
         
         // 生成决策历史 HTML
         const decisionHistoryHTML = stageHistory.map((history, idx) => {
             const stage = scenario.stages[idx];
             const decision = stage?.decisions.find(d => d.id === history.decision_id);
-            const scoreClass = history.score > 0 ? 'color: #22c55e;' : history.score < 0 ? 'color: #ef4444;' : 'color: #6b7280;';
-            const optimalBadge = decision?.is_optimal ? '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">最优解</span>' : '';
+            const scoreColor = history.score > 0 ? '#22c55e' : history.score < 0 ? '#ef4444' : '#6b7280';
+            const optimalBadge = decision?.is_optimal ? '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px; display: inline-block;">最优解</span>' : '';
             return `
-                <div style="display: flex; gap: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 12px;">
-                    <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">${idx + 1}</div>
+                <div style="display: flex; gap: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 12px; page-break-inside: avoid;">
+                    <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; font-size: 14px;">${idx + 1}</div>
                     <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #111; margin-bottom: 4px;">${stage?.title || '未知阶段'}</div>
-                        <div style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">你的选择: ${decision?.text || '未知'}</div>
+                        <div style="font-weight: 600; color: #111; margin-bottom: 4px; font-size: 14px; line-height: 1.4;">${stage?.title || '未知阶段'}</div>
+                        <div style="color: #6b7280; font-size: 13px; margin-bottom: 8px; line-height: 1.4;">你的选择: ${decision?.text || '未知'}</div>
                         <div style="display: flex; align-items: center;">
-                            <span style="${scoreClass} font-weight: 600; font-size: 14px;">${history.score > 0 ? '+' : ''}${history.score} 分</span>
+                            <span style="color: ${scoreColor}; font-weight: 600; font-size: 13px;">${history.score > 0 ? '+' : ''}${history.score} 分</span>
                             ${optimalBadge}
                         </div>
                     </div>
@@ -383,63 +403,212 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             `;
         }).join('');
         
-        // 设置报告内容
-        reportDiv.innerHTML = `
-            <div style="text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #3b82f6;">
-                <div style="font-size: 28px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">ProjectFlow 模拟评估报告</div>
-                <div style="font-size: 14px; color: #6b7280;">AI 驱动的项目管理能力评估</div>
-            </div>
-            
-            <div style="margin-bottom: 24px;">
-                <div style="font-size: 20px; font-weight: bold; color: #111; margin-bottom: 16px;">${scenario.title}</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 14px; color: #4b5563;">
-                    <div>难度级别: <span style="font-weight: 500; color: #111;">${scenario.difficulty}</span></div>
-                    <div>完成时间: <span style="font-weight: 500; color: #111;">${new Date().toLocaleString('zh-CN')}</span></div>
-                    <div>场景分类: <span style="font-weight: 500; color: #111;">${scenario.category}</span></div>
-                    <div>决策数量: <span style="font-weight: 500; color: #111;">${stageHistory.length} 个</span></div>
+        // 设置报告内容 - 使用系统默认中文字体
+        const reportHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    body {
+                        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", sans-serif;
+                        color: #333;
+                        line-height: 1.6;
+                        -webkit-font-smoothing: antialiased;
+                        -moz-osx-font-smoothing: grayscale;
+                    }
+                    .container {
+                        width: 714px;
+                        padding: 40px;
+                        background: white;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 32px;
+                        padding-bottom: 24px;
+                        border-bottom: 3px solid #3b82f6;
+                    }
+                    .header-title {
+                        font-size: 26px;
+                        font-weight: bold;
+                        color: #1f2937;
+                        margin-bottom: 8px;
+                    }
+                    .header-subtitle {
+                        font-size: 13px;
+                        color: #6b7280;
+                    }
+                    .info-section {
+                        margin-bottom: 24px;
+                    }
+                    .scenario-title {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #111;
+                        margin-bottom: 16px;
+                    }
+                    .info-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 12px;
+                        font-size: 13px;
+                        color: #4b5563;
+                    }
+                    .score-card {
+                        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+                        border-radius: 16px;
+                        padding: 24px;
+                        color: white;
+                        margin-bottom: 24px;
+                        text-align: center;
+                    }
+                    .score-label {
+                        font-size: 13px;
+                        opacity: 0.9;
+                        margin-bottom: 8px;
+                    }
+                    .score-value {
+                        font-size: 44px;
+                        font-weight: bold;
+                        margin-bottom: 8px;
+                    }
+                    .score-detail {
+                        font-size: 14px;
+                        opacity: 0.9;
+                    }
+                    .progress-bar {
+                        margin-top: 16px;
+                        background: rgba(255,255,255,0.2);
+                        border-radius: 8px;
+                        height: 8px;
+                        overflow: hidden;
+                    }
+                    .progress-fill {
+                        width: ${percentage}%;
+                        height: 100%;
+                        background: white;
+                        border-radius: 8px;
+                    }
+                    .section-title {
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: #111;
+                        margin-bottom: 16px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .section-bar {
+                        width: 4px;
+                        height: 18px;
+                        background: #3b82f6;
+                        border-radius: 2px;
+                    }
+                    .objectives-box {
+                        background: #f3f4f6;
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin-bottom: 24px;
+                    }
+                    .objectives-title {
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #374151;
+                        margin-bottom: 8px;
+                    }
+                    .objectives-list {
+                        margin: 0;
+                        padding-left: 20px;
+                        color: #6b7280;
+                        font-size: 12px;
+                        line-height: 1.8;
+                    }
+                    .footer {
+                        text-align: center;
+                        padding-top: 24px;
+                        border-top: 1px solid #e5e7eb;
+                        color: #9ca3af;
+                        font-size: 11px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="header-title">ProjectFlow 模拟评估报告</div>
+                        <div class="header-subtitle">AI 驱动的项目管理能力评估</div>
+                    </div>
+                    
+                    <div class="info-section">
+                        <div class="scenario-title">${scenario.title}</div>
+                        <div class="info-grid">
+                            <div>难度级别: <span style="font-weight: 500; color: #111;">${scenario.difficulty}</span></div>
+                            <div>完成时间: <span style="font-weight: 500; color: #111;">${new Date().toLocaleString('zh-CN')}</span></div>
+                            <div>场景分类: <span style="font-weight: 500; color: #111;">${scenario.category}</span></div>
+                            <div>决策数量: <span style="font-weight: 500; color: #111;">${stageHistory.length} 个</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="score-card">
+                        <div class="score-label">综合得分</div>
+                        <div class="score-value">${percentage}%</div>
+                        <div class="score-detail">${totalScore} / ${maxScore} 分</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <div class="section-title">
+                            <span class="section-bar"></span>
+                            决策回顾
+                        </div>
+                        ${decisionHistoryHTML}
+                    </div>
+                    
+                    <div class="objectives-box">
+                        <div class="objectives-title">学习目标</div>
+                        <ul class="objectives-list">
+                            ${(scenario.learning_objectives || []).map(obj => `<li>${obj}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="footer">
+                        <div>ProjectFlow - 项目管理学习平台</div>
+                        <div style="margin-top: 4px;">本报告由 AI 自动生成，仅供参考</div>
+                    </div>
                 </div>
-            </div>
-            
-            <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 16px; padding: 24px; color: white; margin-bottom: 24px; text-align: center;">
-                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">综合得分</div>
-                <div style="font-size: 48px; font-weight: bold; margin-bottom: 8px;">${percentage}%</div>
-                <div style="font-size: 16px; opacity: 0.9;">${totalScore} / ${maxScore} 分</div>
-                <div style="margin-top: 16px; background: rgba(255,255,255,0.2); border-radius: 8px; height: 8px; overflow: hidden;">
-                    <div style="width: ${percentage}%; height: 100%; background: white; border-radius: 8px; transition: width 1s ease;"></div>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 24px;">
-                <div style="font-size: 18px; font-weight: bold; color: #111; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                    <span style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></span>
-                    决策回顾
-                </div>
-                ${decisionHistoryHTML}
-            </div>
-            
-            <div style="background: #f3f4f6; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
-                <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">学习目标</div>
-                <ul style="margin: 0; padding-left: 20px; color: #6b7280; font-size: 13px; line-height: 1.8;">
-                    ${(scenario.learning_objectives || []).map(obj => `<li>${obj}</li>`).join('')}
-                </ul>
-            </div>
-            
-            <div style="text-align: center; padding-top: 24px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 12px;">
-                <div>ProjectFlow - 项目管理学习平台</div>
-                <div style="margin-top: 4px;">本报告由 AI 自动生成，仅供参考</div>
-            </div>
+            </body>
+            </html>
         `;
         
-        document.body.appendChild(reportDiv);
+        iframeDoc.open();
+        iframeDoc.write(reportHTML);
+        iframeDoc.close();
+        
+        // 等待字体和样式渲染
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         try {
-            // 使用 html2canvas 将 DOM 渲染为 canvas
-            const canvas = await html2canvas(reportDiv, {
-                scale: 2,
+            const container = iframeDoc.body.querySelector('.container') as HTMLElement;
+            if (!container) {
+                throw new Error('Container not found');
+            }
+            
+            // 使用 html2canvas 将 DOM 渲染为 canvas - 使用更高scale确保中文清晰
+            const canvas = await html2canvas(container, {
+                scale: 3, // 提高分辨率
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff',
-                logging: false
+                logging: false,
+                windowWidth: 794,
+                width: 794
             });
             
             // 计算 PDF 尺寸 (A4)
@@ -449,29 +618,32 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             
             // 创建 PDF
             const doc = new jsPDF('p', 'mm', 'a4');
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('image/png', 1.0);
             
             let heightLeft = imgHeight;
             let position = 0;
             
             // 添加第一页
-            doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
             heightLeft -= pageHeight;
             
             // 如果内容超过一页，添加更多页面
             while (heightLeft > 0) {
                 position = heightLeft - imgHeight;
                 doc.addPage();
-                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
                 heightLeft -= pageHeight;
             }
             
             // 保存 PDF
             const safeTitle = scenario.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
             doc.save(`ProjectFlow-模拟报告-${safeTitle}.pdf`);
+        } catch (err) {
+            console.error('PDF 生成失败:', err);
+            alert('PDF 生成失败，请重试');
         } finally {
-            // 清理临时 DOM 元素
-            document.body.removeChild(reportDiv);
+            // 清理 iframe
+            document.body.removeChild(iframe);
         }
     };
 

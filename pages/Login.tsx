@@ -122,7 +122,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   // Demo Login with different tiers - 使用与数据库匹配的ID
-  const handleDemoLogin = async (tier: 'free' | 'pro' | 'pro_plus' = 'free') => {
+  const handleDemoLogin = async (tier: 'free' | 'pro' | 'pro_plus' | 'admin' = 'free') => {
       // 使用与数据库 db_final_setup.sql 中匹配的测试账号
       const demoUsers = {
           free: {
@@ -154,6 +154,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               streak: 30,
               xp: 2800,
               completedCourses: 10
+          },
+          admin: {
+              id: 'test-admin-001',
+              email: 'admin@test.com',
+              name: '管理员',
+              role: 'SuperAdmin',
+              avatar: 'https://i.pravatar.cc/150?u=admin001',
+              streak: 0,
+              xp: 0,
+              completedCourses: 0
           }
       };
 
@@ -188,10 +198,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           joined_at: dbUser.created_at,
           xp: user.xp,
           streak: user.streak,
-          membershipTier: tier,
+          membershipTier: tier === 'admin' ? 'pro_plus' : tier,
           completedCoursesCount: user.completedCourses,
-          isLifetimeMember: false,
-          aiTier: tier === 'pro_plus' ? 'pro' : tier === 'pro' ? 'basic' : 'none',
+          isLifetimeMember: tier === 'admin',
+          aiTier: tier === 'pro_plus' || tier === 'admin' ? 'pro' : tier === 'pro' ? 'basic' : 'none',
           aiDailyUsed: 0
       });
   };
@@ -282,8 +292,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           
           {/* Demo Accounts Section */}
           <div className="w-full border-t border-gray-100 pt-6 mt-2">
-            <p className="text-xs font-medium text-gray-400 text-center mb-3">快速体验 - 演示账号</p>
-            <div className="grid grid-cols-3 gap-2">
+            <p className="text-xs font-medium text-gray-400 text-center mb-3">快速体验 - 演示账号 / 管理员入口</p>
+            <div className="grid grid-cols-4 gap-2">
               <button 
                 onClick={() => handleDemoLogin('free')}
                 className="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200"
@@ -304,6 +314,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               >
                 <span className="text-lg">👑</span>
                 <span className="text-xs font-bold text-amber-600">Pro+</span>
+              </button>
+              <button 
+                onClick={() => handleDemoLogin('admin')}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-purple-50 hover:bg-purple-100 transition-colors border border-purple-200"
+              >
+                <span className="text-lg">🛡️</span>
+                <span className="text-xs font-bold text-purple-600">Admin</span>
               </button>
             </div>
             {error && (
