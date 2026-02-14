@@ -1,172 +1,317 @@
+
 import React, { useEffect, useState } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
-import { Users, BookOpen, Server, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Users, BookOpen, MessageSquare, Trophy, TrendingUp } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 const AdminDashboard: React.FC = () => {
-  // Real Data State
-  const [totalUsers, setTotalUsers] = useState<number | string>('Loading...');
-  const [totalCourses, setTotalCourses] = useState<number | string>('Loading...');
+  // 真实数据状态
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalCourses: 0,
+    totalPosts: 0,
+    completedCourses: 0,
+    freeUsers: 0,
+    proUsers: 0,
+    proPlusUsers: 0,
+    todayNewUsers: 0,
+    todayActiveUsers: 0
+  });
+  
   const [growthData, setGrowthData] = useState<any[]>([]);
-
-  const pieData = [
-    { name: '在校学生', value: 400 },
-    { name: '职场新人', value: 300 },
-    { name: '资深专家', value: 300 },
-    { name: '企业管理', value: 200 },
-  ];
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const [tierData, setTierData] = useState<any[]>([]);
+  const [courseProgress, setCourseProgress] = useState<any[]>([]);
+  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-      const fetchStats = async () => {
-          // 1. Fetch User Count & Growth Data
-          const { data: users, error: userError } = await supabase
-              .from('app_users')
-              .select('created_at');
-          
-          if (!userError && users) {
-              setTotalUsers(users.length);
-              
-              // Process Growth Data (Last 7 days logic simulated by distributing total count)
-              // Since we might not have enough real historical data, we map real data to chart or mock if sparse
-              if (users.length > 5) {
-                  // Simple aggregation by date string
-                  const dateMap: Record<string, number> = {};
-                  users.forEach(u => {
-                      const date = new Date(u.created_at).toLocaleDateString('zh-CN', {month: 'short', day: 'numeric'});
-                      dateMap[date] = (dateMap[date] || 0) + 1;
-                  });
-                  // Convert map to array
-                  const chartData = Object.keys(dateMap).map(key => ({
-                      name: key,
-                      users: dateMap[key],
-                      active: Math.floor(dateMap[key] * 0.7) // Mock active ratio
-                  })).slice(-7); // Last 7 entries
-                  setGrowthData(chartData);
-              } else {
-                  // Fallback Mock if not enough data
-                  setGrowthData([
-                    { name: '周一', users: 10, active: 5 },
-                    { name: '周二', users: 15, active: 8 },
-                    { name: '周三', users: 8, active: 4 },
-                    { name: '周四', users: 20, active: 15 },
-                    { name: '周五', users: 12, active: 10 },
-                    { name: '周六', users: 25, active: 20 },
-                    { name: '周日', users: users.length, active: users.length },
-                  ]);
-              }
-          } else {
-              setTotalUsers(0);
-          }
-
-          // 2. Fetch Course Count
-          const { count: courseCount, error: courseError } = await supabase
-              .from('app_courses')
-              .select('*', { count: 'exact', head: true });
-          
-          if (!courseError) setTotalCourses(courseCount || 0);
-          else setTotalCourses(0);
-      };
-
-      fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const stats = [
-    { label: '总用户数', value: totalUsers, change: '+12%', icon: Users },
-    { label: '今日活跃', value: '1,203', change: '+5%', icon: TrendingUp },
-    { label: '在线课程', value: totalCourses, change: '+2', icon: BookOpen },
-    { label: '服务器负载', value: '34%', change: '-2%', icon: Server },
-  ];
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // 1. 用户统计
+      const { data: usersData } = await supabase
+        .from('app_users')
+        .select('subscription_tier, created_at');
+      
+      if (usersData) {
+        const today = new Date().toISOString().split('T')[0];
+        const todayUsers = usersData.filter(u => u.created_at?.startsWith(today)).length;
+        
+        setStats(prev => ({
+          ...prev,
+          totalUsers: usersData.length,
+          freeUsers: usersData.filter(u => u.subscription_tier === 'free').length,
+          proUsers: usersData.filter(u => u.subscription_tier === 'pro').length,
+          proPlusUsers: usersData.filter(u => u.subscription_tier === 'pro_plus').length,
+          todayNewUsers: todayUsers
+        }));
+
+        // 处理增长数据（最近7天）
+        const dateMap: Record<string, number> = {};
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          dateMap[date.toLocaleDateString('zh-CN', {month: 'numeric', day: 'numeric'})] = 0;
+        }
+        
+        usersData.forEach(u => {
+          const date = new Date(u.created_at).toLocaleDateString('zh-CN', {month: 'numeric', day: 'numeric'});
+          if (dateMap.hasOwnProperty(date)) {
+            dateMap[date]++;
+          }
+        });
+        
+        const chartData = Object.entries(dateMap).map(([name, users]) => ({
+          name,
+          users,
+          active: Math.floor(users * 0.6) + Math.floor(Math.random() * 5)
+        }));
+        setGrowthData(chartData);
+
+        // 会员等级饼图数据
+        setTierData([
+          { name: 'Free', value: usersData.filter(u => u.subscription_tier === 'free').length, color: '#94a3b8' },
+          { name: 'Pro', value: usersData.filter(u => u.subscription_tier === 'pro').length, color: '#3b82f6' },
+          { name: 'Pro+', value: usersData.filter(u => u.subscription_tier === 'pro_plus').length, color: '#f59e0b' }
+        ]);
+      }
+
+      // 2. 课程统计
+      const { data: coursesData } = await supabase
+        .from('app_courses')
+        .select('id');
+      
+      if (coursesData) {
+        setStats(prev => ({ ...prev, totalCourses: coursesData.length }));
+      }
+
+      // 3. 学习进度统计
+      const { data: progressData } = await supabase
+        .from('app_user_progress')
+        .select('progress');
+      
+      if (progressData) {
+        const completed = progressData.filter(p => p.progress === 100).length;
+        const inProgress = progressData.filter(p => p.progress > 0 && p.progress < 100).length;
+        const notStarted = progressData.filter(p => p.progress === 0).length;
+        
+        setStats(prev => ({ ...prev, completedCourses: completed }));
+        setCourseProgress([
+          { name: '已完成', value: completed, color: '#10b981' },
+          { name: '学习中', value: inProgress, color: '#3b82f6' },
+          { name: '未开始', value: notStarted, color: '#e5e7eb' }
+        ]);
+      }
+
+      // 4. 社区统计
+      const { data: postsData } = await supabase
+        .from('app_community_posts')
+        .select('id');
+      
+      if (postsData) {
+        setStats(prev => ({ ...prev, totalPosts: postsData.length }));
+      }
+
+      // 5. 最近注册用户
+      const { data: recentData } = await supabase
+        .from('app_users')
+        .select('id, name, email, subscription_tier, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (recentData) {
+        setRecentUsers(recentData);
+      }
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getTierColor = (tier: string) => {
+    switch(tier) {
+      case 'pro_plus': return 'text-amber-600 bg-amber-50';
+      case 'pro': return 'text-blue-600 bg-blue-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-end mb-2">
-         <h1 className="text-2xl font-bold text-gray-900">仪表盘</h1>
-         <span className="text-sm text-gray-500">最后更新: 刚刚</span>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">管理仪表盘</h1>
+          <p className="text-gray-500 mt-1">实时数据概览</p>
+        </div>
+        <button 
+          onClick={fetchDashboardData}
+          className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl"
+        >
+          <TrendingUp size={20} />
+        </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => (
-          <div key={idx} className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start">
-              <span className="text-sm font-medium text-gray-500">{stat.label}</span>
-              <stat.icon size={18} className="text-gray-400" />
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-gray-900 tracking-tight">{stat.value}</div>
-              <div className={`text-xs font-bold mt-1 flex items-center gap-1 ${stat.change.startsWith('+') ? 'text-green-600' : 'text-gray-500'}`}>
-                {stat.change} 
-                {stat.change.startsWith('+') && <ArrowUpRight size={12}/>}
-                <span className="font-normal text-gray-400">较上月</span>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: '总用户数', value: stats.totalUsers, icon: Users, color: 'bg-blue-500', trend: `+${stats.todayNewUsers} 今日` },
+          { label: '课程总数', value: stats.totalCourses, icon: BookOpen, color: 'bg-green-500', trend: '' },
+          { label: '社区帖子', value: stats.totalPosts, icon: MessageSquare, color: 'bg-purple-500', trend: '' },
+          { label: '已完成课程', value: stats.completedCourses, icon: Trophy, color: 'bg-amber-500', trend: '' }
+        ].map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-2xl p-5 border border-gray-100">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? '-' : stat.value}
+                </p>
+                {stat.trend && (
+                  <p className="text-xs text-green-600 mt-1">{stat.trend}</p>
+                )}
+              </div>
+              <div className={`w-10 h-10 ${stat.color} rounded-xl flex items-center justify-center text-white`}>
+                <stat.icon size={20} />
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Main Trend Chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-6">用户增长趋势</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={growthData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-                <CartesianGrid vertical={false} stroke="#f3f4f6" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                  itemStyle={{ fontSize: '12px', fontWeight: 600 }}
-                />
-                <Area type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorUsers)" />
-                <Area type="monotone" dataKey="active" stroke="#10b981" strokeWidth={3} fillOpacity={0} fill="transparent" strokeDasharray="5 5"/>
-              </AreaChart>
-            </ResponsiveContainer>
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* User Growth */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">用户增长趋势</h3>
+          <div className="h-64">
+            {loading ? (
+              <div className="h-full flex items-center justify-center text-gray-400">加载中...</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={growthData}>
+                  <defs>
+                    <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis dataKey="name" tick={{fontSize: 12}} />
+                  <YAxis tick={{fontSize: 12}} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="users" stroke="#3b82f6" fillOpacity={1} fill="url(#colorUsers)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {/* Pie Chart */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col">
-          <h3 className="text-lg font-bold text-gray-900 mb-2">用户构成分析</h3>
-          <div className="flex-1 min-h-[250px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" height={36} iconType="circle"/>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center Text */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pb-8">
-              <div className="text-center">
-                <span className="block text-2xl font-bold text-gray-900">{typeof totalUsers === 'number' ? (totalUsers / 1000).toFixed(1) + 'K' : '12K'}</span>
-                <span className="text-xs text-gray-400 uppercase font-bold">总用户</span>
-              </div>
+        {/* Membership Distribution */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">会员等级分布</h3>
+          <div className="h-64">
+            {loading ? (
+              <div className="h-full flex items-center justify-center text-gray-400">加载中...</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={tierData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {tierData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-400">{stats.freeUsers}</p>
+              <p className="text-xs text-gray-500">Free</p>
             </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-600">{stats.proUsers}</p>
+              <p className="text-xs text-gray-500">Pro</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-amber-600">{stats.proPlusUsers}</p>
+              <p className="text-xs text-gray-500">Pro+</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Course Progress */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">课程学习状态</h3>
+          <div className="h-64">
+            {loading ? (
+              <div className="h-full flex items-center justify-center text-gray-400">加载中...</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={courseProgress} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis type="number" tick={{fontSize: 12}} />
+                  <YAxis dataKey="name" type="category" tick={{fontSize: 12}} width={80} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]}>
+                    {courseProgress.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Users */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">最近注册用户</h3>
+          <div className="space-y-3">
+            {loading ? (
+              <div className="text-center text-gray-400 py-8">加载中...</div>
+            ) : recentUsers.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">暂无新用户</div>
+            ) : (
+              recentUsers.map((user, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {user.name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{user.name || '未命名'}</p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getTierColor(user.subscription_tier)}`}>
+                    {user.subscription_tier === 'pro_plus' ? 'Pro+' : user.subscription_tier}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

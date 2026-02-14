@@ -5,820 +5,460 @@
 
 ---
 
-## 目录
-1. [后端管理功能完善方案](#1-后端管理功能完善方案)
-2. [公告系统真实功能方案](#2-公告系统真实功能方案)
-3. [实战模拟重构方案](#3-实战模拟重构方案)
-4. [社区功能优化方案](#4-社区功能优化方案)
-5. [CPM关键路径重构方案](#5-cpm关键路径重构方案)
+## 📊 问题清单与解决方案
+
+### 问题1: 登录账号角色管理
+**现状:**
+- 测试账号角色混乱
+- Pro账号跳转管理员页面
+
+**解决方案:**
+
+```sql
+-- 重置测试账号（执行此SQL）
+UPDATE app_users SET 
+    role = 'Student',
+    subscription_tier = CASE email
+        WHEN 'free@test.com' THEN 'free'
+        WHEN 'pro@test.com' THEN 'pro'
+        WHEN 'pp@test.com' THEN 'pro_plus'
+        WHEN 'admin@test.com' THEN 'SuperAdmin'
+    END,
+    name = CASE email
+        WHEN 'free@test.com' THEN 'Free用户'
+        WHEN 'pro@test.com' THEN 'Pro用户'
+        WHEN 'pp@test.com' THEN 'ProPlus用户'
+        WHEN 'admin@test.com' THEN '管理员'
+    END
+WHERE email IN ('free@test.com', 'pro@test.com', 'pp@test.com', 'admin@test.com');
+
+-- 确保只有admin是SuperAdmin
+UPDATE app_users SET role = 'Student' WHERE email != 'admin@test.com';
+UPDATE app_users SET role = 'SuperAdmin' WHERE email = 'admin@test.com';
+```
+
+**登录逻辑修复:**
+```typescript
+// App.tsx 登录处理
+const handleLogin = (user: UserProfile) => {
+    setCurrentUser(user);
+    // 只有SuperAdmin/Manager去后台，其他去Dashboard
+    if (['SuperAdmin', 'Manager'].includes(user.role)) {
+        setCurrentPage(Page.ADMIN_DASHBOARD);
+    } else {
+        setCurrentPage(Page.DASHBOARD);
+    }
+};
+```
 
 ---
 
-## 1. 后端管理功能完善方案
+### 问题2: 三个账号测试数据准备
 
-### 1.1 当前问题分析
-
-根据数据库表结构和现有后台代码分析，当前后台存在以下问题：
-
-| 菜单项 | 当前状态 | 问题描述 |
-|--------|----------|----------|
-| 体系课程 | ✅ 部分可用 | 有 CourseBuilder 但缺少课程审核流程 |
-| 核心算法 | ⚠️ 占位符 | 仅显示占位页面，无实际功能 |
-| 实战项目 | ⚠️ 占位符 | 仅显示占位页面，无实际功能 |
-| 知识图谱 | ✅ 可用 | KnowledgeNodeBuilder 功能完整 |
-| 用户管理 | ✅ 可用 | UserTable 基础功能完整 |
-| 学习进度 | ⚠️ Mock数据 | 使用假数据，未连接真实学习记录 |
-| 日程活动 | ⚠️ 占位符 | 仅有UI框架，无真实数据 |
-| 内容审核 | ⚠️ 部分可用 | 社区内容审核功能未完善 |
-| 全站公告 | ❌ Mock数据 | 纯前端状态，无数据库支持 |
-| 会员管理 | ✅ 可用 | 基础功能已连接数据库 |
-| 系统配置 | ⚠️ 本地状态 | 配置仅保存在前端状态 |
-
-### 1.2 数据库表结构确认
-
-基于 `db_setup.sql` 和 `db_renovation.sql`，确认以下表已存在或需要创建：
-
-**已存在的表：**
-- `app_users` - 用户基础信息
-- `app_courses` - 课程数据
-- `app_community_posts` - 社区帖子
-- `app_kb_nodes` / `app_kb_edges` - 知识图谱
-- `membership_subscriptions` - 会员订阅
-- `membership_codes` - 兑换码
-
-**需要新增的表：**
-- `app_announcements` - 全站公告
-- `app_user_follows` - 用户关注关系
-- `app_simulation_scenarios` - 实战模拟场景
-- `app_simulation_progress` - 用户模拟进度
-- `app_system_configs` - 系统配置
-
-### 1.3 后端菜单重构方案
-
-```
-后台管理系统重构
-├── 📊 概览 (Overview)
-│   ├── 仪表盘 ✅ (保持现有，连接真实统计)
-│   └── 数据统计 ✅ (保持现有)
-│
-├── 📚 内容中心 (Content)
-│   ├── 课程管理
-│   │   ├── 课程列表 ✅ (现有 CourseBuilder 整合)
-│   │   ├── 课程审核 🆕 (新增审核工作流)
-│   │   └── 课程分类 🆕 (管理 Foundation/Advanced/Implementation)
-│   ├── 实验室管理 🆕 (替代"核心算法")
-│   │   ├── 工具配置 (管理22个工具的启用/配置)
-│   │   └── 算法模板 (CPM/EVM等算法的默认参数)
-│   ├── 实战模拟 🆕 (替代"实战项目")
-│   │   ├── 场景库 (管理模拟场景)
-│   │   ├── 案例剧本 (丹佛机场/NHS等项目)
-│   │   └── 评分标准 (配置评分规则)
-│   └── 知识图谱 ✅ (保持现有)
-│
-├── 👥 用户运营 (Users)
-│   ├── 用户管理 ✅ (现有 UserTable)
-│   ├── 学习进度 🆕 (连接真实进度表)
-│   ├── 会员管理 ✅ (保持现有)
-│   └── 消息中心 🆕 (新增站内信功能)
-│
-├── 🌐 社区运营 (Community)
-│   ├── 内容审核 🆕 (帖子/评论审核)
-│   ├── 话题管理 🆕 (管理话题标签)
-│   ├── 举报处理 🆕 (用户举报处理)
-│   └── 社区公告 🆕 (社区级别的公告)
-│
-├── 📢 营销中心 (Marketing)
-│   ├── 全站公告 🆕 (系统级公告)
-│   ├── 兑换码管理 ✅ (保持现有)
-│   └── Banner管理 🆕 (首页轮播图)
-│
-└── ⚙️ 系统设置 (System)
-    ├── 系统配置 🆕 (连接数据库)
-    ├── 权限管理 🆕 (角色权限细化)
-    └── 操作日志 🆕 (管理员操作记录)
-```
-
-### 1.4 新增数据库表DDL
+**需要创建的数据:**
 
 ```sql
--- 全站公告表
-CREATE TABLE app_announcements (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    type TEXT DEFAULT 'info', -- 'info'|'success'|'warning'|'error'
-    priority INTEGER DEFAULT 0, -- 优先级 0-100
-    target_audience TEXT DEFAULT 'all', -- 'all'|'free'|'pro'|'pro_plus'
-    is_active BOOLEAN DEFAULT true,
-    start_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    end_at TIMESTAMP WITH TIME ZONE, -- NULL表示永久有效
-    created_by TEXT REFERENCES app_users(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- ========== Free用户数据 ==========
+-- 学习进度：2门进行中，1门完成
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT 
+    id,
+    'c-f1',
+    35,
+    '["ch1"]',
+    '项目管理基础学习笔记第一章',
+    NOW() - INTERVAL '1 day'
+FROM app_users WHERE email = 'free@test.com';
 
--- 用户关注关系表
-CREATE TABLE app_user_follows (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    follower_id TEXT REFERENCES app_users(id) ON DELETE CASCADE,
-    following_id TEXT REFERENCES app_users(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(follower_id, following_id)
-);
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT 
+    id,
+    'c-f2',
+    60,
+    '["ch1","ch2"]',
+    '进度管理学习心得',
+    NOW() - INTERVAL '2 hours'
+FROM app_users WHERE email = 'free@test.com';
 
--- 系统配置表
-CREATE TABLE app_system_configs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key TEXT UNIQUE NOT NULL,
-    value JSONB NOT NULL,
-    description TEXT,
-    updated_by TEXT REFERENCES app_users(id),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT 
+    id,
+    'c-f3',
+    100,
+    '["ch1","ch2","ch3"]',
+    '已完成范围管理课程',
+    NOW() - INTERVAL '3 days'
+FROM app_users WHERE email = 'free@test.com';
 
--- 实战模拟场景表
-CREATE TABLE app_simulation_scenarios (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT NOT NULL,
-    description TEXT,
-    difficulty TEXT DEFAULT 'Medium', -- 'Easy'|'Medium'|'Hard'|'Expert'
-    category TEXT, -- 'CaseStudy'|'Crisis'|'Planning'|'Team'
-    cover_image TEXT,
-    stages JSONB DEFAULT '[]', -- 场景阶段配置
-    decisions JSONB DEFAULT '[]', -- 决策点配置
-    resources JSONB DEFAULT '{}', -- 初始资源
-    learning_objectives JSONB DEFAULT '[]', -- 学习目标
-    is_published BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- 更新streak和XP
+UPDATE app_users SET 
+    streak = 3,
+    xp = 350,
+    completed_courses_count = 1
+WHERE email = 'free@test.com';
 
--- 用户模拟进度表
-CREATE TABLE app_simulation_progress (
+-- Activity logs（用于热力图）
+INSERT INTO app_activity_logs (user_id, activity_type, description, points, created_at)
+SELECT id, 'course_progress', '学习项目管理基础', 10, NOW() - INTERVAL '1 day'
+FROM app_users WHERE email = 'free@test.com';
+
+INSERT INTO app_activity_logs (user_id, activity_type, description, points, created_at)
+SELECT id, 'course_completed', '完成范围管理课程', 50, NOW() - INTERVAL '3 days'
+FROM app_users WHERE email = 'free@test.com';
+
+-- ========== Pro用户数据 ==========
+-- 8门课程进度（5进行中，3完成）
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT id, 'c-f1', 100, '["ch1","ch2","ch3"]', '已完成', NOW() - INTERVAL '5 days'
+FROM app_users WHERE email = 'pro@test.com';
+
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT id, 'c-f2', 100, '["ch1","ch2","ch3"]', '已完成', NOW() - INTERVAL '4 days'
+FROM app_users WHERE email = 'pro@test.com';
+
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT id, 'c-f3', 100, '["ch1","ch2","ch3"]', '已完成', NOW() - INTERVAL '3 days'
+FROM app_users WHERE email = 'pro@test.com';
+
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT id, 'c-f4', 75, '["ch1","ch2"]', '关键路径学习中', NOW() - INTERVAL '1 day'
+FROM app_users WHERE email = 'pro@test.com';
+
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT id, 'c-a1', 45, '["ch1"]', '质量管理入门', NOW() - INTERVAL '12 hours'
+FROM app_users WHERE email = 'pro@test.com';
+
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, notes, last_accessed)
+SELECT id, 'c-a2', 20, '["ch1"]', '敏捷管理开始', NOW() - INTERVAL '2 hours'
+FROM app_users WHERE email = 'pro@test.com';
+
+-- 工具使用记录
+INSERT INTO app_cpm_projects (user_id, name, description, tasks, created_at)
+SELECT id, '示例项目A', 'CPM练习项目', '[{"id":1,"name":"任务A"}]', NOW()
+FROM app_users WHERE email = 'pro@test.com';
+
+UPDATE app_users SET 
+    streak = 15,
+    xp = 1200,
+    completed_courses_count = 3
+WHERE email = 'pro@test.com';
+
+-- 更多activity logs（用于热力图）
+INSERT INTO app_activity_logs (user_id, activity_type, description, points, created_at)
+SELECT id, 'tool_usage', '使用CPM工具', 20, d
+FROM app_users CROSS JOIN (SELECT generate_series(1, 15) as i, NOW() - (i || ' days')::INTERVAL as d) days
+WHERE email = 'pro@test.com';
+
+-- ========== Pro+用户数据 ==========
+-- 12门课程进度（4进行中，8完成）
+INSERT INTO app_user_progress (user_id, course_id, progress, completed_chapters, last_accessed)
+SELECT id, course_id, CASE 
+    WHEN course_id IN ('c-f1','c-f2','c-f3','c-f4','c-f5','c-f6') THEN 100
+    WHEN course_id IN ('c-a1','c-a2') THEN 100
+    WHEN course_id IN ('c-i1') THEN 100
+    ELSE 70
+END, 
+CASE 
+    WHEN course_id LIKE 'c-f%' THEN '["ch1","ch2","ch3"]'
+    ELSE '["ch1","ch2"]'
+END,
+NOW() - (random() * 5)::INTEGER || ' days'
+FROM app_users, (VALUES ('c-f1'),('c-f2'),('c-f3'),('c-f4'),('c-f5'),('c-f6'),('c-a1'),('c-a2'),('c-a3'),('c-i1'),('c-i2')) AS courses(course_id)
+WHERE email = 'pp@test.com';
+
+-- 模拟场景完成记录
+INSERT INTO app_simulation_progress (user_id, scenario_id, current_stage, score, max_score, status, completed_at)
+SELECT u.id, s.id, 5, 85, 100, 'completed', NOW() - INTERVAL '2 days'
+FROM app_users u, app_simulation_scenarios s
+WHERE u.email = 'pp@test.com' AND s.title = '项目危机处理';
+
+-- AI使用记录
+INSERT INTO app_ai_usage (user_id, prompt, response, tokens_used, created_at)
+SELECT id, '什么是关键路径？', '关键路径是项目中最长的任务序列...', 150, NOW() - INTERVAL '1 day'
+FROM app_users WHERE email = 'pp@test.com';
+
+UPDATE app_users SET 
+    streak = 30,
+    xp = 2800,
+    completed_courses_count = 8
+WHERE email = 'pp@test.com';
+```
+
+---
+
+### 问题3: Profile页面重构（成就/贡献/能力）
+
+**数据库表创建:**
+```sql
+-- 用户徽章表
+CREATE TABLE IF NOT EXISTS app_user_badges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT REFERENCES app_users(id) ON DELETE CASCADE,
-    scenario_id UUID REFERENCES app_simulation_scenarios(id) ON DELETE CASCADE,
-    current_stage INTEGER DEFAULT 0,
-    decisions_made JSONB DEFAULT '[]',
-    resources_state JSONB DEFAULT '{}',
-    score INTEGER DEFAULT 0,
-    max_score INTEGER DEFAULT 100,
-    status TEXT DEFAULT 'in_progress', -- 'in_progress'|'completed'|'abandoned'
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(user_id, scenario_id)
+    badge_id TEXT NOT NULL,
+    badge_name TEXT NOT NULL,
+    badge_icon TEXT,
+    badge_color TEXT,
+    badge_bg TEXT,
+    unlocked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, badge_id)
 );
-```
 
----
-
-## 2. 公告系统真实功能方案
-
-### 2.1 功能需求
-
-**后端管理功能：**
-- 发布公告（支持富文本）
-- 设置公告类型（普通/成功/警告/错误）
-- 设置目标受众（全员/Free用户/Pro用户/Pro+用户）
-- 设置有效期（开始时间-结束时间）
-- 设置优先级（置顶公告）
-- 编辑/删除/下线公告
-
-**前端展示功能：**
-- Navbar 消息中心展示未读公告
-- 公告详情弹窗
-- 已读/未读状态跟踪
-- 公告历史列表
-
-### 2.2 数据流设计
-
-```
-Admin 发布公告
-    ↓
-supabase.app_announcements (INSERT)
-    ↓
-前端订阅 (Realtime)
-    ↓
-Navbar 显示红点提醒
-    ↓
-用户点击展开消息中心
-    ↓
-标记已读 → app_user_announcements_read (记录已读状态)
-```
-
-### 2.3 已读状态表
-
-```sql
--- 用户公告已读记录
-CREATE TABLE app_user_announcement_reads (
+-- 用户能力值表（用于雷达图）
+CREATE TABLE IF NOT EXISTS app_user_skills (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT REFERENCES app_users(id) ON DELETE CASCADE,
-    announcement_id UUID REFERENCES app_announcements(id) ON DELETE CASCADE,
-    read_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, announcement_id)
+    skill_name TEXT NOT NULL,  -- '规划', '执行', '预算', etc
+    skill_en TEXT,             -- 'Plan', 'Exec', 'Cost'
+    score INTEGER DEFAULT 0,   -- 0-150
+    max_score INTEGER DEFAULT 150,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, skill_name)
 );
+
+-- 插入技能初始数据
+INSERT INTO app_user_skills (user_id, skill_name, skill_en, score)
+SELECT id, '规划', 'Plan', 145 FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, '执行', 'Exec', 125 FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, '预算', 'Cost', 135 FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, '风险', 'Risk', 148 FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, '领导力', 'Lead', 140 FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, '敏捷', 'Agile', 130 FROM app_users WHERE email = 'pp@test.com';
+
+-- 插入徽章数据
+INSERT INTO app_user_badges (user_id, badge_id, badge_name, badge_icon, badge_color, badge_bg)
+SELECT id, 'pmp_master', 'PMP大师', 'Crown', 'text-yellow-600', 'bg-yellow-100'
+FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, 'early_bird', '早起鸟', 'Zap', 'text-yellow-500', 'bg-yellow-50'
+FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, 'all_rounder', '全能王', 'Trophy', 'text-purple-500', 'bg-purple-100'
+FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, 'streak_master', '连胜大师', 'Flame', 'text-orange-500', 'bg-orange-100'
+FROM app_users WHERE email = 'pp@test.com'
+UNION ALL
+SELECT id, 'bug_hunter', 'Bug猎手', 'Bug', 'text-green-500', 'bg-green-100'
+FROM app_users WHERE email = 'pp@test.com';
 ```
 
-### 2.4 前端组件改造
-
-**Navbar 改造：**
-- 消息中心分为 "通知" 和 "公告" 两个Tab
-- 公告显示优先级图标（🔔普通/✅成功/⚠️警告/❌错误）
-- 未读公告显示红点+数字
-- 过期公告自动隐藏
+**Profile.tsx重构要点:**
+1. 热力图 → 使用 `app_activity_logs` 真实数据 ✅ 已有
+2. 雷达图 → 从 `app_user_skills` 读取
+3. 徽章 → 从 `app_user_badges` 读取
+4. 证书 → 从 `app_user_progress` 读取已完成课程 ✅ 已有
 
 ---
 
-## 3. 实战模拟重构方案
+### 问题4: 学习模块课程与后台对应
 
-### 3.1 当前问题
+**现状分析:**
+- 前台LearningHub显示 Foundation/Advanced/Implementation
+- 后台需要能管理这些分类
 
-现有 Simulation 页面使用静态案例，问题如下：
-- 案例固定，无互动性
-- 用户选择不影响结果
-- 无评分机制
-- 无法追踪学习效果
-
-### 3.2 新方案：分支剧情式实战模拟
-
-**核心概念：**
-- **场景 (Scenario)**：完整的项目案例背景
-- **阶段 (Stage)**：场景的不同阶段（启动→规划→执行→收尾）
-- **决策点 (Decision)**：用户需要做出选择的关键节点
-- **资源 (Resources)**：时间/预算/人力/士气等
-- **结果 (Outcome)**：基于决策的评分和反馈
-
-**场景设计示例（丹佛机场案例）：**
-
-```
-[场景：DIA行李系统危机]
-
-阶段1：项目启动
-├── 背景：你被任命为DIA行李系统项目经理
-├── 资源：预算5亿美元，工期2年
-└── 决策点1：
-    ├── 选项A：采用成熟的传统系统（安全但昂贵）
-    ├── 选项B：采用创新的自动化系统（风险高但先进）
-    └── 选项C：混合方案（平衡但复杂）
-    
-阶段2：规划危机
-├── 触发：航空公司要求提前交付
-├── 资源变化：预算削减20%
-└── 决策点2：
-    ├── 选项A：拒绝变更，坚持原计划
-    ├── 选项B：接受挑战，增加人力
-    └── 选项C：削减范围，保核心功能
-
-阶段3：执行危机
-├── 触发：技术故障频发
-├── 资源变化：士气下降，人员流失
-└── 决策点3：...
-
-结局：
-├── S结局：项目成功（完美决策链）
-├── A结局：延期但成功
-├── B结局：部分成功
-└── F结局：失败（历史真实结局）
-```
-
-### 3.3 数据结构
-
-```typescript
-// 场景定义
-interface SimulationScenario {
-    id: string;
-    title: string;
-    description: string;
-    difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert';
-    category: 'CaseStudy' | 'Crisis' | 'Planning' | 'Team';
-    coverImage: string;
-    learningObjectives: string[];
-    stages: SimulationStage[];
-}
-
-// 阶段
-interface SimulationStage {
-    id: string;
-    name: string;
-    description: string;
-    context: string; // 场景描述
-    resources: ResourceState; // 当前资源状态
-    decisions: Decision[];
-}
-
-// 决策点
-interface Decision {
-    id: string;
-    question: string;
-    description: string;
-    options: DecisionOption[];
-    timeLimit?: number; // 限时决策（增加紧张感）
-}
-
-// 决策选项
-interface DecisionOption {
-    id: string;
-    text: string;
-    impact: {
-        budget?: number;
-        timeline?: number;
-        quality?: number;
-        morale?: number;
-        score: number;
-    };
-    feedback: string; // 选择后的即时反馈
-    nextStageId?: string; // 可能跳转到特殊阶段
-}
-
-// 资源状态
-interface ResourceState {
-    budget: number;      // 预算百分比
-    timeline: number;    // 进度百分比
-    quality: number;     // 质量分数
-    morale: number;      // 团队士气
-    stakeholders: number; // 干系人满意度
-}
-```
-
-### 3.4 评分算法
-
-```typescript
-// 综合评分计算
-function calculateFinalScore(
-    decisions: DecisionRecord[],
-    finalResources: ResourceState,
-    objectivesMet: boolean[]
-): {
-    totalScore: number;
-    grade: 'S' | 'A' | 'B' | 'C' | 'F';
-    breakdown: ScoreBreakdown;
-} {
-    // 1. 决策分（40%）
-    const decisionScore = decisions.reduce((sum, d) => sum + d.score, 0) / decisions.length * 40;
-    
-    // 2. 资源管理分（30%）
-    const resourceScore = (
-        finalResources.budget * 0.1 +
-        finalResources.timeline * 0.1 +
-        finalResources.quality * 0.05 +
-        finalResources.morale * 0.05
-    );
-    
-    // 3. 目标达成（20%）
-    const objectiveScore = (objectivesMet.filter(Boolean).length / objectivesMet.length) * 20;
-    
-    // 4. 时间效率（10%）
-    const timeScore = 10; // 根据完成时间计算
-    
-    const total = decisionScore + resourceScore + objectiveScore + timeScore;
-    
-    // 评级
-    let grade: 'S' | 'A' | 'B' | 'C' | 'F' = 'F';
-    if (total >= 95) grade = 'S';
-    else if (total >= 85) grade = 'A';
-    else if (total >= 70) grade = 'B';
-    else if (total >= 60) grade = 'C';
-    
-    return { totalScore: Math.round(total), grade, breakdown };
-}
-```
-
-### 3.5 UI设计
-
-**模拟流程界面：**
-```
-┌─────────────────────────────────────────────────────────────┐
-│  [场景标题]                              [资源仪表盘]        │
-│  丹佛机场行李系统危机                    💰预算 ████████░░   │
-│                                          ⏱️进度 ██████░░░░   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  📍 阶段 2/5：执行危机                                        │
-│                                                             │
-│  【场景描述】                                                 │
-│  技术团队在测试阶段发现自动化系统的故障率高达15%。            │
-│  航空公司威胁如果延误将起诉索赔。                             │
-│                                                             │
-│  【当前状况】                                                 │
-│  • 预算剩余：$2.5亿 (50%)                                    │
-│  • 原定上线：3个月后                                         │
-│  • 团队士气：低落                                            │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│  【需要做出决策】                                             │
-│                                                             │
-│  ○ 选项A：紧急采购备用系统（-$1亿，保证按时交付）             │
-│    风险：预算超支，但能避免延期                               │
-│                                                             │
-│  ○ 选项B：推迟上线，修复问题（延期6个月，+$5000万）           │
-│    风险：面临诉讼和罚款                                       │
-│                                                             │
-│  ○ 选项C：削减功能范围（保核心功能，部分交付）                │
-│    风险：客户不满，项目不完整                                 │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│  [⏱️ 限时决策: 30秒]            [确认选择]                    │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 4. 社区功能优化方案
-
-### 4.1 功能需求清单
-
-| 功能 | 当前状态 | 需求描述 |
-|------|----------|----------|
-| 搜索 | ❌ 未实现 | 支持按关键词/用户/标签搜索帖子 |
-| 最新发布 | ⚠️ 已有Tab | 需确保排序正确，支持分页 |
-| 我的关注 | ❌ 未实现 | 关注用户后，首页显示其帖子 |
-| 话题标签 | ⚠️ 部分 | 完善标签系统，支持话题订阅 |
-| 帖子分类 | ❌ 未实现 | 按类型筛选（提问/分享/讨论） |
-| 内容推荐 | ❌ 未实现 | 基于用户兴趣的推荐算法 |
-
-### 4.2 社区数据结构优化
-
+**解决方案:**
 ```sql
--- 社区帖子表扩展
-ALTER TABLE app_community_posts ADD COLUMN IF NOT EXISTS post_type TEXT DEFAULT 'discussion'; -- 'question'|'share'|'discussion'
-ALTER TABLE app_community_posts ADD COLUMN IS NOT NULL view_count INTEGER DEFAULT 0;
-ALTER TABLE app_community_posts ADD COLUMN IS NOT NULL is_pinned BOOLEAN DEFAULT false;
-ALTER TABLE app_community_posts ADD COLUMN IS NOT NULL is_solved BOOLEAN DEFAULT false; -- 问题是否已解决
+-- 确保课程分类一致
+UPDATE app_courses SET category = 'Foundation' WHERE category IN ('基础', 'Foundation', 'F');
+UPDATE app_courses SET category = 'Advanced' WHERE category IN ('进阶', 'Advanced', 'A');
+UPDATE app_courses SET category = 'Implementation' WHERE category IN ('实战', 'Implementation', 'I');
 
--- 话题/标签表
-CREATE TABLE app_topics (
+-- 检查分类分布
+SELECT category, COUNT(*) FROM app_courses WHERE status = 'Published' GROUP BY category;
+```
+
+**AdminContent.tsx修改:**
+- 确保courses标签页显示的课程分类正确
+- 添加category字段编辑
+
+---
+
+### 问题5: ToolsLab返回键和UI优化
+
+**修改内容:**
+```typescript
+// ToolsLab.tsx 每个工具详情页添加返回按钮
+<header className="flex items-center gap-4 p-4 border-b">
+    <button 
+        onClick={() => setSelectedTool(null)}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-lg"
+    >
+        <ChevronLeft size={20} /> 返回工具列表
+    </button>
+    <h1>{tool.name}</h1>
+</header>
+```
+
+**UI问题修复:**
+1. 检查会员守卫显示
+2. 优化工具卡片网格布局
+3. 修复深色主题切换
+
+---
+
+### 问题6: 实战模块检查
+
+**检查Simulation.tsx:**
+- ✅ 已从 `app_simulation_scenarios` 读取
+- ✅ 多阶段决策流程
+- ✅ 进度保存到 `app_simulation_progress`
+
+**如果存在问题:**
+1. 检查表结构是否正确
+2. 检查是否有测试场景数据
+3. 验证用户角色权限
+
+---
+
+### 问题7: 后台核心算法管理
+
+**创建 AdminTools.tsx:**
+```typescript
+// 管理实验室工具
+// CRUD: CPM, PERT, Risk, Monte Carlo等工具配置
+// 存储在 app_tools 表或 app_courses(category='lab')
+```
+
+**数据库表:**
+```sql
+CREATE TABLE IF NOT EXISTS app_tools (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
+    category TEXT, -- 'cpm', 'pert', 'risk', etc
     icon TEXT,
-    color TEXT,
-    follower_count INTEGER DEFAULT 0,
-    post_count INTEGER DEFAULT 0,
+    config JSONB, -- 工具配置参数
+    is_active BOOLEAN DEFAULT true,
+    required_tier TEXT DEFAULT 'pro', -- 'free', 'pro', 'pro_plus'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- 帖子-话题关联表
-CREATE TABLE app_post_topics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id BIGINT REFERENCES app_community_posts(id) ON DELETE CASCADE,
-    topic_id UUID REFERENCES app_topics(id) ON DELETE CASCADE,
-    UNIQUE(post_id, topic_id)
-);
-
--- 用户-话题订阅表
-CREATE TABLE app_user_topic_subscriptions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT REFERENCES app_users(id) ON DELETE CASCADE,
-    topic_id UUID REFERENCES app_topics(id) ON DELETE CASCADE,
-    subscribed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, topic_id)
-);
 ```
 
-### 4.3 搜索功能实现
+---
 
-**搜索类型：**
-1. **全局搜索** (顶部搜索栏)
-   - 搜索帖子内容、标题
-   - 搜索用户名
-   - 搜索话题标签
+### 问题8: 后台实战项目对应实战模拟
 
-2. **筛选搜索** (侧边栏)
-   - 按话题筛选
-   - 按帖子类型筛选
-   - 按发布时间筛选（今天/本周/本月）
-   - 按排序筛选（最新/最热/最多评论）
+**方案A: 重命名（如果两者是同一个）**
+```typescript
+// AdminLayout.tsx
+{ label: '实战项目', page: Page.ADMIN_SIMULATION, icon: Target }
+// 而不是 '模拟场景'
+```
 
-**搜索SQL：**
+**方案B: 分离（如果不同）**
+- 保留 AdminSimulation 管理模拟场景
+- 创建 AdminProjects 管理实战项目（不同的数据结构）
+
+**建议:** 先确认"实战项目"和"模拟场景"是否是同一概念
+
+---
+
+### 问题9: 公告发布失败排查
+
+**排查清单:**
 ```sql
--- 帖子搜索
-SELECT p.*, u.name as author_name, u.avatar as author_avatar,
-       COUNT(DISTINCT l.user_id) as like_count,
-       COUNT(DISTINCT c.id) as comment_count
-FROM app_community_posts p
-LEFT JOIN app_users u ON p.user_id = u.id
-LEFT JOIN app_user_likes l ON p.id = l.post_id
-LEFT JOIN app_comments c ON p.id = c.post_id
-WHERE p.content ILIKE '%关键词%' 
-   OR p.user_name ILIKE '%关键词%'
-   OR EXISTS (
-       SELECT 1 FROM app_post_topics pt
-       JOIN app_topics t ON pt.topic_id = t.id
-       WHERE pt.post_id = p.id AND t.name ILIKE '%关键词%'
-   )
-GROUP BY p.id, u.name, u.avatar
-ORDER BY p.created_at DESC
-LIMIT 20 OFFSET 0;
+-- 1. 检查RLS策略
+SELECT * FROM pg_policies WHERE tablename = 'app_announcements';
+
+-- 2. 检查表结构
+\d app_announcements
+
+-- 3. 检查是否有触发器限制
+SELECT * FROM pg_trigger WHERE tgrelid = 'app_announcements'::regclass;
 ```
 
-### 4.4 推荐算法（简化版）
+**常见修复:**
+```sql
+-- 确保管理员有写入权限
+CREATE POLICY "Admins can manage announcements"
+ON app_announcements
+FOR ALL
+TO authenticated
+USING (auth.jwt() ->> 'role' IN ('SuperAdmin', 'Manager'))
+WITH CHECK (auth.jwt() ->> 'role' IN ('SuperAdmin', 'Manager'));
+```
 
+---
+
+### 问题10: 后台仪表盘真实数据
+
+**AdminDashboard.tsx需要查询:**
 ```typescript
-// 基于用户行为的帖子推荐
-function getRecommendedPosts(userId: string): Post[] {
-    // 1. 获取用户兴趣标签（从互动历史分析）
-    const userTags = getUserInterestTags(userId);
-    
-    // 2. 获取关注用户的帖子
-    const followingPosts = getFollowingPosts(userId);
-    
-    // 3. 获取热门帖子
-    const trendingPosts = getTrendingPosts();
-    
-    // 4. 混合排序算法
-    const scoredPosts = [...followingPosts, ...trendingPosts].map(post => ({
-        ...post,
-        score: calculatePostScore(post, userTags, userId)
-    }));
-    
-    // 5. 去重并排序
-    return scoredPosts
-        .sort((a, b) => b.score - a.score)
-        .filter((post, index, self) => 
-            index === self.findIndex(p => p.id === post.id)
-        )
-        .slice(0, 20);
-}
+// 1. 用户统计
+const { data: userStats } = await supabase
+    .from('app_users')
+    .select('subscription_tier, count')
+    .group('subscription_tier');
 
-// 评分算法
-function calculatePostScore(post: Post, userTags: string[], userId: string): number {
-    let score = 0;
-    
-    // 时间衰减（越新越好）
-    const hoursSincePost = (Date.now() - new Date(post.created_at).getTime()) / 3600000;
-    score += Math.max(0, 100 - hoursSincePost * 2);
-    
-    // 互动热度
-    score += post.likes * 2;
-    score += post.comments * 5;
-    score += post.shares * 10;
-    
-    // 标签匹配度
-    const matchingTags = post.tags.filter(tag => userTags.includes(tag));
-    score += matchingTags.length * 15;
-    
-    // 关注用户加成
-    if (post.isFollowing) score += 50;
-    
-    // 话题订阅加成
-    if (post.isSubscribedTopic) score += 30;
-    
-    return score;
-}
-```
+// 2. 今日新增
+const { data: todayUsers } = await supabase
+    .from('app_users')
+    .select('count')
+    .gte('created_at', new Date().toISOString().split('T')[0]);
 
-### 4.5 社区页面布局重构
+// 3. 课程完成率
+const { data: courseStats } = await supabase
+    .from('app_user_progress')
+    .select('progress')
+    .eq('progress', 100);
 
-```
-社区页面 (Community)
-├── 顶部
-│   ├── 搜索栏 🔍 (实时搜索，支持标签#)
-│   └── 发布按钮 ✏️
-│
-├── 主体 (三栏布局)
-│   ├── 左侧边栏 (20%)
-│   │   ├── 导航菜单
-│   │   │   ├── 🏠 推荐
-│   │   │   ├── 🔥 热门
-│   │   │   ├── 🆕 最新
-│   │   │   ├── 👤 我的关注
-│   │   │   └── 💬 我的回复
-│   │   ├── 话题订阅
-│   │   │   ├── #PMP备考
-│   │   │   ├── #敏捷实践
-│   │   │   └── [+ 发现更多]
-│   │   └── 热门话题
-│   │
-│   ├── 中间流 (60%)
-│   │   ├── 筛选栏
-│   │   │   ├── [全部] [提问] [分享] [讨论]
-│   │   │   └── 排序：[最新] [最热] [精华]
-│   │   └── 帖子列表
-│   │       ├── 置顶帖 (如果有)
-│   │       ├── 普通帖子
-│   │       └── 加载更多
-│   │
-│   └── 右侧边栏 (20%)
-│       ├── 👥 推荐关注
-│       ├── 🏆 活跃达人
-│       └── 📊 社区统计
-│
-└── 底部
-    └── 分页/无限滚动
+// 4. 社区活跃度
+const { data: todayPosts } = await supabase
+    .from('app_community_posts')
+    .select('count')
+    .gte('created_at', new Date().toISOString().split('T')[0]);
+
+// 5. 模拟完成情况
+const { data: simStats } = await supabase
+    .from('app_simulation_progress')
+    .select('status, count')
+    .group('status');
 ```
 
 ---
 
-## 5. CPM关键路径重构方案
+## 📅 实施顺序建议
 
-### 5.1 当前问题
+### 阶段1: 基础修复（2小时）
+1. 修复测试账号角色（问题1）
+2. 插入三个账号测试数据（问题2）
+3. 修复公告发布（问题9）
 
-1. **界面复杂** - 左侧控制面板占据太多空间
-2. **可视化问题** - 箭头位置、标签显示不正确
-3. **缺少实时反馈** - 修改任务后不会自动重新计算
-4. **缺少关键路径高亮** - 计算后关键路径不明显
-5. **无法导出** - 不能保存或分享CPM图
-6. **缺少时间轴** - 没有甘特图视图
+### 阶段2: 核心功能（3小时）
+4. 重构Profile页面数据（问题3）
+5. 修复课程分类对应（问题4）
+6. 修复ToolsLab UI（问题5）
 
-### 5.2 新方案：双视图CPM工具
-
-**核心功能：**
-- **网络图视图** - 现有的节点-连线图
-- **甘特图视图** - 新增时间轴视图
-- **实时计算** - 任何修改自动重新计算
-- **智能布局** - 自动调整节点位置避免重叠
-- **数据持久化** - 保存到数据库，支持历史版本
-
-### 5.3 数据结构优化
-
-```typescript
-// CPM项目
-interface CPMProject {
-    id: string;
-    name: string;
-    description?: string;
-    tasks: CPMTask[];
-    createdAt: string;
-    updatedAt: string;
-    userId: string;
-}
-
-// 任务节点
-interface CPMTask {
-    id: string;
-    name: string;
-    duration: number; // 工期（天）
-    optimistic?: number; // 乐观时间（PERT用）
-    pessimistic?: number; // 悲观时间（PERT用）
-    mostLikely?: number; // 最可能时间（PERT用）
-    predecessors: string[]; // 前置任务ID
-    successors?: string[]; // 后置任务ID（计算得出）
-    
-    // 计算结果
-    es: number; // 最早开始
-    ef: number; // 最早结束
-    ls: number; // 最晚开始
-    lf: number; // 最晚结束
-    slack: number; // 浮动时间
-    isCritical: boolean; // 是否关键路径
-    level: number; // 层级（用于布局）
-    
-    // UI属性
-    position?: { x: number; y: number }; // 手动调整的位置
-    color?: string; // 自定义颜色
-}
-
-// 计算结果
-interface CPMCalculationResult {
-    tasks: CPMTask[];
-    projectDuration: number; // 项目总工期
-    criticalPath: string[]; // 关键路径任务ID数组
-    criticalPaths: string[][]; // 多条关键路径（如果有）
-}
-```
-
-### 5.4 新界面设计
-
-```
-CPM关键路径工具 (Chronos Studio 2.0)
-┌─────────────────────────────────────────────────────────────────────┐
-│  🔧 Chronos Studio                              [网络图] [甘特图]    │
-├─────────────────────────────────────────────────────────────────────┤
-│  📊 项目概览面板 (可折叠)                                             │
-│  ├── 总工期: 14天  |  关键任务: 4个  |  浮动时间: 2天                │
-│  └── [导出PDF] [导出图片] [保存项目] [历史版本]                      │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐ │
-│  │                                                               │ │
-│  │   [网络图视图]                                                │ │
-│  │                                                               │ │
-│  │     ┌───┐      ┌───┐      ┌───┐      ┌───┐                  │ │
-│  │     │ A │─────→│ B │─────→│ D │─────→│ F │  ← 关键路径(红色) │ │
-│  │     │3天│      │5天│      │6天│      │3天│                  │ │
-│  │     └───┘      └───┘      └───┘      └───┘                  │ │
-│  │       │          ↑                                       │ │
-│  │       └──────┐   │                                         │ │
-│  │              ↓   │                                         │ │
-│  │            ┌───┐ │                                         │ │
-│  │            │ C │─┘  ← 非关键路径(灰色, +2d浮动)            │ │
-│  │            │4天│                                           │ │
-│  │            └───┘                                           │ │
-│  │                                                               │ │
-│  │  点击节点编辑  |  拖拽连线添加依赖  |  右键菜单删除            │ │
-│  │                                                               │ │
-│  └───────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│  📋 任务列表 (底部可展开面板)                                         │
-│  ┌──────────┬────────┬──────────┬──────────┬──────────┬──────────┐ │
-│  │ 任务名称  │ 工期   │ 前置任务  │ ES/EF    │ LS/LF    │ 浮动时间 │ │
-│  ├──────────┼────────┼──────────┼──────────┼──────────┼──────────┤ │
-│  │ ■ A需求  │ 3天    │ -        │ 0/3      │ 0/3      │ 0 ⭐     │ │
-│  │ ■ B设计  │ 5天    │ A        │ 3/8      │ 3/8      │ 0 ⭐     │ │
-│  │ □ C架构  │ 4天    │ A        │ 3/7      │ 4/8      │ 1        │ │
-│  │ ■ D开发  │ 6天    │ B        │ 8/14     │ 8/14     │ 0 ⭐     │ │
-│  └──────────┴────────┴──────────┴──────────┴──────────┴──────────┘ │
-│  [+ 添加任务]                                                        │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 5.5 交互优化
-
-**新增交互：**
-1. **拖拽创建依赖** - 从任务A拖到任务B自动创建依赖
-2. **双击编辑** - 双击节点打开编辑弹窗
-3. **右键菜单** - 删除/复制/修改颜色
-4. **画布拖拽** - 空白处拖拽移动画布
-5. **缩放控制** - 鼠标滚轮缩放，支持 fit-to-screen
-6. **实时计算** - 任何修改后自动重新计算关键路径
-
-**任务编辑弹窗：**
-```
-┌──────────────────────────────┐
-│  编辑任务                     │
-├──────────────────────────────┤
-│  任务名称: [______________]  │
-│  工期(天): [__3__]           │
-│                              │
-│  前置任务:                   │
-│  [A需求分析 ▢] [B设计 ▢] ... │
-│                              │
-│  高级选项 ▼                  │
-│  ├── 乐观时间: [__2__]       │
-│  ├── 最可能:   [__3__]       │
-│  └── 悲观时间: [__5__]       │
-│                              │
-│  [保存] [删除] [取消]        │
-└──────────────────────────────┘
-```
-
-### 5.6 甘特图视图
-
-```
-甘特图视图
-┌─────────────────────────────────────────────────────────────────┐
-│ 任务名称      │ 第1周      │ 第2周      │ 第3周      │ 第4周     │
-├───────────────┼────────────┼────────────┼────────────┼───────────┤
-│ ■ A需求分析   │██████      │            │            │           │
-│ ■ B原型设计   │      ██████████        │            │           │
-│ □ C后端架构   │      ████████          │            │  ← 浮动   │
-│ ■ D前端开发   │            │      ██████████████    │           │
-│ ■ E API开发   │            │      ██████████        │           │
-│ ■ F集成测试   │            │            │      ████████         │
-│                                                               │
-│ 图例: ████ 关键路径  ░░░░ 非关键路径  │ 里程碑◆               │
-└─────────────────────────────────────────────────────────────────┘
-```
+### 阶段3: 后台完善（3小时）
+7. 检查实战模块（问题6）
+8. 创建工具管理（问题7）
+9. 确认实战项目/模拟场景（问题8）
+10. 后台仪表盘真实数据（问题10）
 
 ---
 
-## 6. 实施优先级建议
+## ✅ 验收标准
 
-### P0 (最高优先级)
-1. 公告系统真实功能（影响所有用户）
-2. CPM重构（核心工具，当前有bug）
-3. 后端Admin菜单整理（开发效率）
-
-### P1 (高优先级)
-4. 社区搜索功能（用户体验）
-5. 社区关注功能（用户粘性）
-6. 实战模拟重构（核心功能）
-
-### P2 (中优先级)
-7. 系统配置持久化
-8. 学习进度真实数据
-9. 内容审核工作流
-
-### P3 (低优先级)
-10. Banner管理
-11. 操作日志
-12. 推荐算法优化
+| 检查项 | 标准 |
+|--------|------|
+| 登录测试 | 三个账号分别显示不同数据 |
+| Profile页 | 热力图/雷达图/徽章都有真实数据 |
+| LearningHub | 课程分类与后台一致 |
+| ToolsLab | 有返回按钮，UI正常 |
+| Simulation | 可正常进入并完成模拟 |
+| Admin后台 | 公告可发布，数据真实 |
 
 ---
 
-## 7. 技术实现注意事项
+**请先确认以下问题我再开始实施:**
 
-### 7.1 数据库迁移
-- 所有DDL语句需要按依赖顺序执行
-- 建议使用 Supabase Migration 管理版本
-- 重要：新增表后需要配置RLS权限
+1. **"实战项目"和"模拟场景"是同一个东西吗？** 如果不是，请描述区别
+2. **核心算法工具** 是单独表还是存在app_courses？
+3. **公告发布失败** 有具体错误信息吗？
 
-### 7.2 前端状态管理
-- 考虑使用 Zustand 或 Redux Toolkit 管理复杂状态
-- CPM工具需要独立的画布状态管理
-- 社区帖子列表需要虚拟滚动优化性能
-
-### 7.3 Realtime订阅
-- 公告系统使用 Supabase Realtime 推送
-- 社区新帖子实时通知
-- 避免过度订阅造成性能问题
-
-### 7.4 性能优化
-- CPM图使用 Canvas 替代 SVG（大量节点时）
-- 社区帖子列表使用 Intersection Observer 懒加载
-- 搜索功能使用防抖（debounce）
-
----
-
-**方案制定完成，等待评审后进入实施阶段。**
+确认后我将按阶段开始实施。

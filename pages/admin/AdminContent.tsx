@@ -75,13 +75,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ initialTab = 'courses' }) =
         : contentData.filter(item => {
             const matchSearch = (item.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (item.author || '').toLowerCase().includes(searchTerm.toLowerCase());
             const matchStatus = filterStatus === 'All' || item.status === filterStatus;
-
-            let matchTab = false;
-            if (activeTab === 'courses') matchTab = ['Course', 'Cert', 'Official', 'UGC'].includes(item.category || 'Course');
-            else if (activeTab === 'labs') matchTab = ['Lab', 'Tool', 'Algorithm'].includes(item.category);
-            else if (activeTab === 'projects') matchTab = ['Project', 'Simulation', 'Case'].includes(item.category);
-
-            return matchSearch && matchStatus && matchTab;
+            // courses 标签显示所有课程
+            return matchSearch && matchStatus;
         });
 
     const getStatusStyle = (status: string) => {
@@ -183,15 +178,13 @@ const AdminContent: React.FC<AdminContentProps> = ({ initialTab = 'courses' }) =
                             setEditingNode(null);
                             setIsNodeBuilderOpen(true);
                         } else {
-                            // Pre-fill category based on active tab
-                            const category = activeTab === 'labs' ? 'Lab' : activeTab === 'projects' ? 'Simulation' : 'Course';
-                            setEditingCourse({ category });
+                            setEditingCourse({ category: 'Foundation' });
                             setIsBuilderOpen(true);
                         }
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-sm font-bold shadow-lg shadow-gray-200 hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
                 >
-                    <Plus size={18} /> {activeTab === 'graph' ? '新建节点' : '新建内容'}
+                    <Plus size={18} /> {activeTab === 'graph' ? '新建节点' : '新建课程'}
                 </button>
             </div>
 
@@ -271,8 +264,7 @@ const AdminContent: React.FC<AdminContentProps> = ({ initialTab = 'courses' }) =
                                     setEditingNode(null);
                                     setIsNodeBuilderOpen(true);
                                 } else {
-                                    const category = activeTab === 'labs' ? 'Lab' : activeTab === 'projects' ? 'Simulation' : 'Course';
-                                    setEditingCourse({ category });
+                                            setEditingCourse({ category: 'Foundation' });
                                     setIsBuilderOpen(true);
                                 }
                             }}

@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { Page, UserProfile } from '../../types';
 import {
-  LayoutDashboard, Users, Settings, Crown,
+  LayoutDashboard, Users, Crown,
   LogOut, Bell, Menu, X, MessageSquare,
-  ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, Calendar, BarChart3,
-  Target
+  ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, BarChart3,
+  Target, Cog
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -52,21 +52,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
       items: [
         { label: '用户管理', page: Page.ADMIN_USERS, icon: Users, roles: ['SuperAdmin', 'Manager'] },
         { label: '学习进度', page: Page.ADMIN_PROGRESS, icon: TrendingUp, roles: ['SuperAdmin', 'Manager'] },
-        { label: '日程活动', page: Page.ADMIN_EVENTS, icon: Calendar, roles: ['SuperAdmin', 'Manager'] },
-        { label: '内容审核', page: Page.ADMIN_COMMUNITY, icon: MessageSquare, roles: ['SuperAdmin', 'Manager'] },
+        { label: '社区管理', page: Page.ADMIN_COMMUNITY, icon: MessageSquare, roles: ['SuperAdmin', 'Manager'] },
         { label: '全站公告', page: Page.ADMIN_ANNOUNCEMENTS, icon: Megaphone, roles: ['SuperAdmin', 'Manager'] },
         { label: '会员管理', page: Page.ADMIN_MEMBERSHIP, icon: Crown, roles: ['SuperAdmin', 'Manager'] },
-        { label: '模拟场景', page: Page.ADMIN_SIMULATION, icon: Target, roles: ['SuperAdmin', 'Manager'] },
+        { label: '实战项目', page: Page.ADMIN_SIMULATION, icon: Target, roles: ['SuperAdmin', 'Manager'] },
+        { label: '核心算法', page: Page.ADMIN_TOOLS, icon: Cog, roles: ['SuperAdmin', 'Manager'] },
       ]
     },
-    {
-      id: 'system',
-      label: '系统核心 (System)',
-      items: [
-        { label: '系统配置', page: Page.ADMIN_SYSTEM, icon: Settings, roles: ['SuperAdmin'] },
-        // 已删除: 全局设置、服务监控 (合并到系统配置)
-      ]
-    }
   ];
 
   const toggleGroup = (groupId: string) => {

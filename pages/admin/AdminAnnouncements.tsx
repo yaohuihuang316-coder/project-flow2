@@ -59,48 +59,62 @@ const AdminAnnouncements: React.FC = () => {
 
   // 保存公告
   const handleSave = async () => {
-    if (!currentAnnouncement.title || !currentAnnouncement.content) {
+    if (!currentAnnouncement.title?.trim() || !currentAnnouncement.content?.trim()) {
       alert('标题和内容不能为空');
       return;
     }
 
     try {
-      const { error } = currentAnnouncement.id
-        ? await supabase
-            .from('app_announcements')
-            .update({
-              title: currentAnnouncement.title,
-              content: currentAnnouncement.content,
-              type: currentAnnouncement.type,
-              priority: currentAnnouncement.priority,
-              target_audience: currentAnnouncement.target_audience,
-              is_active: currentAnnouncement.is_active,
-              start_at: currentAnnouncement.start_at,
-              end_at: currentAnnouncement.end_at || null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', currentAnnouncement.id)
-        : await supabase
-            .from('app_announcements')
-            .insert({
-              title: currentAnnouncement.title,
-              content: currentAnnouncement.content,
-              type: currentAnnouncement.type || 'info',
-              priority: currentAnnouncement.priority || 50,
-              target_audience: currentAnnouncement.target_audience || 'all',
-              is_active: currentAnnouncement.is_active ?? true,
-              start_at: currentAnnouncement.start_at || new Date().toISOString(),
-              end_at: currentAnnouncement.end_at || null
-            });
+      const payload = {
+        title: currentAnnouncement.title.trim(),
+        content: currentAnnouncement.content.trim(),
+        type: currentAnnouncement.type || 'info',
+        priority: currentAnnouncement.priority || 50,
+        target_audience: currentAnnouncement.target_audience || 'all',
+        is_active: currentAnnouncement.is_active ?? true,
+        start_at: currentAnnouncement.start_at || new Date().toISOString(),
+        end_at: currentAnnouncement.end_at || null
+      };
 
-      if (error) throw error;
+      console.log('Saving announcement:', payload, 'ID:', currentAnnouncement.id);
+
+      let result;
+      if (currentAnnouncement.id) {
+        // 更新
+        result = await supabase
+          .from('app_announcements')
+          .update({
+            ...payload,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentAnnouncement.id)
+          .select();
+      } else {
+        // 新建
+        result = await supabase
+          .from('app_announcements')
+          .insert(payload)
+          .select();
+      }
+
+      console.log('Save result:', result);
+
+      if (result.error) {
+        console.error('Supabase error:', result.error);
+        throw new Error(result.error.message || '保存失败');
+      }
+
+      if (!result.data || result.data.length === 0) {
+        throw new Error('保存后未返回数据，请检查RLS策略');
+      }
       
       setIsEditing(false);
       setCurrentAnnouncement({ type: 'info', priority: 50, target_audience: 'all', is_active: true });
-      fetchAnnouncements();
-    } catch (error) {
+      await fetchAnnouncements();
+      alert('保存成功！');
+    } catch (error: any) {
       console.error('Error saving announcement:', error);
-      alert('保存失败');
+      alert('保存失败: ' + (error.message || '未知错误，请检查控制台'));
     }
   };
 

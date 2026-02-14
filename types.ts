@@ -23,8 +23,9 @@ export enum Page {
   ADMIN_SYSTEM = 'ADMIN_SYSTEM',
   ADMIN_ANALYTICS = 'ADMIN_ANALYTICS',
   ADMIN_MEMBERSHIP = 'ADMIN_MEMBERSHIP', // 会员管理
-  ADMIN_SIMULATION = 'ADMIN_SIMULATION' // 模拟场景管理
-  // 已删除: ADMIN_SETTINGS, ADMIN_MONITOR
+  ADMIN_SIMULATION = 'ADMIN_SIMULATION', // 实战项目管理
+  ADMIN_TOOLS = 'ADMIN_TOOLS' // 核心算法管理
+  // 已删除: ADMIN_SETTINGS, ADMIN_MONITOR, ADMIN_EVENTS, ADMIN_SYSTEM
 }
 
 export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor' | 'Student';

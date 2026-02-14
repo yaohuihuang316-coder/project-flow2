@@ -24,9 +24,9 @@ import AdminContent from './pages/admin/AdminContent';
 import AdminCommunity from './pages/admin/AdminCommunity';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 import AdminMembership from './pages/admin/AdminMembership'; // 会员管理
-import AdminSimulation from './pages/admin/AdminSimulation'; // 模拟场景管理
-import AdminEvents from './pages/admin/AdminEvents';
-import AdminSystem from './pages/admin/AdminSystem';
+import AdminSimulation from './pages/admin/AdminSimulation'; // 实战项目管理
+import AdminTools from './pages/admin/AdminTools'; // 核心算法管理
+// Removed: AdminEvents, AdminSystem - not needed for current frontend
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 // 已删除: AdminSettings, AdminMonitor
 import { Page, UserProfile } from './types';
@@ -94,10 +94,9 @@ const App: React.FC = () => {
           {/* AdminContent now receives the param to switch tabs internally */}
           {currentPage === Page.ADMIN_CONTENT && <AdminContent initialTab={currentParam !== 'default' ? currentParam : 'courses'} />}
           {currentPage === Page.ADMIN_COMMUNITY && <AdminCommunity />}
-          {currentPage === Page.ADMIN_EVENTS && <AdminEvents />}
           {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
-          {currentPage === Page.ADMIN_SYSTEM && <AdminSystem />}
           {currentPage === Page.ADMIN_MEMBERSHIP && <AdminMembership />}
+          {currentPage === Page.ADMIN_TOOLS && <AdminTools />}
           {currentPage === Page.ADMIN_SIMULATION && <AdminSimulation />}
         </AdminLayout>
       );
