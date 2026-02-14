@@ -4,7 +4,8 @@ import { Page, UserProfile } from '../../types';
 import {
   LayoutDashboard, Users, Settings, Crown,
   LogOut, Bell, Menu, X, MessageSquare,
-  ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, Calendar, BarChart3
+  ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, Calendar, BarChart3,
+  Target
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -55,6 +56,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         { label: '内容审核', page: Page.ADMIN_COMMUNITY, icon: MessageSquare, roles: ['SuperAdmin', 'Manager'] },
         { label: '全站公告', page: Page.ADMIN_ANNOUNCEMENTS, icon: Megaphone, roles: ['SuperAdmin', 'Manager'] },
         { label: '会员管理', page: Page.ADMIN_MEMBERSHIP, icon: Crown, roles: ['SuperAdmin', 'Manager'] },
+        { label: '模拟场景', page: Page.ADMIN_SIMULATION, icon: Target, roles: ['SuperAdmin', 'Manager'] },
       ]
     },
     {

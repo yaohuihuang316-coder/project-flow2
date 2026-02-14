@@ -1,188 +1,834 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Terminal, Play, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { 
+    ChevronLeft, Play, CheckCircle2, AlertTriangle, Loader2, 
+    Trophy, Clock, Target, FileText, BarChart3, Download,
+    ArrowRight, RotateCcw, Lock, Crown, Star, TrendingUp,
+    Users, Zap, Brain, AlertCircle, X
+} from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
+import { Page } from '../types';
 
 interface SimulationProps {
-    onBack: () => void;
+    onNavigate?: (page: Page) => void;
     currentUser?: UserProfile | null;
 }
 
-const Simulation: React.FC<SimulationProps> = ({ onBack }) => {
-    // State
-    const [scenarios, setScenarios] = useState<any[]>([]);
-    const [activeScenario, setActiveScenario] = useState<any>(null);
-    const [currentStepIndex, setCurrentStepIndex] = useState(0);
-    const [score, setScore] = useState(0);
-    const [history, setHistory] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+// 模拟场景类型
+interface SimulationScenario {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard' | 'Expert';
+    category: string;
+    cover_image: string;
+    stages: SimulationStage[];
+    learning_objectives: string[];
+    estimated_time: number;
+    completion_count: number;
+}
 
-    // Fetch Scenarios from DB
+// 模拟阶段
+interface SimulationStage {
+    id: string;
+    title: string;
+    description: string;
+    context?: string;
+    decisions: Decision[];
+    resources?: ResourceState;
+}
+
+// 决策选项
+interface Decision {
+    id: string;
+    text: string;
+    description?: string;
+    impact: {
+        score: number;
+        resources?: ResourceState;
+        feedback: string;
+    };
+    is_optimal?: boolean;
+}
+
+// 资源状态
+interface ResourceState {
+    budget?: number;
+    time?: number;
+    morale?: number;
+    quality?: number;
+}
+
+// 用户进度
+interface UserSimulationProgress {
+    id: string;
+    scenario_id: string;
+    current_stage: number;
+    decisions_made: MadeDecision[];
+    resources_state: ResourceState;
+    score: number;
+    max_score: number;
+    status: 'in_progress' | 'completed' | 'abandoned';
+    started_at: string;
+    completed_at?: string;
+}
+
+interface MadeDecision {
+    stage_id: string;
+    decision_id: string;
+    score: number;
+    timestamp: string;
+}
+
+const Simulation: React.FC<SimulationProps> = ({ onNavigate, currentUser }) => {
+    // 页面状态
+    const [view, setView] = useState<'list' | 'detail' | 'running' | 'result'>('list');
+    const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
+    const [selectedScenario, setSelectedScenario] = useState<SimulationScenario | null>(null);
+    const [userProgress, setUserProgress] = useState<UserSimulationProgress | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // 模拟运行状态
+    const [currentStageIndex, setCurrentStageIndex] = useState(0);
+    const [stageHistory, setStageHistory] = useState<any[]>([]);
+    const [resources, setResources] = useState<ResourceState>({});
+    const [totalScore, setTotalScore] = useState(0);
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [lastDecision, setLastDecision] = useState<Decision | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    // 获取场景列表
     useEffect(() => {
-        const fetchSimulations = async () => {
-            setIsLoading(true);
-            const { data } = await supabase
-                .from('app_courses')
-                .select('*')
-                .eq('category', 'Simulation'); // Assuming Simulations are stored here
-            if (data) {
-                // Parse script data
-                const parsed = data.map(d => ({
-                    ...d,
-                    script: typeof d.simulation_data === 'string' ? JSON.parse(d.simulation_data) : d.simulation_data
-                }));
-                setScenarios(parsed);
-            }
-            setIsLoading(false);
-        };
-        fetchSimulations();
+        fetchScenarios();
     }, []);
 
-    const startScenario = (scenario: any) => {
-        if (!scenario.script || scenario.script.length === 0) {
-            alert("该模拟暂无剧本配置 (Admin Please Config)");
+    const fetchScenarios = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('app_simulation_scenarios')
+                .select('*')
+                .eq('is_published', true)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (data) {
+                const parsedScenarios: SimulationScenario[] = data.map(s => ({
+                    ...s,
+                    stages: typeof s.stages === 'string' ? JSON.parse(s.stages) : s.stages || [],
+                    learning_objectives: typeof s.learning_objectives === 'string' 
+                        ? JSON.parse(s.learning_objectives) 
+                        : s.learning_objectives || [],
+                }));
+                setScenarios(parsedScenarios);
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 获取用户进度
+    const fetchUserProgress = async (scenarioId: string) => {
+        if (!currentUser) return null;
+        
+        const { data } = await supabase
+            .from('app_simulation_progress')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .eq('scenario_id', scenarioId)
+            .single();
+        
+        if (data) {
+            return {
+                ...data,
+                decisions_made: typeof data.decisions_made === 'string' 
+                    ? JSON.parse(data.decisions_made) 
+                    : data.decisions_made || [],
+                resources_state: typeof data.resources_state === 'string'
+                    ? JSON.parse(data.resources_state)
+                    : data.resources_state || {},
+            } as UserSimulationProgress;
+        }
+        return null;
+    };
+
+    // 开始/继续模拟
+    const startSimulation = async (scenario: SimulationScenario) => {
+        if (!currentUser) {
+            alert('请先登录');
             return;
         }
-        setActiveScenario(scenario);
-        setCurrentStepIndex(0);
-        setScore(0);
-        setHistory([]);
-    };
 
-    const handleChoice = (option: any) => {
-        const points = option.score || 0;
-        setScore(s => s + points);
-        setHistory(prev => [...prev, {
-            step: activeScenario.script[currentStepIndex].message,
-            choice: option.text,
-            points
-        }]);
+        setSelectedScenario(scenario);
+        const progress = await fetchUserProgress(scenario.id);
+        setUserProgress(progress);
 
-        if (currentStepIndex < activeScenario.script.length - 1) {
-            setCurrentStepIndex(prev => prev + 1);
+        if (progress && progress.status === 'in_progress') {
+            // 恢复进度
+            setCurrentStageIndex(progress.current_stage);
+            setResources(progress.resources_state);
+            setTotalScore(progress.score);
+            setStageHistory(progress.decisions_made);
         } else {
-            // End
-            setCurrentStepIndex(-1); // Mark as finished
+            // 新开始
+            setCurrentStageIndex(0);
+            setResources(scenario.stages[0]?.resources || {});
+            setTotalScore(0);
+            setStageHistory([]);
+            
+            // 创建新进度记录
+            await supabase.from('app_simulation_progress').insert({
+                user_id: currentUser.id,
+                scenario_id: scenario.id,
+                current_stage: 0,
+                decisions_made: [],
+                resources_state: scenario.stages[0]?.resources || {},
+                score: 0,
+                max_score: calculateMaxScore(scenario),
+                status: 'in_progress'
+            });
         }
+
+        setView('running');
     };
 
-    // --- Render View: Scenario List ---
-    if (!activeScenario) {
-        return (
-            <div className="w-full h-screen bg-[#F5F5F7] flex flex-col p-6 overflow-y-auto">
-                <div className="flex items-center gap-4 mb-8">
-                    <button onClick={onBack} className="p-2 hover:bg-gray-200 rounded-lg"><ChevronLeft /></button>
-                    <h1 className="text-2xl font-bold text-gray-900">实战模拟中心 (Simulation Hub)</h1>
+    // 计算最大可能分数
+    const calculateMaxScore = (scenario: SimulationScenario): number => {
+        let max = 0;
+        scenario.stages.forEach(stage => {
+            const bestDecision = stage.decisions.reduce((best, d) => 
+                d.impact.score > best.impact.score ? d : best
+            , stage.decisions[0]);
+            max += bestDecision?.impact.score || 0;
+        });
+        return max;
+    };
+
+    // 做出决策
+    const makeDecision = async (decision: Decision) => {
+        if (!selectedScenario || !currentUser) return;
+
+        setLastDecision(decision);
+        setShowFeedback(true);
+        
+        const newScore = totalScore + decision.impact.score;
+        setTotalScore(newScore);
+        
+        // 更新资源状态
+        const newResources = { ...resources, ...decision.impact.resources };
+        setResources(newResources);
+        
+        // 记录历史
+        const historyEntry = {
+            stage_id: selectedScenario.stages[currentStageIndex].id,
+            decision_id: decision.id,
+            score: decision.impact.score,
+            timestamp: new Date().toISOString()
+        };
+        const newHistory = [...stageHistory, historyEntry];
+        setStageHistory(newHistory);
+
+        // 保存进度
+        setIsSaving(true);
+        const nextStage = currentStageIndex + 1;
+        const isCompleted = nextStage >= selectedScenario.stages.length;
+
+        await supabase
+            .from('app_simulation_progress')
+            .upsert({
+                user_id: currentUser.id,
+                scenario_id: selectedScenario.id,
+                current_stage: isCompleted ? currentStageIndex : nextStage,
+                decisions_made: newHistory,
+                resources_state: newResources,
+                score: newScore,
+                max_score: calculateMaxScore(selectedScenario),
+                status: isCompleted ? 'completed' : 'in_progress',
+                completed_at: isCompleted ? new Date().toISOString() : null
+            }, { onConflict: 'user_id,scenario_id' });
+
+        setIsSaving(false);
+
+        // 延迟进入下一阶段
+        setTimeout(() => {
+            setShowFeedback(false);
+            if (isCompleted) {
+                setView('result');
+            } else {
+                setCurrentStageIndex(nextStage);
+            }
+        }, 2000);
+    };
+
+    // 生成AI评分报告
+    const generateReport = async () => {
+        // Pro+ 功能检查
+        const tier = currentUser?.membershipTier || 'free';
+        if (tier !== 'pro_plus') {
+            alert('PDF导出功能需要 Pro+ 会员');
+            return;
+        }
+
+        // 动态导入 jsPDF
+        const { jsPDF } = await import('jspdf');
+        
+        const doc = new jsPDF();
+        const scenario = selectedScenario!;
+        
+        // 标题
+        doc.setFontSize(20);
+        doc.text('ProjectFlow 模拟评估报告', 20, 20);
+        
+        // 场景信息
+        doc.setFontSize(14);
+        doc.text(`场景: ${scenario.title}`, 20, 40);
+        doc.setFontSize(12);
+        doc.text(`难度: ${scenario.difficulty}`, 20, 50);
+        doc.text(`完成时间: ${new Date().toLocaleString()}`, 20, 60);
+        
+        // 得分
+        doc.setFontSize(16);
+        doc.text(`总得分: ${totalScore} / ${calculateMaxScore(scenario)}`, 20, 80);
+        
+        // 决策记录
+        doc.setFontSize(12);
+        let y = 100;
+        doc.text('决策记录:', 20, y);
+        y += 10;
+        
+        stageHistory.forEach((decision, idx) => {
+            const stage = scenario.stages[idx];
+            const dec = stage?.decisions.find(d => d.id === decision.decision_id);
+            if (dec) {
+                doc.text(`${idx + 1}. ${dec.text} (得分: ${decision.score})`, 25, y);
+                y += 8;
+            }
+        });
+
+        // 保存
+        doc.save(`simulation-report-${scenario.title}.pdf`);
+    };
+
+    // 获取难度颜色
+    const getDifficultyColor = (difficulty: string) => {
+        const colors: Record<string, string> = {
+            'Easy': 'bg-green-100 text-green-700',
+            'Medium': 'bg-blue-100 text-blue-700',
+            'Hard': 'bg-orange-100 text-orange-700',
+            'Expert': 'bg-red-100 text-red-700'
+        };
+        return colors[difficulty] || 'bg-gray-100 text-gray-700';
+    };
+
+    // 场景列表视图
+    const renderScenarioList = () => (
+        <div className="pt-24 pb-12 px-6 max-w-7xl mx-auto min-h-screen">
+            {/* Header */}
+            <div className="mb-10">
+                <h1 className="text-3xl font-bold text-gray-900 mb-3">实战模拟中心</h1>
+                <p className="text-gray-500 max-w-2xl">
+                    在虚拟项目环境中进行决策演练，提升实战能力。每个场景都基于真实项目案例设计。
+                </p>
+            </div>
+
+            {/* Stats */}
+            {currentUser && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+                        <div className="text-3xl font-bold text-gray-900 mb-1">
+                            {scenarios.filter(s => userProgress?.scenario_id === s.id && userProgress.status === 'completed').length}
+                        </div>
+                        <div className="text-sm text-gray-500">已完成</div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+                        <div className="text-3xl font-bold text-gray-900 mb-1">
+                            {scenarios.filter(s => userProgress?.scenario_id === s.id && userProgress.status === 'in_progress').length}
+                        </div>
+                        <div className="text-sm text-gray-500">进行中</div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+                        <div className="text-3xl font-bold text-gray-900 mb-1">
+                            {Math.round((userProgress?.score || 0) / Math.max(1, userProgress?.max_score || 1) * 100)}%
+                        </div>
+                        <div className="text-sm text-gray-500">平均得分</div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+                        <div className="text-3xl font-bold text-gray-900 mb-1">{scenarios.length}</div>
+                        <div className="text-sm text-gray-500">可用场景</div>
+                    </div>
                 </div>
-                {isLoading ? <div className="text-center"><Loader2 className="animate-spin mx-auto" /> Loading Scenarios...</div> : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {scenarios.map(s => (
-                            <div key={s.id} className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all cursor-pointer group border border-gray-100" onClick={() => startScenario(s)}>
-                                <div className="h-40 bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Play className="text-white fill-white" size={48} />
-                                    </div>
-                                    <img src={s.image || 'https://images.unsplash.com/photo-1553877606-3c72bd63c9d2?auto=format&fit=crop&q=80'} className="w-full h-full object-cover" />
-                                </div>
-                                <h3 className="text-xl font-bold mb-2">{s.title}</h3>
-                                <p className="text-sm text-gray-500 line-clamp-2">{s.author}</p>
-                                <div className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg w-fit">
-                                    <Terminal size={14} /> {s.script?.length || 0} Events
+            )}
+
+            {/* Scenario Grid */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-20">
+                    <Loader2 className="animate-spin mr-2" size={24} />
+                    <span className="text-gray-500">加载中...</span>
+                </div>
+            ) : error ? (
+                <div className="text-center py-20 text-red-500">
+                    <AlertCircle size={48} className="mx-auto mb-4" />
+                    <p>{error}</p>
+                </div>
+            ) : scenarios.length === 0 ? (
+                <div className="text-center py-20 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
+                    <Target size={48} className="mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">暂无可用场景</p>
+                    <p className="text-sm mt-2">敬请期待更多精彩案例</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {scenarios.map(scenario => (
+                        <div 
+                            key={scenario.id}
+                            className="bg-white rounded-3xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all cursor-pointer group"
+                            onClick={() => setView('detail') || setSelectedScenario(scenario)}
+                        >
+                            {/* Cover */}
+                            <div className="h-48 bg-gray-100 relative overflow-hidden">
+                                <img 
+                                    src={scenario.cover_image || 'https://images.unsplash.com/photo-1553877606-3c72bd63c9d2?auto=format&fit=crop&q=80'} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    alt={scenario.title}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                <div className="absolute bottom-4 left-4 right-4">
+                                    <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${getDifficultyColor(scenario.difficulty)}`}>
+                                        {scenario.difficulty}
+                                    </span>
                                 </div>
                             </div>
-                        ))}
-                        {scenarios.length === 0 && (
-                            <div className="col-span-3 text-center py-20 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
-                                暂无剧本，请在后台内容管理中创建类型为 "Simulation" 的内容。
+
+                            {/* Content */}
+                            <div className="p-6">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                                    {scenario.title}
+                                </h3>
+                                <p className="text-sm text-gray-500 line-clamp-2 mb-4">
+                                    {scenario.description}
+                                </p>
+
+                                {/* Meta */}
+                                <div className="flex items-center gap-4 text-xs text-gray-400">
+                                    <span className="flex items-center gap-1">
+                                        <Clock size={14} />
+                                        {scenario.estimated_time || 15}分钟
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <TrendingUp size={14} />
+                                        {scenario.stages?.length || 0}个阶段
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <Users size={14} />
+                                        {scenario.completion_count || 0}人已完成
+                                    </span>
+                                </div>
+
+                                {/* Action */}
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                                    <span className="text-xs text-gray-400">
+                                        {scenario.category}
+                                    </span>
+                                    <button className="flex items-center gap-1 text-sm font-bold text-blue-600 group-hover:gap-2 transition-all">
+                                        开始模拟 <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    // 场景详情视图
+    const renderScenarioDetail = () => {
+        if (!selectedScenario) return null;
+        
+        return (
+            <div className="pt-24 pb-12 px-6 max-w-4xl mx-auto min-h-screen">
+                <button 
+                    onClick={() => { setView('list'); setSelectedScenario(null); }}
+                    className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6"
+                >
+                    <ChevronLeft size={20} /> 返回列表
+                </button>
+
+                {/* Header */}
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                    <div className="flex items-start gap-6">
+                        <img 
+                            src={selectedScenario.cover_image || 'https://images.unsplash.com/photo-1553877606-3c72bd63c9d2?auto=format&fit=crop&q=80'}
+                            className="w-32 h-32 rounded-2xl object-cover"
+                            alt={selectedScenario.title}
+                        />
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getDifficultyColor(selectedScenario.difficulty)}`}>
+                                    {selectedScenario.difficulty}
+                                </span>
+                                <span className="text-sm text-gray-400">{selectedScenario.category}</span>
+                            </div>
+                            <h1 className="text-2xl font-bold text-gray-900 mb-3">{selectedScenario.title}</h1>
+                            <p className="text-gray-500 mb-4">{selectedScenario.description}</p>
+                            
+                            <div className="flex items-center gap-6 text-sm text-gray-400">
+                                <span className="flex items-center gap-1">
+                                    <Clock size={16} />
+                                    预计 {selectedScenario.estimated_time || 15} 分钟
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Target size={16} />
+                                    {selectedScenario.stages?.length || 0} 个决策点
+                                </span>
+                                <span className="flex items-center gap-1">
+                                    <Users size={16} />
+                                    {selectedScenario.completion_count || 0} 人已挑战
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Learning Objectives */}
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">学习目标</h3>
+                    <ul className="space-y-3">
+                        {selectedScenario.learning_objectives?.map((obj, idx) => (
+                            <li key={idx} className="flex items-start gap-3">
+                                <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                <span className="text-gray-600">{obj}</span>
+                            </li>
+                        )) || <li className="text-gray-400">暂无学习目标</li>}
+                    </ul>
+                </div>
+
+                {/* Stages Preview */}
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">场景流程</h3>
+                    <div className="space-y-4">
+                        {selectedScenario.stages?.map((stage, idx) => (
+                            <div key={stage.id} className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                    {idx + 1}
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-medium text-gray-900">{stage.title}</h4>
+                                    <p className="text-sm text-gray-400">{stage.decisions?.length || 0} 个选项</p>
+                                </div>
+                                <ArrowRight size={16} className="text-gray-300" />
+                            </div>
+                        )) || <p className="text-gray-400">暂无流程信息</p>}
+                    </div>
+                </div>
+
+                {/* Start Button */}
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => startSimulation(selectedScenario)}
+                        className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        <Play size={20} /> 开始模拟
+                    </button>
+                    {userProgress?.status === 'in_progress' && (
+                        <button
+                            onClick={() => startSimulation(selectedScenario)}
+                            className="px-6 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                        >
+                            继续进度
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // 模拟运行视图
+    const renderRunningSimulation = () => {
+        if (!selectedScenario) return null;
+        
+        const currentStage = selectedScenario.stages[currentStageIndex];
+        const progress = ((currentStageIndex) / selectedScenario.stages.length) * 100;
+
+        return (
+            <div className="fixed inset-0 bg-[#1a1a2e] text-white z-50 flex flex-col">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+                    <button 
+                        onClick={() => setView('list')}
+                        className="flex items-center gap-2 text-gray-400 hover:text-white"
+                    >
+                        <ChevronLeft size={20} /> 退出
+                    </button>
+                    <div className="text-center">
+                        <h3 className="font-bold">{selectedScenario.title}</h3>
+                        <p className="text-xs text-gray-500">阶段 {currentStageIndex + 1} / {selectedScenario.stages.length}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="text-right">
+                            <div className="text-xs text-gray-500">得分</div>
+                            <div className="font-bold text-yellow-400">{totalScore}</div>
+                        </div>
+                        {isSaving && <Loader2 size={16} className="animate-spin text-gray-500" />}
+                    </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="h-1 bg-white/10">
+                    <div 
+                        className="h-full bg-blue-500 transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="max-w-3xl mx-auto">
+                        {/* Stage Info */}
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-bold mb-4">{currentStage?.title}</h2>
+                            {currentStage?.context && (
+                                <div className="bg-white/5 rounded-2xl p-6 mb-6">
+                                    <p className="text-gray-300 leading-relaxed">{currentStage.context}</p>
+                                </div>
+                            )}
+                            <p className="text-lg text-gray-200">{currentStage?.description}</p>
+                        </div>
+
+                        {/* Resources Status */}
+                        {Object.keys(resources).length > 0 && (
+                            <div className="grid grid-cols-4 gap-4 mb-8">
+                                {resources.budget !== undefined && (
+                                    <div className="bg-white/5 rounded-xl p-4 text-center">
+                                        <div className="text-xs text-gray-500 mb-1">预算</div>
+                                        <div className={`font-bold ${resources.budget < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                            ${resources.budget}K
+                                        </div>
+                                    </div>
+                                )}
+                                {resources.time !== undefined && (
+                                    <div className="bg-white/5 rounded-xl p-4 text-center">
+                                        <div className="text-xs text-gray-500 mb-1">时间</div>
+                                        <div className={`font-bold ${resources.time < 10 ? 'text-red-400' : 'text-blue-400'}`}>
+                                            {resources.time}天
+                                        </div>
+                                    </div>
+                                )}
+                                {resources.morale !== undefined && (
+                                    <div className="bg-white/5 rounded-xl p-4 text-center">
+                                        <div className="text-xs text-gray-500 mb-1">团队士气</div>
+                                        <div className={`font-bold ${resources.morale < 50 ? 'text-red-400' : 'text-yellow-400'}`}>
+                                            {resources.morale}%
+                                        </div>
+                                    </div>
+                                )}
+                                {resources.quality !== undefined && (
+                                    <div className="bg-white/5 rounded-xl p-4 text-center">
+                                        <div className="text-xs text-gray-500 mb-1">质量</div>
+                                        <div className="font-bold text-purple-400">{resources.quality}%</div>
+                                    </div>
+                                )}
                             </div>
                         )}
+
+                        {/* Decision Options */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">选择你的决策</h3>
+                            {currentStage?.decisions?.map((decision, idx) => (
+                                <button
+                                    key={decision.id}
+                                    onClick={() => makeDecision(decision)}
+                                    disabled={showFeedback}
+                                    className="w-full text-left p-6 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/50 rounded-2xl transition-all group disabled:opacity-50"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold group-hover:bg-blue-500 transition-colors">
+                                            {String.fromCharCode(65 + idx)}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold mb-1 group-hover:text-blue-400 transition-colors">
+                                                {decision.text}
+                                            </h4>
+                                            {decision.description && (
+                                                <p className="text-sm text-gray-500">{decision.description}</p>
+                                            )}
+                                        </div>
+                                        <ArrowRight size={20} className="text-gray-600 group-hover:text-blue-400 transition-colors" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Feedback Overlay */}
+                {showFeedback && lastDecision && (
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10 animate-fade-in">
+                        <div className="bg-[#1a1a2e] border border-white/20 rounded-3xl p-8 max-w-md mx-4 animate-slide-up">
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                                lastDecision.impact.score > 0 ? 'bg-green-500/20 text-green-400' : 
+                                lastDecision.impact.score < 0 ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                                {lastDecision.impact.score > 0 ? <Trophy size={32} /> : 
+                                 lastDecision.impact.score < 0 ? <AlertTriangle size={32} /> : <CheckCircle2 size={32} />}
+                            </div>
+                            <h3 className="text-xl font-bold text-center mb-2">
+                                {lastDecision.impact.score > 0 ? '明智的选择！' : 
+                                 lastDecision.impact.score < 0 ? '需要改进' : '中规中矩'}
+                            </h3>
+                            <p className="text-gray-400 text-center mb-4">{lastDecision.impact.feedback}</p>
+                            <div className="text-center">
+                                <span className={`text-2xl font-bold ${
+                                    lastDecision.impact.score > 0 ? 'text-green-400' : 
+                                    lastDecision.impact.score < 0 ? 'text-red-400' : 'text-gray-400'
+                                }`}>
+                                    {lastDecision.impact.score > 0 ? '+' : ''}{lastDecision.impact.score} 分
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
         );
-    }
+    };
 
-    // --- Render View: Active Scenario Runner ---
-    const currentEvent = activeScenario.script[currentStepIndex];
-    const isFinished = currentStepIndex === -1;
+    // 结果报告视图
+    const renderResult = () => {
+        if (!selectedScenario) return null;
+        
+        const maxScore = calculateMaxScore(selectedScenario);
+        const percentage = Math.round((totalScore / maxScore) * 100);
+        const isProPlus = currentUser?.membershipTier === 'pro_plus';
 
-    return (
-        <div className="w-full h-screen bg-[#1c1c1e] text-white flex flex-col relative overflow-hidden">
-            {/* Background Atmosphere */}
-            <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 to-black pointer-events-none"></div>
-
-            {/* Header */}
-            <div className="relative z-10 px-6 py-4 flex justify-between items-center border-b border-white/10">
-                <button onClick={() => setActiveScenario(null)} className="text-gray-400 hover:text-white flex items-center gap-2 font-bold text-sm">
-                    <ChevronLeft size={16} /> 退出模拟
-                </button>
-                <div className="text-center">
-                    <h2 className="font-bold">{activeScenario.title}</h2>
-                    <p className="text-xs text-gray-500">{isFinished ? 'Completed' : `Event ${currentStepIndex + 1} / ${activeScenario.script.length}`}</p>
+        return (
+            <div className="pt-24 pb-12 px-6 max-w-4xl mx-auto min-h-screen">
+                {/* Header */}
+                <div className="text-center mb-10">
+                    <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
+                        <Trophy size={48} className="text-white" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">模拟完成！</h1>
+                    <p className="text-gray-500">{selectedScenario.title}</p>
                 </div>
-                <div className="px-3 py-1 rounded bg-white/10 text-xs font-mono font-bold">
-                    Score: {score}
-                </div>
-            </div>
 
-            {/* Main Stage */}
-            <div className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 max-w-2xl mx-auto w-full">
-                {isFinished ? (
-                    <div className="text-center animate-fade-in-up">
-                        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center text-black mx-auto mb-6 shadow-[0_0_30px_rgba(34,197,94,0.5)]">
-                            <CheckCircle2 size={48} />
+                {/* Score Card */}
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                    <div className="text-center mb-6">
+                        <div className="text-6xl font-bold text-gray-900 mb-2">{percentage}%</div>
+                        <div className="text-gray-500">综合得分</div>
+                    </div>
+
+                    <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-6">
+                        <div 
+                            className={`h-full rounded-full transition-all duration-1000 ${
+                                percentage >= 80 ? 'bg-green-500' : 
+                                percentage >= 60 ? 'bg-blue-500' : 'bg-orange-500'
+                            }`}
+                            style={{ width: `${percentage}%` }}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <div className="text-2xl font-bold text-gray-900">{totalScore}</div>
+                            <div className="text-xs text-gray-500">获得分数</div>
                         </div>
-                        <h1 className="text-4xl font-bold mb-4">模拟完成</h1>
-                        <p className="text-gray-400 mb-8">最终得分: <span className="text-white font-bold text-xl">{score}</span></p>
-                        <div className="space-y-2 text-left bg-white/5 p-6 rounded-2xl mb-8 max-h-60 overflow-y-auto custom-scrollbar">
-                            {history.map((h, i) => (
-                                <div key={i} className="text-sm border-b border-white/10 pb-2 last:border-0">
-                                    <p className="text-gray-400 text-xs mb-1">Event: {h.step}</p>
-                                    <div className="flex justify-between">
-                                        <span className="font-bold text-blue-400">{h.choice}</span>
-                                        <span className={h.points >= 0 ? 'text-green-500' : 'text-red-500'}>{h.points > 0 ? '+' : ''}{h.points}</span>
+                        <div>
+                            <div className="text-2xl font-bold text-gray-900">{maxScore}</div>
+                            <div className="text-xs text-gray-500">满分</div>
+                        </div>
+                        <div>
+                            <div className="text-2xl font-bold text-gray-900">{stageHistory.length}</div>
+                            <div className="text-xs text-gray-500">决策数</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Decision History */}
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">决策回顾</h3>
+                    <div className="space-y-4">
+                        {stageHistory.map((history, idx) => {
+                            const stage = selectedScenario.stages[idx];
+                            const decision = stage?.decisions.find(d => d.id === history.decision_id);
+                            
+                            return (
+                                <div key={idx} className="flex items-start gap-4 p-4 bg-gray-50 rounded-2xl">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                        {idx + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-medium text-gray-900 mb-1">{stage?.title}</h4>
+                                        <p className="text-sm text-gray-600 mb-2">你的选择: {decision?.text}</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                                history.score > 0 ? 'bg-green-100 text-green-700' : 
+                                                history.score < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {history.score > 0 ? '+' : ''}{history.score} 分
+                                            </span>
+                                            {decision?.is_optimal && (
+                                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">
+                                                    最优解
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                        <button onClick={() => setActiveScenario(null)} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform">
-                            返回列表
-                        </button>
+                            );
+                        })}
                     </div>
-                ) : (
-                    <div className="w-full space-y-8 animate-fade-in">
-                        {/* Event Card */}
-                        <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] shadow-2xl">
-                            <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                <AlertTriangle size={14} /> {currentEvent.trigger}
-                            </div>
-                            <h3 className="text-2xl font-medium leading-relaxed">
-                                {currentEvent.message}
-                            </h3>
-                        </div>
+                </div>
 
-                        {/* Options */}
-                        <div className="grid gap-4">
-                            {currentEvent.options && currentEvent.options.length > 0 ? (
-                                currentEvent.options.map((opt: any, i: number) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handleChoice(opt)}
-                                        className="w-full p-4 rounded-xl bg-white text-black font-bold text-left hover:bg-gray-200 hover:scale-[1.01] transition-all flex justify-between group"
-                                    >
-                                        <span>{opt.text}</span>
-                                        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500">选择 →</span>
-                                    </button>
-                                ))
-                            ) : (
-                                <button onClick={() => handleChoice({})} className="w-full p-4 bg-blue-600 rounded-xl font-bold">继续 (Next)</button>
-                            )}
-                        </div>
+                {/* Actions */}
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setView('list')}
+                        className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                    >
+                        返回列表
+                    </button>
+                    <button
+                        onClick={() => startSimulation(selectedScenario)}
+                        className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        <RotateCcw size={20} /> 重新挑战
+                    </button>
+                    {isProPlus && (
+                        <button
+                            onClick={generateReport}
+                            className="flex-1 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+                        >
+                            <Download size={20} /> 导出报告
+                        </button>
+                    )}
+                </div>
+
+                {!isProPlus && (
+                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
+                        <Crown size={20} className="text-amber-500" />
+                        <span className="text-sm text-amber-700">
+                            升级 <span className="font-bold">Pro+</span> 解锁 PDF 报告导出功能
+                        </span>
                     </div>
                 )}
             </div>
-        </div>
+        );
+    };
+
+    // 主渲染
+    return (
+        <>
+            {view === 'list' && renderScenarioList()}
+            {view === 'detail' && renderScenarioDetail()}
+            {view === 'running' && renderRunningSimulation()}
+            {view === 'result' && renderResult()}
+        </>
     );
 };
 

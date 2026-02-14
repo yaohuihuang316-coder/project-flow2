@@ -24,6 +24,7 @@ import AdminContent from './pages/admin/AdminContent';
 import AdminCommunity from './pages/admin/AdminCommunity';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 import AdminMembership from './pages/admin/AdminMembership'; // 会员管理
+import AdminSimulation from './pages/admin/AdminSimulation'; // 模拟场景管理
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminSystem from './pages/admin/AdminSystem';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
@@ -97,6 +98,7 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
           {currentPage === Page.ADMIN_SYSTEM && <AdminSystem />}
           {currentPage === Page.ADMIN_MEMBERSHIP && <AdminMembership />}
+          {currentPage === Page.ADMIN_SIMULATION && <AdminSimulation />}
         </AdminLayout>
       );
     }

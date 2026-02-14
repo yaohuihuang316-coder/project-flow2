@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserProfile } from '../types';
 import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users, Bot, Crown, CreditCard } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface NavbarProps {
   currentPage: Page;
@@ -11,19 +12,128 @@ interface NavbarProps {
   onNavigate?: (page: Page) => void;
 }
 
-// Mock Notifications
-const NOTIFICATIONS = [
-    { id: 1, title: '课程更新', msg: '《敏捷实战》新增了第4章：Scrum详解', time: '10m ago', type: 'info' },
-    { id: 2, title: '作业批改', msg: '您的 "WBS 分解" 作业已被批改，得分 95。', time: '1h ago', type: 'success' },
-    { id: 3, title: '系统维护', msg: '系统将于今晚 02:00 进行例行维护。', time: '3h ago', type: 'warning' },
-];
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  priority: number;
+  created_at: string;
+  is_read?: boolean;
+}
 
 const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLogout, onNavigate }) => {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const upgradeRef = useRef<HTMLDivElement>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(3);
+  const [activeNotifTab, setActiveNotifTab] = useState<'announcements' | 'notifications'>('announcements');
   const notifRef = useRef<HTMLDivElement>(null);
+  
+  // 真实公告数据
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [readAnnouncements, setReadAnnouncements] = useState<Set<string>>(new Set());
+  const [isLoadingNotifs, setIsLoadingNotifs] = useState(false);
+
+  // 计算未读公告数
+  const unreadCount = announcements.filter(a => !readAnnouncements.has(a.id)).length;
+
+  // 获取公告列表
+  const fetchAnnouncements = async () => {
+    if (!currentUser) return;
+    setIsLoadingNotifs(true);
+    try {
+      // 获取有效公告
+      const { data: announcementsData, error } = await supabase
+        .from('app_announcements')
+        .select('*')
+        .eq('is_active', true)
+        .lte('start_at', new Date().toISOString())
+        .or(`end_at.is.null,end_at.gte.${new Date().toISOString()}`)
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      // 根据目标受众过滤
+      const filtered = (announcementsData || []).filter(a => {
+        if (a.target_audience === 'all') return true;
+        return a.target_audience === currentUser?.membershipTier;
+      });
+
+      setAnnouncements(filtered);
+
+      // 获取已读记录
+      const { data: readData } = await supabase
+        .from('app_user_announcement_reads')
+        .select('announcement_id')
+        .eq('user_id', currentUser.id);
+
+      if (readData) {
+        setReadAnnouncements(new Set(readData.map(r => r.announcement_id)));
+      }
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+    } finally {
+      setIsLoadingNotifs(false);
+    }
+  };
+
+  // 标记公告为已读
+  const markAsRead = async (announcementId: string) => {
+    if (!currentUser || readAnnouncements.has(announcementId)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('app_user_announcement_reads')
+        .insert({
+          user_id: currentUser.id,
+          announcement_id: announcementId,
+          read_at: new Date().toISOString()
+        });
+
+      if (error && error.code !== '23505') throw error; // 忽略重复插入错误
+      
+      setReadAnnouncements(prev => new Set([...prev, announcementId]));
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  // 标记所有为已读
+  const markAllAsRead = async () => {
+    if (!currentUser || announcements.length === 0) return;
+    
+    const unreadIds = announcements.filter(a => !readAnnouncements.has(a.id)).map(a => a.id);
+    if (unreadIds.length === 0) return;
+
+    try {
+      const reads = unreadIds.map(id => ({
+        user_id: currentUser.id,
+        announcement_id: id,
+        read_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('app_user_announcement_reads')
+        .insert(reads);
+
+      if (error && error.code !== '23505') throw error;
+      
+      setReadAnnouncements(prev => new Set([...prev, ...unreadIds]));
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  // 点击通知按钮时获取数据
+  const handleNotifClick = () => {
+    const newState = !isNotifOpen;
+    setIsNotifOpen(newState);
+    if (newState) {
+      fetchAnnouncements();
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -39,6 +149,14 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
       return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 定期刷新公告（每5分钟）
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchAnnouncements();
+    const interval = setInterval(fetchAnnouncements, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   if (currentPage === Page.LOGIN) return null;
 
   const navItems = [
@@ -49,17 +167,34 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
     { page: Page.PROFILE, icon: User, label: '成就' },
   ];
 
-  const handleNotifClick = () => {
-      setIsNotifOpen(!isNotifOpen);
-      if (!isNotifOpen) setUnreadCount(0); // Mark as read on open
-  };
-
   const getNotifIcon = (type: string) => {
       switch(type) {
           case 'success': return <CheckCircle size={16} className="text-green-500" />;
           case 'warning': return <AlertCircle size={16} className="text-orange-500" />;
+          case 'error': return <AlertCircle size={16} className="text-red-500" />;
           default: return <Info size={16} className="text-blue-500" />;
       }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch(type) {
+      case 'success': return 'bg-green-100 text-green-700 border-green-200';
+      case 'warning': return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'error': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-blue-100 text-blue-700 border-blue-200';
+    }
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
+    return date.toLocaleDateString('zh-CN');
   };
 
   return (
@@ -200,32 +335,88 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
-                    <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                 )}
               </button>
 
               {/* Dropdown Panel */}
               {isNotifOpen && (
-                  <div className="absolute top-full right-0 mt-3 w-80 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-up origin-top-right">
-                      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Notifications</h3>
-                          <button onClick={() => setIsNotifOpen(false)} className="text-gray-400 hover:text-black"><X size={14}/></button>
+                  <div className="absolute top-full right-0 mt-3 w-96 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-up origin-top-right">
+                      {/* Tabs */}
+                      <div className="flex border-b border-gray-100">
+                        <button 
+                          className={`flex-1 py-3 text-sm font-bold ${activeNotifTab === 'announcements' ? 'text-black border-b-2 border-black' : 'text-gray-400'}`}
+                          onClick={() => setActiveNotifTab('announcements')}
+                        >
+                          公告 {unreadCount > 0 && <span className="ml-1 text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full">{unreadCount}</span>}
+                        </button>
+                        <button 
+                          className={`flex-1 py-3 text-sm font-bold ${activeNotifTab === 'notifications' ? 'text-black border-b-2 border-black' : 'text-gray-400'}`}
+                          onClick={() => setActiveNotifTab('notifications')}
+                        >
+                          通知
+                        </button>
                       </div>
-                      <div className="max-h-[300px] overflow-y-auto">
-                          {NOTIFICATIONS.map((notif) => (
-                              <div key={notif.id} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors flex gap-3">
-                                  <div className="mt-0.5">{getNotifIcon(notif.type)}</div>
-                                  <div>
-                                      <h4 className="text-sm font-bold text-gray-900">{notif.title}</h4>
-                                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{notif.msg}</p>
-                                      <span className="text-[10px] text-gray-400 mt-2 block font-medium">{notif.time}</span>
+
+                      {/* Content */}
+                      <div className="max-h-[400px] overflow-y-auto">
+                        {activeNotifTab === 'announcements' ? (
+                          isLoadingNotifs ? (
+                            <div className="py-10 text-center text-gray-400">
+                              <div className="animate-spin inline-block w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full mb-2" />
+                              <p className="text-xs">加载中...</p>
+                            </div>
+                          ) : announcements.length === 0 ? (
+                            <div className="py-10 text-center text-gray-400">
+                              <Info size={32} className="mx-auto mb-2 opacity-30" />
+                              <p className="text-xs">暂无公告</p>
+                            </div>
+                          ) : (
+                            <>
+                              {announcements.map((notif) => (
+                                  <div 
+                                    key={notif.id} 
+                                    className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${
+                                      !readAnnouncements.has(notif.id) ? 'bg-blue-50/30' : ''
+                                    }`}
+                                    onClick={() => markAsRead(notif.id)}
+                                  >
+                                      <div className="flex gap-3">
+                                          <div className={`p-2 rounded-lg ${getTypeColor(notif.type)}`}>
+                                              {getNotifIcon(notif.type)}
+                                          </div>
+                                          <div className="flex-1">
+                                              <div className="flex items-center gap-2">
+                                                <h4 className="text-sm font-bold text-gray-900">{notif.title}</h4>
+                                                {!readAnnouncements.has(notif.id) && (
+                                                  <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                                                )}
+                                              </div>
+                                              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{notif.content}</p>
+                                              <span className="text-[10px] text-gray-400 mt-2 block font-medium">{formatTime(notif.created_at)}</span>
+                                          </div>
+                                      </div>
                                   </div>
-                              </div>
-                          ))}
+                              ))}
+                              {announcements.length > 0 && (
+                                <button 
+                                  onClick={markAllAsRead}
+                                  className="w-full py-3 text-xs font-bold text-center text-blue-600 hover:bg-gray-50 transition-colors"
+                                >
+                                  全部已读
+                                </button>
+                              )}
+                            </>
+                          )
+                        ) : (
+                          <div className="py-10 text-center text-gray-400">
+                            <Info size={32} className="mx-auto mb-2 opacity-30" />
+                            <p className="text-xs">暂无通知</p>
+                          </div>
+                        )}
                       </div>
-                      <button className="w-full py-2.5 text-xs font-bold text-center text-blue-600 hover:bg-gray-50 transition-colors">
-                          View All
-                      </button>
                   </div>
               )}
           </div>

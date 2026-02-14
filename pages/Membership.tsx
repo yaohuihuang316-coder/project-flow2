@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Crown, Sparkles, Check, X,
-  BookOpen, Zap, Target, Gift, Clock,
-  Loader2, AlertCircle
+  Crown, Check, X, Sparkles, Gift, Zap, BookOpen, 
+  Target, MessageSquare, FileText, Bot, Calculator,
+  TrendingUp, Shield, Users, Clock, Loader2, AlertCircle,
+  Ticket, ChevronRight, Star
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -14,10 +15,7 @@ interface MembershipProps {
   onNavigate: (page: Page, param?: string) => void;
 }
 
-// MembershipCode type moved to types.ts
-
 const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'upgrade' | 'codes'>('overview');
   const [codeInput, setCodeInput] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [redeemMessage, setRedeemMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
@@ -62,23 +60,66 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     setRedeemMessage(null);
     
     try {
-      // 调用兑换API
-      const { data, error } = await supabase
-        .rpc('redeem_membership_code', {
-          p_code: codeInput.trim().toUpperCase(),
-          p_user_id: currentUser.id
-        });
-      
-      if (error) throw error;
+      // 查询兑换码
+      const { data: codeData, error: codeError } = await supabase
+        .from('membership_codes')
+        .select('*')
+        .eq('code', codeInput.trim().toUpperCase())
+        .eq('is_used', false)
+        .single();
+
+      if (codeError || !codeData) {
+        throw new Error('兑换码无效或已被使用');
+      }
+
+      if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) {
+        throw new Error('兑换码已过期');
+      }
+
+      // 更新用户会员等级
+      const { error: updateError } = await supabase
+        .from('app_users')
+        .update({
+          subscription_tier: codeData.tier,
+          membership_expires_at: codeData.duration_days === 36500 
+            ? null // 永久
+            : new Date(Date.now() + codeData.duration_days * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .eq('id', currentUser.id);
+
+      if (updateError) throw updateError;
+
+      // 标记兑换码为已使用
+      const { error: codeUpdateError } = await supabase
+        .from('membership_codes')
+        .update({
+          is_used: true,
+          used_by: currentUser.id,
+          used_at: new Date().toISOString()
+        })
+        .eq('id', codeData.id);
+
+      if (codeUpdateError) throw codeUpdateError;
+
+      // 插入订阅记录
+      await supabase.from('membership_subscriptions').insert({
+        user_id: currentUser.id,
+        tier: codeData.tier,
+        payment_method: 'code',
+        started_at: new Date().toISOString(),
+        expires_at: codeData.duration_days === 36500 
+          ? null 
+          : new Date(Date.now() + codeData.duration_days * 24 * 60 * 60 * 1000).toISOString()
+      });
       
       setRedeemMessage({
         type: 'success',
-        text: `兑换成功！您已获得 ${data.tier} 会员资格`
+        text: `🎉 兑换成功！您已获得 ${codeData.tier === 'pro' ? 'Pro' : 'Pro+'} 会员${codeData.duration_days === 36500 ? '（永久）' : `（${codeData.duration_days}天）`}`
       });
       setCodeInput('');
       
-      // 刷新页面或更新用户信息
-      setTimeout(() => window.location.reload(), 1500);
+      // 刷新页面
+      setTimeout(() => window.location.reload(), 2000);
     } catch (err: any) {
       setRedeemMessage({
         type: 'error',
@@ -89,29 +130,16 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     }
   };
 
-  // 会员权益对比
-  const benefits = [
-    { name: '基础课程学习', free: true, basic: true, pro: true, pro_plus: true },
-    { name: '社区互动', free: true, basic: true, pro: true, pro_plus: true },
-    { name: '知识图谱浏览', free: true, basic: true, pro: true, pro_plus: true },
-    { name: 'AI助手 (基础版)', free: false, basic: true, pro: true, pro_plus: true },
-    { name: '工具实验室', free: false, basic: true, pro: true, pro_plus: true },
-    { name: 'AI助手 (进阶版)', free: false, basic: false, pro: false, pro_plus: true },
-    { name: '实战模拟中心', free: false, basic: false, pro: false, pro_plus: true },
-    { name: '证书下载', free: false, basic: true, pro: true, pro_plus: true },
-    { name: '专属客服', free: false, basic: false, pro: true, pro_plus: true },
-  ];
-
   if (!currentUser) {
     return (
-      <div className="pt-24 pb-12 px-6 max-w-5xl mx-auto text-center">
+      <div className="pt-24 pb-12 px-6 max-w-6xl mx-auto text-center">
         <div className="bg-white rounded-3xl p-12 shadow-sm">
-          <Crown size={48} className="mx-auto text-gray-300 mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">请先登录</h2>
-          <p className="text-gray-500 mb-6">登录后查看您的会员状态</p>
+          <Crown size={64} className="mx-auto text-gray-300 mb-6" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">请先登录</h2>
+          <p className="text-gray-500 mb-8 text-lg">登录后查看您的会员状态和权益</p>
           <button 
             onClick={() => onNavigate(Page.LOGIN)}
-            className="px-6 py-3 bg-black text-white rounded-full font-medium"
+            className="px-8 py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all"
           >
             去登录
           </button>
@@ -120,284 +148,382 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     );
   }
 
+  // 会员权益详细对比数据
+  const comparisonData = [
+    { category: '课程学习', items: [
+      { name: 'Foundation 基础课程', free: true, pro: true, pro_plus: true, desc: '6门基础课程完整学习' },
+      { name: 'Advanced 进阶课程', free: true, pro: true, pro_plus: true, desc: '6门进阶课程完整学习' },
+      { name: 'Implementation 实战课程', free: 'limited', pro: true, pro_plus: true, desc: 'Free限前3章，Pro/Pro+完整' },
+    ]},
+    { category: '工具实验室', items: [
+      { name: '基础工具（12个）', free: '3个', pro: '全部', pro_plus: '全部', desc: 'CPM、EVM、PERT、WBS等' },
+      { name: '高级工具（5个）', free: false, pro: true, pro_plus: true, desc: '蒙特卡洛、估算扑克、Kanban流等' },
+      { name: '专家工具（5个）', free: false, pro: false, pro_plus: true, desc: 'FMEA、CCPM、鱼骨图、质量成本等' },
+    ]},
+    { category: 'AI 助手', items: [
+      { name: 'AI 日调用次数', free: '5次', pro: '20次', pro_plus: '50次', desc: '每日AI助手使用次数' },
+      { name: 'AI 模型', free: 'Gemini Flash', pro: 'Gemini + Kimi', pro_plus: 'Gemini Pro + Kimi', desc: '可用AI模型' },
+      { name: '高级分析', free: false, pro: false, pro_plus: true, desc: '深度项目分析报告' },
+    ]},
+    { category: '实战模拟', items: [
+      { name: '案例学习', free: '阅读', pro: '互动', pro_plus: '互动', desc: '经典项目案例' },
+      { name: '分支剧情模拟', free: false, pro: false, pro_plus: true, desc: '沉浸式决策模拟体验' },
+      { name: '评分报告 + PDF导出', free: false, pro: false, pro_plus: true, desc: '详细分析报告可导出' },
+    ]},
+    { category: '社区特权', items: [
+      { name: '发帖权限', free: true, pro: true, pro_plus: true, desc: '在社区发布内容' },
+      { name: '精华帖标识', free: false, pro: true, pro_plus: true, desc: '优质内容标识' },
+      { name: '专家认证', free: false, pro: false, pro_plus: true, desc: 'Pro+专属认证标识' },
+    ]},
+    { category: '其他权益', items: [
+      { name: '证书下载', free: '基础版', pro: '完整版', pro_plus: '完整版', desc: '课程完成证书' },
+      { name: '客服支持', free: '社区', pro: '邮件支持', pro_plus: '1对1专属客服', desc: '技术支持渠道' },
+      { name: '知识图谱', free: true, pro: true, pro_plus: true, desc: '可视化知识节点' },
+    ]},
+  ];
+
+  const renderValue = (value: boolean | string) => {
+    if (value === true) return <Check size={20} className="text-green-500 mx-auto" />;
+    if (value === false) return <X size={20} className="text-gray-300 mx-auto" />;
+    return <span className="text-sm text-gray-600">{value}</span>;
+  };
+
   return (
-    <div className="pt-24 pb-12 px-4 sm:px-6 max-w-5xl mx-auto min-h-screen">
+    <div className="pt-24 pb-12 px-4 sm:px-6 max-w-7xl mx-auto min-h-screen">
       {/* Header */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">会员中心</h1>
-        <p className="text-gray-500 mt-2">管理您的会员权益和升级选项</p>
+      <header className="mb-10 text-center">
+        <h1 className="text-4xl font-bold text-gray-900 mb-3">选择您的会员计划</h1>
+        <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+          解锁更多高级功能和工具，加速您的项目管理成长之路
+        </p>
       </header>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-8 bg-gray-100 p-1 rounded-2xl w-fit">
-        {[
-          { id: 'overview', label: '总览' },
-          { id: 'upgrade', label: '升级' },
-          { id: 'codes', label: '兑换码' },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-6 py-2.5 rounded-xl font-medium transition-all ${
-              activeTab === tab.id 
-                ? 'bg-white text-gray-900 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Current Status Card */}
-          <div className={`rounded-3xl p-8 ${MEMBERSHIP_CONFIG[currentTier].gradient} text-white`}>
-            <div className="flex items-start justify-between">
+      {/* Current Status Banner */}
+      {currentTier !== 'free' && (
+        <div className={`mb-10 rounded-3xl p-6 ${MEMBERSHIP_CONFIG[currentTier].gradient} text-white`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                <Crown size={32} />
+              </div>
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Crown size={24} />
-                  <span className="text-white/80 font-medium">
-                    {MEMBERSHIP_CONFIG[currentTier].name}
-                  </span>
-                </div>
-                <h2 className="text-3xl font-bold mb-2">
-                  {currentTier === 'pro_plus' ? '尊享全部权益' : '升级解锁更多功能'}
-                </h2>
+                <p className="text-white/80 text-sm">当前会员</p>
+                <h2 className="text-2xl font-bold">{MEMBERSHIP_CONFIG[currentTier].name}</h2>
                 {currentUser.membershipExpiresAt && (
                   <p className="text-white/80 text-sm">
                     有效期至: {new Date(currentUser.membershipExpiresAt).toLocaleDateString('zh-CN')}
                   </p>
                 )}
               </div>
-              <div className="text-right">
-                <div className="text-4xl font-bold">{stats.completedCourses}</div>
-                <div className="text-white/80 text-sm">已完成课程</div>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold">{stats.completedCourses}</div>
+              <div className="text-white/80 text-sm">已完成课程</div>
+            </div>
+          </div>
+          
+          {nextTierInfo && (
+            <div className="mt-4 bg-white/10 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm">距离 {nextTierInfo.name} 还差 {nextTierInfo.remainingCourses} 门课程</span>
+                <span className="text-sm font-bold">{stats.nextTierProgress}/{stats.nextTierRequired}</span>
+              </div>
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-white rounded-full transition-all"
+                  style={{ width: `${(stats.nextTierProgress / stats.nextTierRequired) * 100}%` }}
+                />
               </div>
             </div>
+          )}
+        </div>
+      )}
 
-            {nextTierInfo && (
-              <div className="mt-6 bg-white/10 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">距离 {nextTierInfo.name} 还差</span>
-                  <span className="text-sm font-bold">{nextTierInfo.remainingCourses} 门课程</span>
-                </div>
-                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-white rounded-full transition-all"
-                    style={{ width: `${(stats.nextTierProgress / stats.nextTierRequired) * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
+      {/* Three Column Pricing Cards */}
+      <div className="grid md:grid-cols-3 gap-6 mb-16">
+        {/* Free Plan */}
+        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'free' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 bg-white'}`}>
+          {currentTier === 'free' && (
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <span className="px-4 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">当前计划</span>
+            </div>
+          )}
+          
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Sparkles size={32} className="text-gray-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">Free</h3>
+            <p className="text-gray-500 text-sm mb-4">免费会员</p>
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-4xl font-bold text-gray-900">免费</span>
+            </div>
+            <p className="text-sm text-gray-400 mt-2">注册即可获得</p>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <ul className="space-y-4 mb-8">
             {[
-              { icon: BookOpen, label: '在学课程', value: '3门' },
-              { icon: Zap, label: 'AI调用', value: `${currentUser.aiDailyUsed}/50` },
-              { icon: Target, label: '掌握度', value: '68%' },
-              { icon: Clock, label: '学习时长', value: '24h' },
-            ].map((stat, idx) => (
-              <div key={idx} className="bg-white rounded-2xl p-4 border border-gray-100">
-                <stat.icon size={20} className="text-gray-400 mb-2" />
-                <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
-              </div>
+              { icon: BookOpen, text: 'Foundation 基础课程' },
+              { icon: BookOpen, text: 'Advanced 进阶课程' },
+              { icon: Calculator, text: '3个基础工具' },
+              { icon: MessageSquare, text: '社区发帖权限' },
+              { icon: Bot, text: 'AI助手 5次/天' },
+            ].map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-gray-600">
+                <Check size={18} className="text-green-500 flex-shrink-0" />
+                <span className="text-sm">{item.text}</span>
+              </li>
             ))}
+          </ul>
+
+          <button 
+            onClick={() => onNavigate(Page.LEARNING)}
+            className={`w-full py-4 rounded-2xl font-bold transition-all ${
+              currentTier === 'free'
+                ? 'bg-gray-200 text-gray-700 cursor-default'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            disabled={currentTier === 'free'}
+          >
+            {currentTier === 'free' ? '当前计划' : '开始学习'}
+          </button>
+        </div>
+
+        {/* Pro Plan */}
+        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'pro' ? 'border-blue-500 bg-blue-50/50' : 'border-blue-200 bg-gradient-to-b from-blue-50/30 to-white'}`}>
+          {currentTier === 'pro' && (
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <span className="px-4 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">当前计划</span>
+            </div>
+          )}
+          
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Crown size={32} className="text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">Pro</h3>
+            <p className="text-blue-600 text-sm font-medium mb-4">专业会员</p>
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-4xl font-bold text-gray-900">¥99</span>
+              <span className="text-gray-500">/月</span>
+            </div>
+            <p className="text-sm text-gray-400 mt-2">或完成 5 门课程解锁</p>
           </div>
 
-          {/* Benefits Table */}
-          <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">权益对比</h3>
+          <ul className="space-y-4 mb-8">
+            {[
+              { icon: BookOpen, text: '全部 18 门课程' },
+              { icon: Calculator, text: '全部 12 个基础工具' },
+              { icon: Zap, text: '5个高级工具' },
+              { icon: Bot, text: 'AI助手 20次/天' },
+              { icon: Target, text: '完整版证书下载' },
+              { icon: Users, text: '精华帖标识' },
+            ].map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-gray-600">
+                <Check size={18} className="text-green-500 flex-shrink-0" />
+                <span className="text-sm">{item.text}</span>
+              </li>
+            ))}
+          </ul>
+
+          <button 
+            className={`w-full py-4 rounded-2xl font-bold transition-all ${
+              currentTier === 'pro'
+                ? 'bg-blue-100 text-blue-700 cursor-default'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
+            }`}
+            disabled={currentTier === 'pro'}
+          >
+            {currentTier === 'pro' ? '当前计划' : currentTier === 'pro_plus' ? '已拥有' : '立即升级'}
+          </button>
+        </div>
+
+        {/* Pro+ Plan */}
+        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'pro_plus' ? 'border-amber-500 bg-amber-50/50' : 'border-amber-200 bg-gradient-to-b from-amber-50/30 to-white'}`}>
+          {/* 推荐标签 */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+            <span className={`px-4 py-1 text-white text-sm font-bold rounded-full ${
+              currentTier === 'pro_plus' ? 'bg-amber-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
+            }`}>
+              {currentTier === 'pro_plus' ? '当前计划' : '强烈推荐'}
+            </span>
+          </div>
+          
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Gift size={32} className="text-amber-600" />
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left p-4 font-medium text-gray-600">功能</th>
-                    <th className="text-center p-4 font-medium text-gray-600">Free</th>
-                    <th className="text-center p-4 font-medium text-blue-600">Basic</th>
-                    <th className="text-center p-4 font-medium text-purple-600">Pro</th>
-                    <th className="text-center p-4 font-medium text-amber-600">Pro+</th>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">Pro+</h3>
+            <p className="text-amber-600 text-sm font-medium mb-4">高级会员</p>
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-4xl font-bold text-gray-900">¥199</span>
+              <span className="text-gray-500">/月</span>
+            </div>
+            <p className="text-sm text-gray-400 mt-2">或完成 10 门课程解锁</p>
+          </div>
+
+          <ul className="space-y-4 mb-8">
+            {[
+              { icon: Star, text: '全部 Pro 权益' },
+              { icon: Calculator, text: '5个专家级工具' },
+              { icon: TrendingUp, text: '实战模拟中心' },
+              { icon: FileText, text: '评分报告 PDF导出' },
+              { icon: Bot, text: 'AI助手 50次/天' },
+              { icon: Shield, text: '专家认证标识' },
+              { icon: Users, text: '1对1专属客服' },
+            ].map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-gray-600">
+                <Check size={18} className="text-green-500 flex-shrink-0" />
+                <span className="text-sm">{item.text}</span>
+              </li>
+            ))}
+          </ul>
+
+          <button 
+            className={`w-full py-4 rounded-2xl font-bold transition-all ${
+              currentTier === 'pro_plus'
+                ? 'bg-amber-100 text-amber-700 cursor-default'
+                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-xl hover:shadow-amber-200'
+            }`}
+            disabled={currentTier === 'pro_plus'}
+          >
+            {currentTier === 'pro_plus' ? '当前计划' : '立即升级'}
+          </button>
+        </div>
+      </div>
+
+      {/* Detailed Comparison Table */}
+      <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden mb-12">
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-900">详细权益对比</h3>
+          <div className="flex gap-2 text-sm">
+            <span className="flex items-center gap-1"><Check size={14} className="text-green-500"/> 支持</span>
+            <span className="flex items-center gap-1"><X size={14} className="text-gray-300"/> 不支持</span>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left p-4 font-bold text-gray-700 w-1/3">功能</th>
+                <th className="text-center p-4 font-bold text-gray-600 w-48">
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg">🆓</span>
+                    <span>Free</span>
+                  </div>
+                </th>
+                <th className="text-center p-4 font-bold text-blue-600 w-48 bg-blue-50/50">
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg">💎</span>
+                    <span>Pro</span>
+                  </div>
+                </th>
+                <th className="text-center p-4 font-bold text-amber-600 w-48 bg-amber-50/50">
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg">👑</span>
+                    <span>Pro+</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonData.map((category, catIdx) => (
+                <React.Fragment key={catIdx}>
+                  <tr className="bg-gray-50/50">
+                    <td colSpan={4} className="p-3 text-sm font-bold text-gray-500 uppercase tracking-wider">
+                      {category.category}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {benefits.map((benefit, idx) => (
-                    <tr key={idx} className="border-t border-gray-100">
-                      <td className="p-4 text-gray-700">{benefit.name}</td>
-                      <td className="text-center p-4">
-                        {benefit.free ? <Check size={18} className="mx-auto text-green-500" /> : <X size={18} className="mx-auto text-gray-300" />}
+                  {category.items.map((item, itemIdx) => (
+                    <tr key={itemIdx} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                      <td className="p-4">
+                        <div className="font-medium text-gray-900">{item.name}</div>
+                        <div className="text-xs text-gray-400 mt-1">{item.desc}</div>
                       </td>
-                      <td className="text-center p-4">
-                        {benefit.basic ? <Check size={18} className="mx-auto text-green-500" /> : <X size={18} className="mx-auto text-gray-300" />}
+                      <td className="text-center p-4 border-l border-gray-100">
+                        {renderValue(item.free)}
                       </td>
-                      <td className="text-center p-4">
-                        {benefit.pro ? <Check size={18} className="mx-auto text-green-500" /> : <X size={18} className="mx-auto text-gray-300" />}
+                      <td className="text-center p-4 border-l border-gray-100 bg-blue-50/30">
+                        {renderValue(item.pro)}
                       </td>
-                      <td className="text-center p-4">
-                        {benefit.pro_plus ? <Check size={18} className="mx-auto text-green-500" /> : <X size={18} className="mx-auto text-gray-300" />}
+                      <td className="text-center p-4 border-l border-gray-100 bg-amber-50/30">
+                        {renderValue(item.pro_plus)}
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
-      {/* Upgrade Tab */}
-      {activeTab === 'upgrade' && (
-        <div className="space-y-6">
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Free Plan */}
-            <div className={`rounded-3xl p-6 border-2 ${currentTier === 'free' ? 'border-blue-500 bg-blue-50' : 'border-gray-100 bg-white'}`}>
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Sparkles size={24} className="text-blue-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Free</h3>
-                <p className="text-gray-500 text-sm mt-1">免费会员</p>
-              </div>
-              <div className="text-center mb-6">
-                <span className="text-3xl font-bold text-gray-900">免费</span>
-                <span className="text-gray-500"> / 完成5门课</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['AI助手基础版', '工具实验室', '证书下载'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
-                    <Check size={16} className="text-green-500" /> {f}
-                  </li>
-                ))}
-              </ul>
-              {currentTier === 'free' ? (
-                <button disabled className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium">
-                  当前等级
-                </button>
-              ) : (
-                <button 
-                  onClick={() => onNavigate(Page.LEARNING)}
-                  className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200"
-                >
-                  去学习
-                </button>
-              )}
+      {/* Redeem Code Section */}
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-3xl p-8 border border-purple-100">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <Ticket size={32} className="text-purple-600" />
             </div>
-
-            {/* Pro Plan */}
-            <div className={`rounded-3xl p-6 border-2 ${currentTier === 'pro' ? 'border-purple-500 bg-purple-50' : 'border-gray-100 bg-white'}`}>
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Crown size={24} className="text-purple-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Pro</h3>
-                <p className="text-gray-500 text-sm mt-1">专业会员</p>
-              </div>
-              <div className="text-center mb-6">
-                <span className="text-3xl font-bold text-gray-900">¥99</span>
-                <span className="text-gray-500"> / 月</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['全部Basic权益', '专属客服', '优先支持', '更多AI调用'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
-                    <Check size={16} className="text-green-500" /> {f}
-                  </li>
-                ))}
-              </ul>
-              {currentTier === 'pro' ? (
-                <button disabled className="w-full py-3 bg-purple-500 text-white rounded-xl font-medium">
-                  当前等级
-                </button>
-              ) : (
-                <button className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700">
-                  立即升级
-                </button>
-              )}
-            </div>
-
-            {/* Pro+ Plan */}
-            <div className={`rounded-3xl p-6 border-2 ${currentTier === 'pro_plus' ? 'border-amber-500 bg-amber-50' : 'border-amber-200 bg-gradient-to-b from-amber-50/50'}`}>
-              <div className="absolute top-4 right-4">
-                <span className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full">推荐</span>
-              </div>
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Gift size={24} className="text-amber-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Pro+</h3>
-                <p className="text-gray-500 text-sm mt-1">高级会员</p>
-              </div>
-              <div className="text-center mb-6">
-                <span className="text-3xl font-bold text-gray-900">¥199</span>
-                <span className="text-gray-500"> / 月</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['全部Pro权益', 'AI助手进阶版', '实战模拟中心', '无限AI调用'].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-gray-600">
-                    <Check size={16} className="text-green-500" /> {f}
-                  </li>
-                ))}
-              </ul>
-              {currentTier === 'pro_plus' ? (
-                <button disabled className="w-full py-3 bg-amber-500 text-white rounded-xl font-medium">
-                  当前等级
-                </button>
-              ) : (
-                <button className="w-full py-3 bg-amber-500 text-white rounded-xl font-medium hover:bg-amber-600">
-                  立即升级
-                </button>
-              )}
-            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">有兑换码？</h3>
+            <p className="text-gray-500">输入兑换码立即激活会员权益</p>
           </div>
-        </div>
-      )}
-
-      {/* Codes Tab */}
-      {activeTab === 'codes' && (
-        <div className="max-w-md mx-auto">
-          <div className="bg-white rounded-3xl p-8 border border-gray-100 text-center">
-            <Gift size={48} className="mx-auto text-purple-500 mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">兑换会员码</h3>
-            <p className="text-gray-500 mb-6">输入您的兑换码，解锁会员权益</p>
-            
-            <div className="space-y-4">
+          
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="flex gap-3">
               <input
                 type="text"
                 value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="输入兑换码"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-center uppercase tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                placeholder="输入兑换码，如 PF-PRO-XXXXXX"
+                className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl uppercase tracking-wider font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
-              
-              {redeemMessage && (
-                <div className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
-                  redeemMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                }`}>
-                  {redeemMessage.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
-                  {redeemMessage.text}
-                </div>
-              )}
-              
               <button
                 onClick={handleRedeemCode}
                 disabled={!codeInput.trim() || isRedeeming}
-                className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
               >
                 {isRedeeming && <Loader2 size={18} className="animate-spin" />}
-                {isRedeeming ? '兑换中...' : '立即兑换'}
+                {isRedeeming ? '兑换中' : '激活'}
               </button>
             </div>
             
-            <p className="text-xs text-gray-400 mt-4">
-              兑换码区分大小写，每个兑换码只能使用一次
+            {redeemMessage && (
+              <div className={`mt-4 p-4 rounded-xl text-sm flex items-center gap-2 ${
+                redeemMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {redeemMessage.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
+                {redeemMessage.text}
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-400">
+              兑换码区分大小写，可通过企业培训、活动或合作伙伴获取
             </p>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* FAQ Section */}
+      <div className="mt-16 max-w-3xl mx-auto">
+        <h3 className="text-xl font-bold text-gray-900 text-center mb-8">常见问题</h3>
+        <div className="space-y-4">
+          {[
+            { q: '如何免费升级会员？', a: '完成课程学习即可自动升级。完成5门课程升级为Pro会员，完成10门课程升级为Pro+会员。' },
+            { q: '会员到期后会怎样？', a: '会员到期后，您将回到Free等级，但已完成的课程进度和成就不会丢失。' },
+            { q: '可以退款吗？', a: '购买后7天内，如果使用不满意，可以申请全额退款。' },
+            { q: '兑换码如何使用？', a: '在上方输入框中输入兑换码，点击"激活"即可立即获得对应会员权益。' },
+          ].map((faq, idx) => (
+            <div key={idx} className="bg-white rounded-2xl p-6 border border-gray-100">
+              <h4 className="font-bold text-gray-900 mb-2">{faq.q}</h4>
+              <p className="text-gray-500 text-sm">{faq.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

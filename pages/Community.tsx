@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     Search, MessageSquare, Heart, Share2, MoreHorizontal,
-    Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2
+    Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2,
+    UserPlus, UserCheck
 } from 'lucide-react';
 import { UserProfile, Comment } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -30,6 +31,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
     // Interaction States
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+    const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
     const [expandedPostId, setExpandedPostId] = useState<number | null>(null);
 
     // Real Comments Map
@@ -47,6 +49,19 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
         if (data) {
             setLikedPosts(new Set(data.map(like => like.post_id)));
+        }
+    };
+
+    // 获取用户关注列表
+    const fetchUserFollows = async () => {
+        if (!currentUser) return;
+        const { data } = await supabase
+            .from('app_user_follows')
+            .select('following_id')
+            .eq('follower_id', currentUser.id);
+
+        if (data) {
+            setFollowedUsers(new Set(data.map(f => f.following_id)));
         }
     };
 
@@ -83,22 +98,65 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     useEffect(() => {
         fetchPosts();
         fetchUserLikes(); // 加载用户点赞状态
+        fetchUserFollows(); // 加载关注列表
     }, [currentUser]);
 
-    // Handle Search
+    // 标签页筛选（搜索改为数据库查询）
     useEffect(() => {
-        if (!searchQuery.trim()) {
-            setFilteredPosts(posts);
-        } else {
-            const lowerQuery = searchQuery.toLowerCase();
-            const filtered = posts.filter(post =>
-                post.content?.toLowerCase().includes(lowerQuery) ||
-                post.user_name?.toLowerCase().includes(lowerQuery) ||
-                post.tags?.some((tag: string) => tag.toLowerCase().includes(lowerQuery))
+        let filtered = posts;
+        
+        // 标签页筛选
+        if (activeTab === 'following' && currentUser) {
+            filtered = filtered.filter(post => followedUsers.has(post.user_id));
+        } else if (activeTab === 'latest') {
+            filtered = [...filtered].sort((a, b) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
-            setFilteredPosts(filtered);
         }
-    }, [searchQuery, posts]);
+        // recommend 保持默认排序
+        
+        setFilteredPosts(filtered);
+    }, [posts, activeTab, followedUsers, currentUser]);
+
+    // 真实数据库搜索
+    const handleSearch = async (query: string) => {
+        setSearchQuery(query);
+        
+        if (!query.trim()) {
+            // 清空搜索，重新加载全部
+            fetchPosts();
+            return;
+        }
+        
+        setIsLoading(true);
+        try {
+            const searchTerm = `%${query}%`;
+            
+            // 搜索内容、用户名
+            const { data, error } = await supabase
+                .from('app_community_posts')
+                .select('*')
+                .or(`content.ilike.${searchTerm},user_name.ilike.${searchTerm}`)
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            if (data) {
+                const formattedData = data.map(post => ({
+                    ...post,
+                    tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags || [],
+                }));
+                setFilteredPosts(formattedData);
+            } else {
+                setFilteredPosts([]);
+            }
+        } catch (err) {
+            console.error('搜索失败:', err);
+            showToast('搜索失败', 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleLike = async (postId: number, currentLikes: number) => {
         if (!currentUser) {
@@ -144,6 +202,54 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     const showToast = (msg: string, type: 'success' | 'error') => {
         setToast({ msg, type });
         setTimeout(() => setToast(null), 3000);
+    };
+
+    // 关注/取消关注用户
+    const handleFollow = async (targetUserId: string, targetUserName: string) => {
+        if (!currentUser) {
+            showToast('请先登录', 'error');
+            return;
+        }
+        
+        if (targetUserId === currentUser.id) {
+            showToast('不能关注自己', 'error');
+            return;
+        }
+
+        const isFollowing = followedUsers.has(targetUserId);
+        
+        if (isFollowing) {
+            // 取消关注
+            const { error } = await supabase
+                .from('app_user_follows')
+                .delete()
+                .eq('follower_id', currentUser.id)
+                .eq('following_id', targetUserId);
+            
+            if (!error) {
+                const newFollowed = new Set(followedUsers);
+                newFollowed.delete(targetUserId);
+                setFollowedUsers(newFollowed);
+                showToast(`已取消关注 ${targetUserName}`, 'success');
+            }
+        } else {
+            // 关注
+            const { error } = await supabase
+                .from('app_user_follows')
+                .insert({
+                    follower_id: currentUser.id,
+                    following_id: targetUserId
+                });
+            
+            if (!error) {
+                const newFollowed = new Set(followedUsers);
+                newFollowed.add(targetUserId);
+                setFollowedUsers(newFollowed);
+                showToast(`已关注 ${targetUserName}`, 'success');
+            } else {
+                showToast('关注失败', 'error');
+            }
+        }
     };
 
 
@@ -267,8 +373,23 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                         <button onClick={() => setActiveTab('latest')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'latest' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}>
                             <Filter size={20} /><span className="font-bold">最新发布</span>
                         </button>
-                        <button onClick={() => setActiveTab('following')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'following' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}>
-                            <Users size={20} /><span className="font-bold">我的关注</span>
+                        <button 
+                            onClick={() => {
+                                if (!currentUser) {
+                                    showToast('请先登录', 'error');
+                                    return;
+                                }
+                                setActiveTab('following');
+                            }} 
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'following' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}
+                        >
+                            <Users size={20} />
+                            <span className="font-bold">我的关注</span>
+                            {followedUsers.size > 0 && (
+                                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${activeTab === 'following' ? 'bg-white/20' : 'bg-blue-100 text-blue-600'}`}>
+                                    {followedUsers.size}
+                                </span>
+                            )}
                         </button>
 
                         <div className="pt-6 mt-4 border-t border-gray-100">
@@ -360,9 +481,28 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <button className="text-gray-300 hover:text-black transition-colors p-2 hover:bg-gray-50 rounded-full">
-                                            <MoreHorizontal size={20} />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {/* 关注按钮 */}
+                                            {currentUser && currentUser.id !== post.user_id && (
+                                                <button
+                                                    onClick={() => handleFollow(post.user_id, post.user_name)}
+                                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                                        followedUsers.has(post.user_id)
+                                                            ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                            : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                                    }`}
+                                                >
+                                                    {followedUsers.has(post.user_id) ? (
+                                                        <><UserCheck size={14} /> 已关注</>
+                                                    ) : (
+                                                        <><UserPlus size={14} /> 关注</>
+                                                    )}
+                                                </button>
+                                            )}
+                                            <button className="text-gray-300 hover:text-black transition-colors p-2 hover:bg-gray-50 rounded-full">
+                                                <MoreHorizontal size={20} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <p className="text-gray-800 text-sm leading-7 whitespace-pre-wrap mb-4 font-medium pl-1">
@@ -466,9 +606,23 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                         ) : (
                             <div className="text-center py-20 text-gray-400 flex flex-col items-center">
                                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                                    <MessageSquare size={24} className="opacity-50" />
+                                    {activeTab === 'following' ? <Users size={24} className="opacity-50" /> : <MessageSquare size={24} className="opacity-50" />}
                                 </div>
-                                <p className="text-sm font-bold">社区冷冷清清，发个帖活跃一下？</p>
+                                <p className="text-sm font-bold">
+                                    {activeTab === 'following' 
+                                        ? '还没有关注任何人，去发现有趣的作者吧' 
+                                        : searchQuery 
+                                            ? '没有找到相关内容' 
+                                            : '社区冷冷清清，发个帖活跃一下？'}
+                                </p>
+                                {activeTab === 'following' && (
+                                    <button 
+                                        onClick={() => setActiveTab('recommend')}
+                                        className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-bold hover:bg-blue-100 transition-colors"
+                                    >
+                                        去发现
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -476,6 +630,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
                 {/* --- Right Sidebar --- */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
+                    {/* 搜索框 */}
                     <div className="bg-white rounded-[1.5rem] p-2 border border-gray-100 shadow-sm sticky top-24 z-10">
                         <div className="relative">
                             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -483,11 +638,32 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                 type="text"
                                 placeholder="搜索动态..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => handleSearch(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
                             />
                         </div>
                     </div>
+                    
+                    {/* 关注统计 */}
+                    {currentUser && (
+                        <div className="bg-white rounded-[1.5rem] p-6 border border-gray-100 shadow-sm sticky top-40">
+                            <h3 className="text-sm font-bold text-gray-900 mb-4">我的关注</h3>
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-gray-500 text-sm">关注用户</span>
+                                <span className="text-2xl font-bold text-gray-900">{followedUsers.size}</span>
+                            </div>
+                            <button 
+                                onClick={() => setActiveTab('following')}
+                                className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
+                                    activeTab === 'following' 
+                                        ? 'bg-blue-600 text-white' 
+                                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                }`}
+                            >
+                                查看关注动态
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
