@@ -319,10 +319,10 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-4 shadow-sm">
           <button 
             onClick={() => setActiveTool(null)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
           >
             <ArrowLeft size={18} />
-            <span className="text-sm font-medium">返回工具库</span>
+            <span className="text-sm font-semibold">返回工具库</span>
           </button>
           
           <div className="flex items-center gap-2">
@@ -393,15 +393,15 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
           ) : (
             <>
               {/* 当前会员等级提示 */}
-              <div className={`rounded-2xl p-5 mb-8 text-white shadow-lg ${MEMBERSHIP_CONFIG[userTier].gradient}`}>
+              <div className={`rounded-2xl p-5 mb-8 shadow-lg border-2 border-white/30 ${MEMBERSHIP_CONFIG[userTier].gradient}`}>
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                      <Crown size={24} className="text-white" />
+                    <div className="w-12 h-12 rounded-xl bg-white/90 flex items-center justify-center shadow-sm">
+                      <Crown size={24} className="text-purple-600" />
                     </div>
                     <div>
-                      <div className="font-bold text-lg">{MEMBERSHIP_CONFIG[userTier].name}</div>
-                      <div className="text-sm text-white/80">
+                      <div className="font-bold text-lg text-white drop-shadow-md">{MEMBERSHIP_CONFIG[userTier].name}</div>
+                      <div className="text-sm text-white font-medium drop-shadow-sm">
                         {userTier === 'free' && '完成5门课程解锁工具实验室（Pro会员）'}
                         {userTier === 'pro' && `已解锁5个专业工具，完成10门课程解锁全部${totalCount}个工具`}
                         {userTier === 'pro_plus' && `已解锁全部${totalCount}个专业工具`}
