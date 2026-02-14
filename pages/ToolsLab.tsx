@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FlaskConical, Calculator, Users, Kanban, 
   ChevronLeft, ArrowLeft, ArrowRight, TrendingDown,
-  TrendingUp, Link2, GitBranch,
+  TrendingUp, GitBranch,
   DollarSign, Lock, Crown, Loader2, AlertCircle,
   Wrench, Cog, AlertTriangle, BarChart3, Layers
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import PlanningPoker from '../tools/PlanningPoker';
 import KanbanFlowMetrics from '../tools/KanbanFlowMetrics';
 import LearningCurve from '../tools/LearningCurve';
 import EVMPrediction from '../tools/EVMPrediction';
-import CCPMSchedule from '../tools/CCPMSchedule';
+
 import FishboneDiagram from '../tools/FishboneDiagram';
 import QualityCostTool from '../tools/QualityCost';
 
@@ -28,7 +28,7 @@ interface ToolsLabProps {
 type ToolId = 
   | 'monte-carlo' | 'planning-poker' | 'kanban-flow' 
   | 'learning-curve' | 'evm-prediction'
-  | 'ccpm' | 'fishbone' | 'quality-cost'
+  | 'fishbone' | 'quality-cost'
   | null;
 
 // 工具配置，包含会员等级要求
@@ -65,7 +65,7 @@ const iconMapping: Record<string, React.ElementType> = {
   'Kanban': Kanban,
   'TrendingDown': TrendingDown,
   'TrendingUp': TrendingUp,
-  'Link2': Link2,
+
   'GitBranch': GitBranch,
   'DollarSign': DollarSign,
   'Wrench': Wrench,
@@ -116,7 +116,6 @@ const mapDbToolToConfig = (dbTool: DbTool): ToolConfig => {
       'kanban-flow': 'kanban-flow',
       'learning-curve': 'learning-curve',
       'evm-prediction': 'evm-prediction',
-      'ccpm': 'ccpm',
       'fishbone': 'fishbone',
       'quality-cost': 'quality-cost',
     };
@@ -186,16 +185,6 @@ const defaultTools: ToolConfig[] = [
     badge: 'PRO',
     requiredTier: 'pro',
     category: 'pro'
-  },
-  {
-    id: 'ccpm',
-    name: '关键链法调度',
-    description: 'CCPM高级调度，资源约束与项目缓冲管理',
-    icon: Link2,
-    color: 'from-indigo-500 to-blue-600',
-    badge: 'Pro+',
-    requiredTier: 'pro_plus',
-    category: 'pro_plus'
   },
   {
     id: 'fishbone',
@@ -295,7 +284,6 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
       'kanban-flow': <KanbanFlowMetrics currentUser={currentUser} />,
       'learning-curve': <LearningCurve currentUser={currentUser} />,
       'evm-prediction': <EVMPrediction currentUser={currentUser} />,
-      'ccpm': <CCPMSchedule currentUser={currentUser} />,
       'fishbone': <FishboneDiagram currentUser={currentUser} />,
       'quality-cost': <QualityCostTool currentUser={currentUser} />,
     };

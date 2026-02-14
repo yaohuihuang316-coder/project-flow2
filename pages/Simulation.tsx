@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
     ChevronLeft, Play, CheckCircle2, AlertTriangle, Loader2, 
-    Trophy, Clock, Target, Download,
-    ArrowRight, RotateCcw, Crown, TrendingUp,
+    Trophy, Clock, Target, Sparkles, ArrowLeft,
+    ArrowRight, RotateCcw, Crown, TrendingUp, Zap, BookOpen,
     Users, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { Page } from '../types';
-import { generateSimulationReport, generateHTMLReport, SimulationReportData } from '../lib/kimiService';
+import { generateSimulationReport, SimulationReportData, KimiReportResponse } from '../lib/kimiService';
 
 interface SimulationProps {
     onNavigate?: (page: Page) => void;
@@ -85,7 +85,7 @@ interface MadeDecision {
 
 const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser }) => {
     // 页面状态
-    const [view, setView] = useState<'list' | 'detail' | 'running' | 'result'>('list');
+    const [view, setView] = useState<'list' | 'detail' | 'running' | 'result' | 'report'>('list');
     const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
     const [selectedScenario, setSelectedScenario] = useState<SimulationScenario | null>(null);
     const [userProgress, setUserProgress] = useState<UserSimulationProgress | null>(null);
@@ -101,6 +101,10 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
     const [lastDecision, setLastDecision] = useState<Decision | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    
+    // AI 报告状态
+    const [reportData, setReportData] = useState<SimulationReportData | null>(null);
+    const [kimiReport, setKimiReport] = useState<KimiReportResponse | null>(null);
 
     // 获取场景列表
     useEffect(() => {
@@ -351,7 +355,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             const percentage = Math.round((totalScore / maxScore) * 100);
             
             // 构建报告数据
-            const reportData: SimulationReportData = {
+            const reportDataVal: SimulationReportData = {
                 scenarioTitle: scenario.title,
                 scenarioDescription: scenario.description,
                 difficulty: scenario.difficulty,
@@ -374,19 +378,12 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             };
             
             // 调用 Kimi API 生成报告
-            const kimiReport = await generateSimulationReport(reportData);
+            const kimiReportVal = await generateSimulationReport(reportDataVal);
             
-            // 生成 HTML 报告
-            const htmlReport = generateHTMLReport(reportData, kimiReport);
-            
-            // 打开新窗口显示报告
-            const reportWindow = window.open('', '_blank');
-            if (reportWindow) {
-                reportWindow.document.write(htmlReport);
-                reportWindow.document.close();
-            } else {
-                alert('请允许弹出窗口以查看报告');
-            }
+            // 保存报告数据并切换到报告页面
+            setReportData(reportDataVal);
+            setKimiReport(kimiReportVal);
+            setView('report');
         } catch (err) {
             console.error('报告生成失败:', err);
             alert('报告生成失败，请重试');
@@ -924,7 +921,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                             {isGeneratingReport ? (
                                 <><Loader2 size={20} className="animate-spin" /> 生成中...</>
                             ) : (
-                                <><Download size={20} /> 导出报告</>
+                                <><Sparkles size={20} /> 查看AI报告</>
                             )}
                         </button>
                     )}
@@ -934,10 +931,172 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                     <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
                         <Crown size={20} className="text-amber-500" />
                         <span className="text-sm text-amber-700">
-                            升级 <span className="font-bold">Pro+</span> 解锁 PDF 报告导出功能
+                            升级 <span className="font-bold">Pro+</span> 解锁 Kimi AI 智能评估报告
                         </span>
                     </div>
                 )}
+            </div>
+        );
+    };
+
+    // AI 报告展示视图
+    const renderReport = () => {
+        if (!reportData || !kimiReport) return null;
+        
+        return (
+            <div className="pt-24 pb-12 px-6 max-w-4xl mx-auto min-h-screen">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-8">
+                    <button 
+                        onClick={() => setView('result')}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
+                    >
+                        <ArrowLeft size={18} />
+                        <span className="text-sm font-medium">返回结果</span>
+                    </button>
+                    <h1 className="text-2xl font-bold text-gray-900">AI 学习报告</h1>
+                </div>
+
+                {/* 总体评估 */}
+                <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl p-8 text-white mb-6 shadow-lg">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Sparkles size={24} className="text-yellow-300" />
+                        <h2 className="text-xl font-bold">Kimi AI 评估总结</h2>
+                    </div>
+                    <p className="text-white/90 leading-relaxed whitespace-pre-line">{kimiReport.summary}</p>
+                    
+                    <div className="mt-6 flex items-center gap-6">
+                        <div className="text-center">
+                            <div className="text-4xl font-bold">{reportData.percentage}%</div>
+                            <div className="text-sm text-white/70">综合得分</div>
+                        </div>
+                        <div className="w-px h-12 bg-white/30" />
+                        <div className="text-center">
+                            <div className="text-4xl font-bold">{reportData.totalScore}</div>
+                            <div className="text-sm text-white/70">获得分数</div>
+                        </div>
+                        <div className="w-px h-12 bg-white/30" />
+                        <div className="text-center">
+                            <div className="text-4xl font-bold">{reportData.stageHistory.length}</div>
+                            <div className="text-sm text-white/70">决策数</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 优势表现 */}
+                {kimiReport.strengths.length > 0 && (
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                <Target size={20} className="text-green-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">优势表现</h3>
+                        </div>
+                        <ul className="space-y-3">
+                            {kimiReport.strengths.map((strength, idx) => (
+                                <li key={idx} className="flex items-start gap-3">
+                                    <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
+                                    <span className="text-gray-700">{strength}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* 待改进项 */}
+                {kimiReport.weaknesses.length > 0 && (
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                                <TrendingUp size={20} className="text-amber-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">待改进项</h3>
+                        </div>
+                        <ul className="space-y-3">
+                            {kimiReport.weaknesses.map((weakness, idx) => (
+                                <li key={idx} className="flex items-start gap-3">
+                                    <span className="w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">○</span>
+                                    <span className="text-gray-700">{weakness}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* 改进建议 */}
+                {kimiReport.suggestions.length > 0 && (
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <Zap size={20} className="text-blue-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">改进建议</h3>
+                        </div>
+                        <ul className="space-y-3">
+                            {kimiReport.suggestions.map((suggestion, idx) => (
+                                <li key={idx} className="flex items-start gap-3">
+                                    <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">→</span>
+                                    <span className="text-gray-700">{suggestion}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                {/* 学习路径 */}
+                {kimiReport.learningPath && (
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-8 border border-blue-100 mb-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                <BookOpen size={20} className="text-indigo-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">学习路径建议</h3>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">{kimiReport.learningPath}</p>
+                    </div>
+                )}
+
+                {/* 决策详情 */}
+                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">决策详情</h3>
+                    <div className="space-y-4">
+                        {reportData.stageHistory.map((stage, idx) => (
+                            <div key={idx} className="p-4 bg-gray-50 rounded-2xl">
+                                <div className="flex items-start justify-between mb-2">
+                                    <h4 className="font-medium text-gray-900">{stage.stageTitle}</h4>
+                                    <span className={`text-sm font-bold px-2 py-1 rounded ${
+                                        stage.score > 0 ? 'bg-green-100 text-green-700' : 
+                                        stage.score < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                        {stage.score > 0 ? '+' : ''}{stage.score} 分
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">你的选择: {stage.decisionText}</p>
+                                {stage.isOptimal && (
+                                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">
+                                        最优解
+                                    </span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setView('list')}
+                        className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all"
+                    >
+                        返回列表
+                    </button>
+                    <button
+                        onClick={() => selectedScenario && startSimulation(selectedScenario)}
+                        className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        <RotateCcw size={20} /> 重新挑战
+                    </button>
+                </div>
             </div>
         );
     };
@@ -949,6 +1108,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             {view === 'detail' && renderScenarioDetail()}
             {view === 'running' && renderRunningSimulation()}
             {view === 'result' && renderResult()}
+            {view === 'report' && renderReport()}
         </>
     );
 };
