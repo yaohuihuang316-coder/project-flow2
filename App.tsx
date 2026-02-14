@@ -11,6 +11,7 @@ import AiAssistant from './pages/AiAssistant';
 import Profile from './pages/Profile';
 import Schedule from './pages/Schedule';
 import KnowledgeGraphV2 from './pages/KnowledgeGraphV2'; // 新版知识图谱
+import LearningPath from './pages/LearningPath'; // 学习路径页面
 import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
 import Membership from './pages/Membership'; // 会员中心
@@ -127,6 +128,8 @@ const App: React.FC = () => {
         return <Schedule currentUser={currentUser} />;
       case Page.KNOWLEDGE_GRAPH:
         return <KnowledgeGraphV2 onNavigate={navigateTo} currentUser={currentUser} />;
+      case Page.LEARNING_PATH:
+        return <LearningPath nodeId={currentParam} currentUser={currentUser} onNavigate={navigateTo} onBack={() => navigateTo(Page.KNOWLEDGE_GRAPH)} />;
       case Page.SIMULATION:
         return (
           <MembershipGuard user={currentUser} targetPage={Page.SIMULATION} onNavigate={navigateTo}>

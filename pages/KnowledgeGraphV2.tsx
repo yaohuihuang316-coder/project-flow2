@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   Share2, Target, Zap, Award, BookOpen, 
   ChevronRight, Sparkles, TrendingUp,
-  Search, RotateCcw, X, Send
+  Search, RotateCcw, X, Send, Download,
+  Keyboard, Filter
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -69,6 +70,8 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
   ]);
   const [aiInput, setAiInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'foundation' | 'advanced' | 'expert'>('all');
 
   // 初始化数据
   useEffect(() => {
@@ -185,10 +188,11 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       // 绘制背景网格
       drawGrid(ctx, canvas.width, canvas.height);
 
-      // 过滤节点（根据搜索和视图模式）
+      // 过滤节点（根据搜索、视图模式和分类）
       const filteredNodes = nodes.filter(node => {
         if (viewMode === 'unlocked' && !node.unlocked) return false;
         if (viewMode === 'path' && !pathNodes.includes(node.id)) return false;
+        if (categoryFilter !== 'all' && node.category !== categoryFilter) return false;
         if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         return true;
       });
@@ -231,7 +235,7 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationId);
     };
-  }, [nodes, links, hoveredNode, selectedNode, pathNodes]);
+  }, [nodes, links, hoveredNode, selectedNode, pathNodes, viewMode, searchQuery, categoryFilter]);
 
   const drawGrid = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     ctx.strokeStyle = '#f1f5f9';
@@ -570,6 +574,73 @@ ${lowMastery.slice(0, 5).map((n, i) => `${i+1}️⃣ **${n.name}** - 掌握度 $
     }, 1000);
   };
 
+  // 导出知识图谱
+  const exportGraph = () => {
+    const data = {
+      nodes: nodes.map(n => ({
+        id: n.id,
+        name: n.name,
+        category: n.category,
+        mastery: n.mastery,
+        unlocked: n.unlocked,
+        estimatedHours: n.estimatedHours
+      })),
+      links,
+      stats,
+      exportDate: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `knowledge-graph-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 重置视图
+  const resetView = () => {
+    setViewMode('all');
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setSelectedNode(null);
+    setPathNodes([]);
+  };
+
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedNode(null);
+        setShowAIAssistant(false);
+        setShowShortcuts(false);
+      }
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+        searchInput?.focus();
+      }
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShowShortcuts(true);
+      }
+      if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        resetView();
+      }
+      if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setSearchQuery('');
+        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+        searchInput?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div ref={containerRef} className="w-full h-screen bg-gradient-to-br from-slate-50 to-blue-50 relative overflow-hidden">
       {/* Header */}
@@ -621,12 +692,48 @@ ${lowMastery.slice(0, 5).map((n, i) => `${i+1}️⃣ **${n.name}** - 掌握度 $
               ))}
             </div>
 
+            {/* 分类筛选 */}
+            <div className="relative group">
+              <button className="p-2 hover:bg-gray-100 rounded-xl transition-colors flex items-center gap-1">
+                <Filter size={18} className={categoryFilter !== 'all' ? 'text-blue-600' : 'text-gray-600'} />
+              </button>
+              <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-lg border border-gray-200 p-2 opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all z-50 min-w-[120px]">
+                {(['all', 'foundation', 'advanced', 'expert'] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    className={`w-full px-3 py-2 rounded-lg text-xs text-left transition-colors ${
+                      categoryFilter === cat ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-600'
+                    }`}
+                  >
+                    {cat === 'all' ? '全部分类' : cat === 'foundation' ? '基础知识' : cat === 'advanced' ? '进阶技能' : '专家级'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
-              onClick={() => fetchKnowledgeData()}
+              onClick={resetView}
               className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              title="刷新数据"
+              title="重置视图 (Ctrl+R)"
             >
               <RotateCcw size={18} />
+            </button>
+
+            <button
+              onClick={exportGraph}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              title="导出图谱"
+            >
+              <Download size={18} />
+            </button>
+
+            <button
+              onClick={() => setShowShortcuts(true)}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              title="快捷键 (?)"
+            >
+              <Keyboard size={18} />
             </button>
           </div>
         </div>
@@ -769,7 +876,7 @@ ${lowMastery.slice(0, 5).map((n, i) => `${i+1}️⃣ **${n.name}** - 掌握度 $
             {/* 操作按钮 */}
             <div className="space-y-2">
               <button 
-                onClick={() => onNavigate(Page.CLASSROOM, selectedNode.id)}
+                onClick={() => onNavigate(Page.LEARNING_PATH, selectedNode.id)}
                 disabled={!selectedNode.unlocked}
                 className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${
                   selectedNode.unlocked 
@@ -792,13 +899,51 @@ ${lowMastery.slice(0, 5).map((n, i) => `${i+1}️⃣ **${n.name}** - 掌握度 $
               
               {pathNodes.length > 0 && (
                 <button 
-                  onClick={() => setViewMode('path')}
+                  onClick={() => onNavigate(Page.LEARNING_PATH, selectedNode.id)}
                   className="w-full py-2 bg-purple-50 text-purple-600 rounded-xl font-medium text-sm hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
                 >
                   <TrendingUp size={16} />
-                  查看学习路径 ({pathNodes.length}个节点)
+                  查看完整学习路径 ({pathNodes.length}个节点)
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shortcuts Help Panel */}
+      {showShortcuts && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-fade-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Keyboard size={20} className="text-blue-600" />
+                键盘快捷键
+              </h3>
+              <button 
+                onClick={() => setShowShortcuts(false)}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[
+                { key: '/', desc: '聚焦搜索框' },
+                { key: 'ESC', desc: '关闭面板/取消选择' },
+                { key: 'Ctrl + R', desc: '重置视图' },
+                { key: 'Ctrl + F', desc: '清空搜索并聚焦' },
+                { key: '?', desc: '显示快捷键帮助' },
+                { key: '点击节点', desc: '查看详情和学习路径' },
+                { key: '悬停节点', desc: '预览节点信息' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-sm text-gray-600">{item.desc}</span>
+                  <kbd className="px-2 py-1 bg-gray-100 rounded-lg text-xs font-mono text-gray-700 border border-gray-200">
+                    {item.key}
+                  </kbd>
+                </div>
+              ))}
             </div>
           </div>
         </div>

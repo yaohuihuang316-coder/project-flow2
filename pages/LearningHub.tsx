@@ -148,7 +148,7 @@ const LAB_CATEGORIES = {
         color: 'from-blue-600 to-indigo-600',
         desc: '数据驱动的硬核计算工具',
         tools: [
-            { id: 'cpm', name: 'CPM 关键路径 (Chronos)', icon: Network },
+            { id: 'cpm', name: '关键路径分析', icon: Network, featured: true, desc: '可视化CPM网络图，自动计算关键路径与浮动时间' },
             { id: 'evm', name: 'EVM 挣值分析', icon: BarChart3 },
             { id: 'pert', name: 'PERT 三点估算', icon: Activity },
             { id: 'roi', name: 'ROI/NPV 模型', icon: DollarSign },
@@ -288,22 +288,45 @@ class CpmEngine {
 
 // --- TOOL COMPONENTS ---
 
-// 1. Chronos Flow CPM (Advanced Design)
+// 1. Chronos Flow CPM (Refactored with Learning Mode)
 const CpmStudio = () => {
-    const [tasks, setTasks] = useState<CpmTask[]>([
-        { id: 'A', name: '需求分析', duration: 3, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
-        { id: 'B', name: '原型设计', duration: 5, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
-        { id: 'C', name: '后端架构', duration: 4, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
-        { id: 'D', name: '前端开发', duration: 6, predecessors: ['B'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
-        { id: 'E', name: 'API开发', duration: 5, predecessors: ['C'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
-        { id: 'F', name: '集成测试', duration: 3, predecessors: ['D', 'E'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
-    ]);
+    // 预设示例项目
+    const PRESETS = {
+        'software': [
+            { id: 'A', name: '需求分析', duration: 3, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'B', name: '原型设计', duration: 5, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'C', name: '后端架构', duration: 4, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'D', name: '前端开发', duration: 6, predecessors: ['B'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'E', name: 'API开发', duration: 5, predecessors: ['C'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'F', name: '集成测试', duration: 3, predecessors: ['D', 'E'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        ],
+        'construction': [
+            { id: 'A', name: '地基施工', duration: 5, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'B', name: '钢筋绑扎', duration: 7, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'C', name: '管道预埋', duration: 4, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'D', name: '混凝土浇筑', duration: 3, predecessors: ['B'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'E', name: '电气布线', duration: 5, predecessors: ['C'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'F', name: '内部装修', duration: 8, predecessors: ['D', 'E'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        ],
+        'event': [
+            { id: 'A', name: '场地预订', duration: 2, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'B', name: '嘉宾邀请', duration: 5, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'C', name: '议程策划', duration: 3, predecessors: ['A'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'D', name: '物料准备', duration: 4, predecessors: ['A', 'B'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+            { id: 'E', name: '现场布置', duration: 2, predecessors: ['C', 'D'], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 },
+        ]
+    };
+
+    const [tasks, setTasks] = useState<CpmTask[]>(PRESETS.software);
     const [calculatedTasks, setCalculatedTasks] = useState<CpmTask[]>([]);
     const [projectDuration, setProjectDuration] = useState(0);
     const [criticalCount, setCriticalCount] = useState(0);
-
-    // UI State: Controls whether the critical path is revealed
     const [isCalculated, setIsCalculated] = useState(false);
+    const [showHelp, setShowHelp] = useState(false);
+    const [showTutorial, setShowTutorial] = useState(false);
+    const [tutorialStep, setTutorialStep] = useState(0);
+    const [selectedPreset, setSelectedPreset] = useState('software');
+    const [hoveredTask, setHoveredTask] = useState<string | null>(null);
 
     // Auto-calculate logic (for layout only)
     useEffect(() => {
@@ -311,12 +334,40 @@ const CpmStudio = () => {
         setCalculatedTasks(result);
         setProjectDuration(Math.max(0, ...result.map(t => t.ef)));
         setCriticalCount(result.filter(t => t.isCritical).length);
-        // Do NOT set isCalculated to true here, we wait for user action
     }, [tasks]);
 
     const handleStartCalculation = () => {
         setIsCalculated(true);
     };
+
+    const loadPreset = (preset: string) => {
+        setSelectedPreset(preset);
+        setTasks(PRESETS[preset as keyof typeof PRESETS]);
+        setIsCalculated(false);
+    };
+
+    const exportProject = () => {
+        const data = {
+            name: 'CPM Project',
+            tasks: calculatedTasks,
+            duration: projectDuration,
+            criticalPath: calculatedTasks.filter(t => t.isCritical).map(t => t.id)
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cpm-project-${Date.now()}.json`;
+        a.click();
+    };
+
+    const TUTORIAL_STEPS = [
+        { title: '欢迎使用 CPM 分析器', desc: '这是一个可视化关键路径分析工具，帮助你理解项目进度管理的核心概念。' },
+        { title: '任务控制台', desc: '左侧是任务控制台，你可以添加、编辑任务，设置工期和依赖关系。' },
+        { title: '网络图可视化', desc: '右侧会显示任务网络图，节点之间的连线表示依赖关系。' },
+        { title: '计算关键路径', desc: '点击"开始计算"按钮，系统会自动计算关键路径和浮动时间。' },
+        { title: '红色标记 = 关键任务', desc: '红色边框的节点表示关键任务，它们决定了项目的最短完成时间。' },
+    ];
 
     const getTaskPos = (task: CpmTask) => {
         const levelNodes = calculatedTasks.filter(t => t.level === task.level).sort((a, b) => a.id.localeCompare(b.id));
@@ -358,16 +409,136 @@ const CpmStudio = () => {
                 .animate-flow {
                     animation: dashFlow 1s linear infinite;
                 }
+                @keyframes pulse-glow {
+                    0%, 100% { box-shadow: 0 0 20px rgba(255, 59, 48, 0.3); }
+                    50% { box-shadow: 0 0 40px rgba(255, 59, 48, 0.6); }
+                }
+                .critical-glow {
+                    animation: pulse-glow 2s ease-in-out infinite;
+                }
             `}</style>
+
+            {/* Tutorial Overlay */}
+            {showTutorial && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl animate-fade-in">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">{TUTORIAL_STEPS[tutorialStep].title}</h3>
+                            <span className="text-sm text-gray-400">{tutorialStep + 1} / {TUTORIAL_STEPS.length}</span>
+                        </div>
+                        <p className="text-gray-600 mb-6">{TUTORIAL_STEPS[tutorialStep].desc}</p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowTutorial(false)}
+                                className="flex-1 py-3 border border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50"
+                            >
+                                跳过
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    if (tutorialStep < TUTORIAL_STEPS.length - 1) {
+                                        setTutorialStep(tutorialStep + 1);
+                                    } else {
+                                        setShowTutorial(false);
+                                        setTutorialStep(0);
+                                    }
+                                }}
+                                className="flex-1 py-3 bg-black text-white rounded-xl font-medium hover:bg-gray-800"
+                            >
+                                {tutorialStep < TUTORIAL_STEPS.length - 1 ? '下一步' : '开始体验'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Help Panel */}
+            {showHelp && (
+                <div className="absolute top-20 right-6 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-40 p-6 animate-fade-in">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                            <BookOpen size={18} className="text-blue-600" />
+                            CPM 使用指南
+                        </h4>
+                        <button onClick={() => setShowHelp(false)} className="text-gray-400 hover:text-gray-600">
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div className="space-y-4 text-sm text-gray-600">
+                        <div>
+                            <p className="font-semibold text-gray-900 mb-1">什么是关键路径？</p>
+                            <p>关键路径是项目中历时最长的任务序列，决定了项目的最短完成时间。关键路径上的任何延误都会直接导致项目延期。</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900 mb-1">如何阅读网络图？</p>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li><span className="text-red-500 font-medium">红色节点</span> - 关键任务</li>
+                                <li><span className="text-gray-600 font-medium">灰色节点</span> - 非关键任务</li>
+                                <li><span className="text-green-500 font-medium">浮动时间</span> - 任务可延迟的时间</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900 mb-1">计算公式</p>
+                            <p className="font-mono text-xs bg-gray-100 p-2 rounded">
+                                ES = max(前置任务的EF)<br/>
+                                EF = ES + 工期<br/>
+                                LF = min(后续任务的LS)<br/>
+                                LS = LF - 工期<br/>
+                                浮动 = LS - ES
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* 1. Infinite Canvas Background */}
             <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
                 style={{ backgroundImage: 'radial-gradient(#000 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }}>
             </div>
 
+            {/* Top Toolbar */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/90 backdrop-blur-xl px-4 py-2 rounded-2xl shadow-lg border border-gray-200/50 z-40">
+                <span className="text-sm font-bold text-gray-700 mr-2">预设项目:</span>
+                {Object.entries({ software: '软件开发', construction: '建筑工程', event: '活动策划' }).map(([key, label]) => (
+                    <button
+                        key={key}
+                        onClick={() => loadPreset(key)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                            selectedPreset === key 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+                <div className="w-px h-5 bg-gray-300 mx-1" />
+                <button 
+                    onClick={() => setShowTutorial(true)}
+                    className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                    title="教程"
+                >
+                    <Play size={16} />
+                </button>
+                <button 
+                    onClick={() => setShowHelp(true)}
+                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="帮助"
+                >
+                    <BookOpen size={16} />
+                </button>
+                <button 
+                    onClick={exportProject}
+                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    title="导出项目"
+                >
+                    <FileDown size={16} />
+                </button>
+            </div>
+
             {/* 2. Floating Glass Console (Left) */}
-            <div className="absolute top-6 left-6 bottom-6 w-80 bg-white/70 backdrop-blur-2xl border border-white/40 shadow-2xl rounded-[2rem] z-30 flex flex-col overflow-hidden transition-all duration-300">
-                <div className="p-6 border-b border-white/20 bg-white/40">
+            <div className="absolute top-16 left-4 bottom-4 w-80 bg-white/70 backdrop-blur-2xl border border-white/40 shadow-2xl rounded-[2rem] z-30 flex flex-col overflow-hidden transition-all duration-300">
+                <div className="p-5 border-b border-white/20 bg-white/40">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                         <Network size={20} className="text-blue-600" /> 任务控制台
                     </h3>
@@ -376,10 +547,23 @@ const CpmStudio = () => {
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
                     {tasks.map((task, i) => (
-                        <div key={i} className="group bg-white/80 p-4 rounded-2xl border border-white shadow-sm hover:shadow-md transition-all relative">
+                        <div 
+                            key={i} 
+                            className={`group p-4 rounded-2xl border shadow-sm hover:shadow-md transition-all relative ${
+                                hoveredTask === task.id 
+                                    ? 'bg-blue-50 border-blue-300' 
+                                    : 'bg-white/80 border-white'
+                            }`}
+                            onMouseEnter={() => setHoveredTask(task.id)}
+                            onMouseLeave={() => setHoveredTask(null)}
+                        >
                             <div className="flex justify-between items-center mb-2">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold shadow-md">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-colors ${
+                                        isCalculated && task.isCritical 
+                                            ? 'bg-red-500 text-white' 
+                                            : 'bg-black text-white'
+                                    }`}>
                                         {task.id}
                                     </div>
                                     <input
@@ -396,32 +580,58 @@ const CpmStudio = () => {
 
                             <div className="grid grid-cols-2 gap-3 mt-3">
                                 <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 focus-within:border-blue-300 focus-within:bg-white transition-colors">
-                                    <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Duration</label>
+                                    <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">工期(天)</label>
                                     <input
                                         type="number"
+                                        min={1}
                                         className="w-full bg-transparent text-xs font-bold text-gray-700 outline-none"
                                         value={task.duration}
                                         onChange={(e) => updateTask(i, 'duration', Number(e.target.value))}
                                     />
                                 </div>
                                 <div className="bg-gray-50 rounded-xl px-3 py-2 border border-gray-100 focus-within:border-blue-300 focus-within:bg-white transition-colors">
-                                    <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">Predecessors</label>
+                                    <label className="text-[9px] font-bold text-gray-400 uppercase block mb-0.5">前置任务</label>
                                     <input
                                         className="w-full bg-transparent text-xs font-bold text-gray-700 outline-none uppercase"
                                         value={task.predecessors.join(',')}
                                         onChange={(e) => updateTask(i, 'predecessors', e.target.value)}
-                                        placeholder="Ex: A,B"
+                                        placeholder="如: A,B"
                                     />
                                 </div>
                             </div>
+
+                            {/* Calculation Results */}
+                            {isCalculated && (
+                                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                                    <div className="flex gap-3">
+                                        <span className="text-gray-500">ES: <span className="font-mono font-bold text-gray-700">{task.es}</span></span>
+                                        <span className="text-gray-500">EF: <span className="font-mono font-bold text-gray-700">{task.ef}</span></span>
+                                    </div>
+                                    {task.slack > 0 && (
+                                        <span className="text-green-600 font-medium">浮动: {task.slack}天</span>
+                                    )}
+                                    {task.isCritical && (
+                                        <span className="text-red-500 font-bold flex items-center gap-1">
+                                            <AlertTriangle size={12} /> 关键
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))}
 
                     <button
-                        onClick={() => setTasks([...tasks, { id: String.fromCharCode(65 + tasks.length), name: 'New Task', duration: 1, predecessors: [], es: 0, ef: 0, ls: 0, lf: 0, slack: 0, isCritical: false, level: 0 }])}
-                        className="w-full py-4 border-2 border-dashed border-gray-300/50 rounded-2xl text-gray-400 font-bold hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-2 mb-2"
+                        onClick={() => setTasks([...tasks, { 
+                            id: String.fromCharCode(65 + tasks.length), 
+                            name: `任务 ${String.fromCharCode(65 + tasks.length)}`, 
+                            duration: 1, 
+                            predecessors: [], 
+                            es: 0, ef: 0, ls: 0, lf: 0, slack: 0, 
+                            isCritical: false, level: 0 
+                        }])}
+                        className="w-full py-4 border-2 border-dashed border-gray-300/50 rounded-2xl text-gray-400 font-bold hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2 mb-2"
                     >
-                        <Plus size={16} /> Add Task
+                        <Plus size={16} /> 添加任务
                     </button>
                 </div>
 
@@ -429,38 +639,57 @@ const CpmStudio = () => {
                 <div className="p-4 bg-white/50 border-t border-white/20">
                     <button
                         onClick={handleStartCalculation}
-                        className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${isCalculated
-                            ? 'bg-gray-900 text-white cursor-default'
-                            : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl'
-                            }`}
+                        disabled={isCalculated}
+                        className={`w-full py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
+                            isCalculated
+                                ? 'bg-green-600 text-white cursor-default'
+                                : 'bg-black text-white hover:bg-gray-800 hover:shadow-xl hover:scale-[1.02]'
+                        }`}
                     >
                         {isCalculated ? (
                             <>
-                                <CheckCircle2 size={18} className="text-green-400" /> Calculation Done
+                                <CheckCircle2 size={18} /> 计算完成
                             </>
                         ) : (
                             <>
-                                <Play size={18} fill="currentColor" /> 开始计算 (Calculate)
+                                <Play size={18} fill="currentColor" /> 开始计算关键路径
                             </>
                         )}
                     </button>
+                    {isCalculated && (
+                        <button
+                            onClick={() => setIsCalculated(false)}
+                            className="w-full mt-2 py-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                            重新编辑任务
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* 3. HUD (Heads-Up Display) */}
-            <div className={`absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl px-8 py-3 rounded-full shadow-2xl border border-white/50 z-20 flex items-center gap-8 animate-fade-in-up transition-opacity duration-500 ${isCalculated ? 'opacity-100' : 'opacity-40 grayscale'}`}>
+            {/* 3. HUD (Heads-Up Display) - Enhanced */}
+            <div className={`absolute top-16 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-xl px-8 py-4 rounded-2xl shadow-2xl border border-white/50 z-20 flex items-center gap-8 animate-fade-in-up transition-all duration-500 ${isCalculated ? 'opacity-100' : 'opacity-60 grayscale'}`}>
                 <div className="flex flex-col items-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Duration</span>
-                    <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 font-mono">
-                        {isCalculated ? projectDuration : '--'}<span className="text-sm text-gray-400 ml-1">days</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">项目总工期</span>
+                    <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 font-mono">
+                        {isCalculated ? projectDuration : '--'}<span className="text-sm text-gray-400 ml-1">天</span>
                     </div>
                 </div>
-                <div className="w-px h-8 bg-gray-200"></div>
+                <div className="w-px h-10 bg-gray-200"></div>
                 <div className="flex flex-col items-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Critical Tasks</span>
-                    <div className="text-2xl font-black text-[#FF3B30] font-mono flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">关键任务数</span>
+                    <div className="text-3xl font-black text-[#FF3B30] font-mono flex items-center gap-2">
                         {isCalculated ? criticalCount : '--'}
-                        {isCalculated && criticalCount > 0 && <div className="w-2 h-2 rounded-full bg-[#FF3B30] animate-pulse"></div>}
+                        {isCalculated && criticalCount > 0 && (
+                            <div className="w-3 h-3 rounded-full bg-[#FF3B30] animate-pulse shadow-[0_0_10px_rgba(255,59,48,0.5)]"></div>
+                        )}
+                    </div>
+                </div>
+                <div className="w-px h-10 bg-gray-200"></div>
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">总任务数</span>
+                    <div className="text-3xl font-black text-gray-700 font-mono">
+                        {tasks.length}
                     </div>
                 </div>
             </div>
@@ -542,23 +771,33 @@ const CpmStudio = () => {
                         })}
                     </svg>
 
-                    {/* HTML Layer (Smart Nodes) */}
+                    {/* HTML Layer (Smart Nodes) - Enhanced with hover linkage */}
                     {calculatedTasks.map((task) => {
                         const pos = getTaskPos(task);
                         const isCriticalNode = isCalculated && task.isCritical;
+                        const isHovered = hoveredTask === task.id;
+                        const isDimmed = hoveredTask && hoveredTask !== task.id && 
+                            !task.predecessors.includes(hoveredTask) && 
+                            !calculatedTasks.find(t => t.id === hoveredTask)?.predecessors.includes(task.id);
 
                         return (
                             <div
                                 key={task.id}
-                                className={`absolute w-40 h-20 rounded-xl p-3 flex flex-col justify-between transition-all duration-500 z-10
+                                onMouseEnter={() => setHoveredTask(task.id)}
+                                onMouseLeave={() => setHoveredTask(null)}
+                                className={`absolute w-44 h-24 rounded-xl p-3 flex flex-col justify-between transition-all duration-300 z-10 cursor-pointer
                                     ${isCriticalNode
-                                        ? 'bg-white border-2 border-[#FF3B30] shadow-[0_8px_30px_rgba(255,59,48,0.25)] scale-105'
-                                        : 'bg-white border border-gray-200 shadow-sm opacity-90'
-                                    }`}
+                                        ? `bg-white border-2 border-[#FF3B30] ${isHovered ? 'shadow-[0_8px_40px_rgba(255,59,48,0.4)] scale-110' : 'shadow-[0_8px_30px_rgba(255,59,48,0.25)] scale-105'}`
+                                        : `bg-white border ${isHovered ? 'border-blue-400 shadow-xl scale-105' : 'border-gray-200 shadow-sm'}`
+                                    }
+                                    ${isDimmed ? 'opacity-30' : 'opacity-100'}
+                                `}
                                 style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
                             >
                                 <div className="flex justify-between items-start">
-                                    <span className="text-xs font-bold text-gray-800 truncate pr-2">{task.name}</span>
+                                    <span className={`text-xs font-bold truncate pr-2 ${isCriticalNode ? 'text-[#FF3B30]' : 'text-gray-800'}`}>
+                                        {task.name}
+                                    </span>
                                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded text-white ${isCriticalNode ? 'bg-[#FF3B30]' : 'bg-gray-800'}`}>
                                         {task.id}
                                     </span>
@@ -566,8 +805,8 @@ const CpmStudio = () => {
 
                                 <div className="flex justify-between items-end">
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Duration</span>
-                                        <span className="text-sm font-mono font-bold text-gray-700">{task.duration}d</span>
+                                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">工期</span>
+                                        <span className="text-sm font-mono font-bold text-gray-700">{task.duration}天</span>
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">ES / EF</span>
@@ -579,10 +818,28 @@ const CpmStudio = () => {
                                     </div>
                                 </div>
 
-                                {/* Slack Bubble */}
+                                {/* Detailed Info on Hover */}
+                                {isHovered && isCalculated && (
+                                    <div className="absolute -top-16 left-0 bg-gray-900 text-white text-xs p-2 rounded-lg shadow-xl whitespace-nowrap z-20">
+                                        <div>LS: {task.ls} | LF: {task.lf}</div>
+                                        <div>浮动时间: {task.slack}天</div>
+                                        <div className="absolute bottom-0 left-4 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                                    </div>
+                                )}
+
+                                {/* Slack Badge */}
                                 {isCalculated && task.slack > 0 && (
-                                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#34C759] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap animate-bounce-in">
-                                        Slack: {task.slack}
+                                    <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap transition-all ${isHovered ? 'scale-110' : ''}`}
+                                        style={{ background: 'linear-gradient(135deg, #34C759, #30D158)' }}
+                                    >
+                                        +{task.slack}天浮动
+                                    </div>
+                                )}
+
+                                {/* Critical Badge */}
+                                {isCalculated && isCriticalNode && (
+                                    <div className="absolute -top-2 -right-2 bg-[#FF3B30] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                                        关键
                                     </div>
                                 )}
                             </div>
@@ -2773,10 +3030,14 @@ const AdvancedLabView = ({ onSelect, userMembership }: { onSelect: (tool: any) =
                         {data.tools.map((tool: any) => (
                             <div key={tool.id} 
                                  onClick={() => !isLocked && onSelect(tool)} 
-                                 className={`bg-white p-6 rounded-2xl shadow-sm border transition-all relative overflow-hidden ${
+                                 className={`rounded-2xl shadow-sm border transition-all relative overflow-hidden ${
+                                     tool.featured 
+                                         ? 'bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-200 p-8' 
+                                         : 'bg-white p-6 border-gray-100'
+                                 } ${
                                      isLocked 
-                                         ? 'border-gray-200 opacity-60 cursor-not-allowed' 
-                                         : 'border-gray-100 hover:shadow-xl hover:-translate-y-1 cursor-pointer group'
+                                         ? 'opacity-60 cursor-not-allowed' 
+                                         : 'hover:shadow-xl hover:-translate-y-1 cursor-pointer group'
                                  }`}>
                                 {isLocked && (
                                     <div className="absolute inset-0 bg-gray-50/80 backdrop-blur-[1px] flex flex-col items-center justify-center z-10">
@@ -2785,19 +3046,39 @@ const AdvancedLabView = ({ onSelect, userMembership }: { onSelect: (tool: any) =
                                         <span className="text-[10px] text-gray-400 mt-1">完成 {requiresMembership === 'pro' ? '5' : '10'} 门课程解锁</span>
                                     </div>
                                 )}
+                                
+                                {/* Featured Badge */}
+                                {tool.featured && (
+                                    <div className="absolute top-3 right-3 px-2 py-1 bg-indigo-500 text-white text-[10px] font-bold rounded-full">
+                                        推荐
+                                    </div>
+                                )}
+                                
                                 <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110`}><tool.icon size={80} /></div>
+                                
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors shadow-sm ${
-                                    category === 'ProLab' 
-                                        ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white' 
-                                        : 'bg-gray-50 text-gray-600 group-hover:bg-black group-hover:text-white'
+                                    tool.featured
+                                        ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white'
+                                        : category === 'ProLab' 
+                                            ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white' 
+                                            : 'bg-gray-50 text-gray-600 group-hover:bg-black group-hover:text-white'
                                 }`}>
                                     <tool.icon size={24} />
                                 </div>
-                                <h4 className="font-bold text-gray-900 text-lg mb-1">{tool.name}</h4>
-                                {category === 'ProLab' && (
+                                
+                                <h4 className={`font-bold text-lg mb-1 ${tool.featured ? 'text-indigo-900' : 'text-gray-900'}`}>{tool.name}</h4>
+                                
+                                {tool.desc && (
+                                    <p className={`text-xs mb-3 ${tool.featured ? 'text-indigo-600' : 'text-gray-500'}`}>{tool.desc}</p>
+                                )}
+                                
+                                {category === 'ProLab' && !tool.desc && (
                                     <p className="text-xs text-gray-500 mb-2">蒙特卡洛、看板流、FMEA等10+高级工具</p>
                                 )}
-                                <div className="mt-4 flex items-center gap-1 text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
+                                
+                                <div className={`mt-4 flex items-center gap-1 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0 ${
+                                    tool.featured ? 'text-indigo-600' : 'text-blue-600'
+                                }`}>
                                     {category === 'ProLab' ? '进入高级实验室' : '进入实验室'} <ArrowRight size={12} />
                                 </div>
                             </div>
