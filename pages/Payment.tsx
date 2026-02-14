@@ -1,13 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  CreditCard, Shield, CheckCircle, ArrowLeft, 
-  Crown, Zap, Gem, Loader2, QrCode, Clock,
-  AlertCircle, ChevronRight
+  Shield, CheckCircle, ArrowLeft, 
+  Zap, Gem, Loader2, Clock
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { MEMBERSHIP_CONFIG } from '../lib/membership';
 
 interface PaymentProps {
   currentUser?: UserProfile | null;

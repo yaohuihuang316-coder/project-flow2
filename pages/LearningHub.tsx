@@ -187,7 +187,8 @@ const LAB_CATEGORIES = {
     }
 };
 
-const CLASSIC_CASES = [
+// 保留为参考，当前使用数据库数据
+// const CLASSIC_CASES = [
     {
         id: 'case-dia',
         title: '丹佛国际机场 (DIA) 行李系统',

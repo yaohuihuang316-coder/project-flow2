@@ -14,7 +14,6 @@ import {
   MembershipPlanConfig, 
   getMembershipConfig, 
   updateMembershipConfigInDB,
-  clearMembershipConfigCache,
   DEFAULT_MEMBERSHIP_CONFIG
 } from '../../lib/membership';
 

@@ -356,15 +356,12 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           </div>
 
           <ul className="space-y-4 mb-8">
-            {freeConfig.features.map((item, idx) => {
-              const IconComponent = getIconComponent(item.icon);
-              return (
-                <li key={idx} className="flex items-center gap-3 text-gray-600">
-                  <Check size={18} className="text-green-500 flex-shrink-0" />
-                  <span className="text-sm">{item.text}</span>
-                </li>
-              );
-            })}
+            {freeConfig.features.map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-gray-600">
+                <Check size={18} className="text-green-500 flex-shrink-0" />
+                <span className="text-sm">{item.text}</span>
+              </li>
+            ))}
           </ul>
 
           <button 
@@ -402,15 +399,12 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           </div>
 
           <ul className="space-y-4 mb-8">
-            {proConfig.features.map((item, idx) => {
-              const IconComponent = getIconComponent(item.icon);
-              return (
-                <li key={idx} className="flex items-center gap-3 text-gray-600">
-                  <Check size={18} className="text-green-500 flex-shrink-0" />
-                  <span className="text-sm">{item.text}</span>
-                </li>
-              );
-            })}
+            {proConfig.features.map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-gray-600">
+                <Check size={18} className="text-green-500 flex-shrink-0" />
+                <span className="text-sm">{item.text}</span>
+              </li>
+            ))}
           </ul>
 
           <button 
@@ -451,15 +445,12 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           </div>
 
           <ul className="space-y-4 mb-8">
-            {proPlusConfig.features.map((item, idx) => {
-              const IconComponent = getIconComponent(item.icon);
-              return (
-                <li key={idx} className="flex items-center gap-3 text-gray-600">
-                  <Check size={18} className="text-green-500 flex-shrink-0" />
-                  <span className="text-sm">{item.text}</span>
-                </li>
-              );
-            })}
+            {proPlusConfig.features.map((item, idx) => (
+              <li key={idx} className="flex items-center gap-3 text-gray-600">
+                <Check size={18} className="text-green-500 flex-shrink-0" />
+                <span className="text-sm">{item.text}</span>
+              </li>
+            ))}
           </ul>
 
           <button 
