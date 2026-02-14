@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Crown,
   LogOut, Bell, Menu, X, MessageSquare,
   ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, BarChart3,
-  Target, Cog, Home
+  Home
 } from 'lucide-react';
 
 interface AdminLayoutProps {
