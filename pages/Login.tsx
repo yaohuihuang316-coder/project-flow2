@@ -118,38 +118,66 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
   };
 
-  // Fallback: Demo Login (Auto-syncs to DB)
-  const handleDemoLogin = async () => {
-      const demoUser = {
-          id: 'u-777', // Fixed ID for stability
-          email: '777@projectflow.com',
-          name: 'Alex Chen',
-          role: 'Manager',
+  // Demo Login with different tiers
+  const handleDemoLogin = async (tier: 'free' | 'pro' | 'pro_plus' = 'free') => {
+      const demoUsers = {
+          free: {
+              id: 'u-free-001',
+              email: 'demo-free@projectflow.com',
+              name: '小李 (Free)',
+              role: 'Student',
+              avatar: 'https://i.pravatar.cc/150?u=free001',
+              completedCourses: 0
+          },
+          pro: {
+              id: 'u-pro-001',
+              email: 'demo-pro@projectflow.com',
+              name: '王经理 (Pro)',
+              role: 'Manager',
+              avatar: 'https://i.pravatar.cc/150?u=pro001',
+              completedCourses: 5
+          },
+          pro_plus: {
+              id: 'u-proplus-001',
+              email: 'demo-proplus@projectflow.com',
+              name: '陈总监 (Pro+)',
+              role: 'Director',
+              avatar: 'https://i.pravatar.cc/150?u=proplus001',
+              completedCourses: 12
+          }
+      };
+
+      const user = demoUsers[tier];
+      const dbUser = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
           status: '正常',
           department: 'Project Management Office',
-          avatar: 'https://i.pravatar.cc/150?u=777',
+          avatar: user.avatar,
           created_at: new Date().toISOString()
       };
 
-      // Proactively try to ensure demo user exists in DB to prevent Foreign Key errors
+      // Try to sync to DB (may fail if offline)
       try {
-          await supabase.from('app_users').upsert(demoUser);
+          await supabase.from('app_users').upsert(dbUser);
       } catch (err) {
-          console.warn("Could not sync demo user to DB (might be offline or table missing)", err);
+          console.warn("Could not sync demo user to DB", err);
       }
 
       onLogin({
-          id: demoUser.id,
-          email: demoUser.email,
-          name: demoUser.name,
-          role: demoUser.role as any,
-          avatar: demoUser.avatar,
-          department: demoUser.department,
-          joined_at: demoUser.created_at,
-          membershipTier: 'free',
-          completedCoursesCount: 0,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role as any,
+          avatar: user.avatar,
+          department: 'Project Management Office',
+          joined_at: dbUser.created_at,
+          membershipTier: tier,
+          completedCoursesCount: user.completedCourses,
           isLifetimeMember: false,
-          aiTier: 'none',
+          aiTier: tier === 'pro_plus' ? 'pro' : tier === 'pro' ? 'basic' : 'none',
           aiDailyUsed: 0
       });
   };
@@ -238,15 +266,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {step === 'email' ? 'Protected by ProjectFlow Security' : <button onClick={() => setStep('email')} className="text-blue-600 hover:underline">返回修改邮箱</button>}
           </p>
           
-          {/* Demo Login Button */}
-          {error && (
+          {/* Demo Accounts Section */}
+          <div className="w-full border-t border-gray-100 pt-6 mt-2">
+            <p className="text-xs font-medium text-gray-400 text-center mb-3">快速体验 - 演示账号</p>
+            <div className="grid grid-cols-3 gap-2">
               <button 
-                onClick={handleDemoLogin}
-                className="text-xs font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors flex items-center gap-2"
+                onClick={() => handleDemoLogin('free')}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200"
               >
-                  <Database size={12}/> 数据库未连接？试用演示账号 (Alex Chen)
+                <span className="text-lg">🆓</span>
+                <span className="text-xs font-bold text-gray-600">Free</span>
               </button>
-          )}
+              <button 
+                onClick={() => handleDemoLogin('pro')}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-200"
+              >
+                <span className="text-lg">💎</span>
+                <span className="text-xs font-bold text-blue-600">Pro</span>
+              </button>
+              <button 
+                onClick={() => handleDemoLogin('pro_plus')}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-200"
+              >
+                <span className="text-lg">👑</span>
+                <span className="text-xs font-bold text-amber-600">Pro+</span>
+              </button>
+            </div>
+            {error && (
+              <p className="text-xs text-center text-gray-400 mt-2">
+                <Database size={10} className="inline mr-1"/>数据库连接失败，演示数据仅在本地有效
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

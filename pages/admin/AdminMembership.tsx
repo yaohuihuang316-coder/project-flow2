@@ -63,7 +63,7 @@ const AdminMembership: React.FC = () => {
       // 获取用户列表
       const { data: usersData, error: usersError } = await supabase
         .from('app_users')
-        .select('id, name, email, avatar, membership_tier, membership_expires_at, completed_courses_count, created_at')
+        .select('id, name, email, avatar, subscription_tier, membership_expires_at, completed_courses_count, created_at')
         .order('created_at', { ascending: false });
       
       if (usersError) throw usersError;
@@ -74,7 +74,7 @@ const AdminMembership: React.FC = () => {
           name: u.name,
           email: u.email,
           avatar: u.avatar,
-          membershipTier: u.membership_tier || 'free',
+          membershipTier: u.subscription_tier || 'free',
           membershipExpiresAt: u.membership_expires_at,
           completedCoursesCount: u.completed_courses_count || 0,
           createdAt: u.created_at
@@ -178,7 +178,7 @@ const AdminMembership: React.FC = () => {
       const { error } = await supabase
         .from('app_users')
         .update({ 
-          membership_tier: newTier,
+          subscription_tier: newTier,
           membership_expires_at: newTier === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         })
         .eq('id', userId);

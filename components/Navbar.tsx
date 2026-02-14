@@ -1,13 +1,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserProfile } from '../types';
-import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users, Bot } from 'lucide-react';
+import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users, Bot, Crown, CreditCard } from 'lucide-react';
 
 interface NavbarProps {
   currentPage: Page;
   setPage: (page: Page) => void;
   currentUser?: UserProfile | null;
   onLogout?: () => void;
+  onNavigate?: (page: Page) => void;
 }
 
 // Mock Notifications
@@ -17,7 +18,9 @@ const NOTIFICATIONS = [
     { id: 3, title: '系统维护', msg: '系统将于今晚 02:00 进行例行维护。', time: '3h ago', type: 'warning' },
 ];
 
-const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLogout }) => {
+const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLogout, onNavigate }) => {
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const upgradeRef = useRef<HTMLDivElement>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -27,6 +30,9 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
       const handleClickOutside = (event: MouseEvent) => {
           if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
               setIsNotifOpen(false);
+          }
+          if (upgradeRef.current && !upgradeRef.current.contains(event.target as Node)) {
+              setIsUpgradeOpen(false);
           }
       };
       document.addEventListener('mousedown', handleClickOutside);
@@ -86,6 +92,106 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
       </div>
 
       <div className="flex items-center gap-4">
+          {/* Upgrade Membership Button */}
+          <div className="relative" ref={upgradeRef}>
+              <button 
+                onClick={() => setIsUpgradeOpen(!isUpgradeOpen)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
+                  currentUser?.membershipTier === 'pro_plus' 
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' 
+                    : currentUser?.membershipTier === 'pro'
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Crown size={16} />
+                <span className="text-xs font-bold hidden sm:block">
+                  {currentUser?.membershipTier === 'pro_plus' ? 'Pro+' : currentUser?.membershipTier === 'pro' ? 'Pro' : '升级会员'}
+                </span>
+              </button>
+
+              {/* Upgrade Dropdown Panel */}
+              {isUpgradeOpen && (
+                  <div className="absolute top-full right-0 mt-3 w-96 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in-up origin-top-right">
+                      <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                          <div className="flex justify-between items-center">
+                              <h3 className="text-sm font-bold text-gray-900">升级会员</h3>
+                              <button onClick={() => setIsUpgradeOpen(false)} className="text-gray-400 hover:text-black"><X size={14}/></button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">解锁更多高级功能和工具</p>
+                      </div>
+                      
+                      <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+                          {/* Free Plan */}
+                          <div className={`p-4 rounded-xl border-2 ${currentUser?.membershipTier === 'free' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                              <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                      <span className="text-lg">🆓</span>
+                                      <span className="font-bold text-gray-900">Free</span>
+                                  </div>
+                                  {currentUser?.membershipTier === 'free' && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full">当前</span>}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-2">基础课程 + 3个工具</p>
+                          </div>
+
+                          {/* Pro Plan */}
+                          <div className={`p-4 rounded-xl border-2 ${currentUser?.membershipTier === 'pro' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300 cursor-pointer'}`}
+                               onClick={() => { onNavigate?.(Page.MEMBERSHIP); setIsUpgradeOpen(false); }}>
+                              <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                      <span className="text-lg">💎</span>
+                                      <span className="font-bold text-gray-900">Pro</span>
+                                  </div>
+                                  <span className="text-lg font-bold text-blue-600">¥99<span className="text-xs text-gray-400">/月</span></span>
+                              </div>
+                              <ul className="text-xs text-gray-600 mt-2 space-y-1">
+                                  <li className="flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> 全部基础工具</li>
+                                  <li className="flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> 5个高级工具</li>
+                                  <li className="flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> AI助手 20次/天</li>
+                              </ul>
+                              {currentUser?.membershipTier === 'pro' && <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full mt-2 inline-block">当前</span>}
+                          </div>
+
+                          {/* Pro+ Plan */}
+                          <div className={`p-4 rounded-xl border-2 ${currentUser?.membershipTier === 'pro_plus' ? 'border-amber-500 bg-amber-50' : 'border-gray-200 hover:border-amber-300 cursor-pointer'}`}
+                               onClick={() => { onNavigate?.(Page.MEMBERSHIP); setIsUpgradeOpen(false); }}>
+                              <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                      <span className="text-lg">👑</span>
+                                      <span className="font-bold text-gray-900">Pro+</span>
+                                  </div>
+                                  <span className="text-lg font-bold text-amber-600">¥199<span className="text-xs text-gray-400">/月</span></span>
+                              </div>
+                              <ul className="text-xs text-gray-600 mt-2 space-y-1">
+                                  <li className="flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> 全部22个工具</li>
+                                  <li className="flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> 实战模拟中心</li>
+                                  <li className="flex items-center gap-1"><CheckCircle size={10} className="text-green-500"/> AI助手 50次/天</li>
+                              </ul>
+                              {currentUser?.membershipTier === 'pro_plus' && <span className="text-xs bg-amber-500 text-white px-2 py-1 rounded-full mt-2 inline-block">当前</span>}
+                          </div>
+
+                          {/* Payment Methods */}
+                          <div className="pt-3 border-t border-gray-100">
+                              <p className="text-xs text-gray-500 mb-2">支持支付方式</p>
+                              <div className="flex gap-2">
+                                  <span className="px-2 py-1 bg-green-50 text-green-600 text-xs rounded-md border border-green-200">微信支付</span>
+                                  <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-md border border-blue-200">支付宝</span>
+                                  <span className="px-2 py-1 bg-purple-50 text-purple-600 text-xs rounded-md border border-purple-200">兑换码</span>
+                              </div>
+                          </div>
+
+                          <button 
+                              onClick={() => { onNavigate?.(Page.MEMBERSHIP); setIsUpgradeOpen(false); }}
+                              className="w-full py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                          >
+                              <CreditCard size={16}/>
+                              {currentUser?.membershipTier === 'free' ? '选择并支付' : '管理订阅'}
+                          </button>
+                      </div>
+                  </div>
+              )}
+          </div>
+
           {/* Notification Center */}
           <div className="relative" ref={notifRef}>
               <button 

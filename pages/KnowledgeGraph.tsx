@@ -239,10 +239,20 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ onBack, onNavigate }) =
 
         myChart.setOption(option);
 
-        // 点击事件
+        // 单击事件 - 选中节点
         myChart.on('click', (params: any) => {
             if (params.dataType === 'node') {
                 setSelectedNode(params.data.originalData);
+            }
+        });
+
+        // 双击事件 - 直接跳转到课程
+        myChart.on('dblclick', (params: any) => {
+            if (params.dataType === 'node') {
+                const node = params.data.originalData as KnowledgeNode;
+                if (node.courseId) {
+                    onNavigate(Page.CLASSROOM, node.courseId);
+                }
             }
         });
 

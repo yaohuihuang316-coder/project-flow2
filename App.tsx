@@ -161,6 +161,7 @@ const App: React.FC = () => {
             setPage={setCurrentPage}
             currentUser={currentUser}
             onLogout={handleLogout}
+            onNavigate={navigateTo}
           />
         </div>
       )}
