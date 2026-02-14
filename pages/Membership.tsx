@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Crown, Check, X, Sparkles, Gift, Zap, BookOpen, 
   Target, MessageSquare, FileText, Bot, Calculator,
-  TrendingUp, Shield, Users, Clock, Loader2, AlertCircle,
-  Ticket, ChevronRight, Star
+  TrendingUp, Shield, Users, Loader2, AlertCircle,
+  Ticket, Star
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';

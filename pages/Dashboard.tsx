@@ -1,15 +1,15 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-    Calendar, Trophy, ArrowUpRight, Activity, FileText, ChevronRight,
-    Flame, Target, Clock, BookOpen, Zap, TrendingUp, AlertCircle,
-    CheckCircle2, Play, Star, Crown, ArrowRight, MoreHorizontal,
-    BarChart3, RotateCcw, Lightbulb, Share2, GitBranch
+    Trophy, ArrowUpRight, Activity, FileText, ChevronRight,
+    Flame, Target, BookOpen, Zap, TrendingUp,
+    CheckCircle2, Play, Crown, ArrowRight,
+    BarChart3, Lightbulb, GitBranch
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
-import { Page, UserProfile, MembershipTier } from '../types';
+import { XAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from 'recharts';
+import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import MembershipCard from '../components/MembershipCard';
+// MembershipCard removed - integrated directly
 import { MEMBERSHIP_CONFIG, getNextTierInfo } from '../lib/membership';
 
 interface DashboardProps {
@@ -68,7 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
     const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([]);
     const [recommendedCourse, setRecommendedCourse] = useState<RecommendedCourse | null>(null);
     const [recentNotes, setRecentNotes] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [, setIsLoading] = useState(true);
 
     // 会员等级信息
     const nextTierInfo = useMemo(() => getNextTierInfo(currentUser || null), [currentUser]);

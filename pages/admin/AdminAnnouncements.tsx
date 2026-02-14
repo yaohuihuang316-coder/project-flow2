@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Megaphone, Plus, Trash2, Edit2, CheckCircle, AlertCircle, 
   Info, AlertTriangle, X, Calendar, Users, Eye, EyeOff,
-  Loader2, Search, Filter
+  Loader2, Search
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 

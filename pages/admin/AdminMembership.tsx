@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Search, Plus, Trash2, RefreshCw,
   CheckCircle2, XCircle, Loader2, Gift, Download,
-  ChevronLeft, ChevronRight, Copy
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { MembershipTier, MembershipCode, MembershipStats } from '../../types';
 import { supabase } from '../../lib/supabaseClient';

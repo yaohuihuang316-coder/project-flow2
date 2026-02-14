@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
     ChevronLeft, Play, CheckCircle2, AlertTriangle, Loader2, 
-    Trophy, Clock, Target, FileText, BarChart3, Download,
-    ArrowRight, RotateCcw, Lock, Crown, Star, TrendingUp,
-    Users, Zap, Brain, AlertCircle, X
+    Trophy, Clock, Target, Download,
+    ArrowRight, RotateCcw, Crown, TrendingUp,
+    Users, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
@@ -12,6 +12,7 @@ import { Page } from '../types';
 
 interface SimulationProps {
     onNavigate?: (page: Page) => void;
+    onBack?: () => void;
     currentUser?: UserProfile | null;
 }
 
@@ -81,7 +82,7 @@ interface MadeDecision {
     timestamp: string;
 }
 
-const Simulation: React.FC<SimulationProps> = ({ onNavigate, currentUser }) => {
+const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser }) => {
     // 页面状态
     const [view, setView] = useState<'list' | 'detail' | 'running' | 'result'>('list');
     const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
@@ -387,7 +388,7 @@ const Simulation: React.FC<SimulationProps> = ({ onNavigate, currentUser }) => {
                         <div 
                             key={scenario.id}
                             className="bg-white rounded-3xl overflow-hidden border border-gray-100 hover:shadow-xl transition-all cursor-pointer group"
-                            onClick={() => setView('detail') || setSelectedScenario(scenario)}
+                            onClick={() => { setView('detail'); setSelectedScenario(scenario); }}
                         >
                             {/* Cover */}
                             <div className="h-48 bg-gray-100 relative overflow-hidden">
