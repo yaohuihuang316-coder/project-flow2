@@ -26,7 +26,6 @@ import AdminCommunity from './pages/admin/AdminCommunity';
 import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 import AdminMembership from './pages/admin/AdminMembership'; // 会员管理
 import AdminSimulation from './pages/admin/AdminSimulation'; // 实战项目管理
-import AdminTools from './pages/admin/AdminTools'; // 核心算法管理
 // Removed: AdminEvents, AdminSystem - not needed for current frontend
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 // 已删除: AdminSettings, AdminMonitor
@@ -97,7 +96,6 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_COMMUNITY && <AdminCommunity />}
           {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
           {currentPage === Page.ADMIN_MEMBERSHIP && <AdminMembership />}
-          {currentPage === Page.ADMIN_TOOLS && <AdminTools />}
           {currentPage === Page.ADMIN_SIMULATION && <AdminSimulation />}
         </AdminLayout>
       );

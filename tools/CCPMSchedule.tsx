@@ -5,48 +5,117 @@ import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-interface CCPMTask { id: string; name: string; duration: number; safeDuration: number; resources: string[]; dependencies: string[]; earlyStart: number; earlyFinish: number; lateStart: number; lateFinish: number; isCritical: boolean; }
+interface CCPMTask { id: string; name: string; duration: number; safeDuration: number; resources: string[]; dependencies: string[]; earlyStart: number; earlyFinish: number; lateStart: number; lateFinish: number; slack: number; isCritical: boolean; }
 interface CCPMScheduleProps { currentUser?: UserProfile | null; }
 
 function calculateCriticalChain(tasks: CCPMTask[]): CCPMTask[] {
-  const taskMap = new Map(tasks.map(t => [t.id, { ...t, earlyStart: 0, earlyFinish: 0 }]));
-  const visited = new Set<string>();
-  const calculateEarly = (taskId: string): void => {
-    if (visited.has(taskId)) return;
-    visited.add(taskId);
+  if (tasks.length === 0) return [];
+  
+  const taskMap = new Map<string, CCPMTask>();
+  tasks.forEach(t => {
+    taskMap.set(t.id, { ...t, earlyStart: 0, earlyFinish: 0, lateStart: 0, lateFinish: 0, slack: 0, isCritical: false });
+  });
+  
+  // Build adjacency lists
+  const predecessors = new Map<string, string[]>();
+  const successors = new Map<string, string[]>();
+  tasks.forEach(t => {
+    predecessors.set(t.id, t.dependencies || []);
+    successors.set(t.id, []);
+  });
+  tasks.forEach(t => {
+    t.dependencies?.forEach(depId => {
+      const succList = successors.get(depId) || [];
+      succList.push(t.id);
+      successors.set(depId, succList);
+    });
+  });
+  
+  // Topological sort using Kahn's algorithm
+  const inDegree = new Map<string, number>();
+  tasks.forEach(t => inDegree.set(t.id, t.dependencies?.length || 0));
+  const queue: string[] = [];
+  tasks.forEach(t => {
+    if ((t.dependencies?.length || 0) === 0) queue.push(t.id);
+  });
+  
+  const topoOrder: string[] = [];
+  while (queue.length > 0) {
+    const currId = queue.shift()!;
+    topoOrder.push(currId);
+    const succList = successors.get(currId) || [];
+    for (const succId of succList) {
+      const newDegree = (inDegree.get(succId) || 0) - 1;
+      inDegree.set(succId, newDegree);
+      if (newDegree === 0) queue.push(succId);
+    }
+  }
+  
+  if (topoOrder.length !== tasks.length) {
+    console.error('Circular dependency detected in tasks');
+    return Array.from(taskMap.values());
+  }
+  
+  // Forward pass: Calculate ES and EF
+  // ES = max(EF of all predecessors)
+  // EF = ES + duration
+  for (const taskId of topoOrder) {
     const task = taskMap.get(taskId)!;
+    const predIds = predecessors.get(taskId) || [];
     let maxEarlyFinish = 0;
-    for (const depId of task.dependencies) { calculateEarly(depId); const depTask = taskMap.get(depId)!; maxEarlyFinish = Math.max(maxEarlyFinish, depTask.earlyFinish); }
+    for (const predId of predIds) {
+      const predTask = taskMap.get(predId)!;
+      maxEarlyFinish = Math.max(maxEarlyFinish, predTask.earlyFinish);
+    }
     task.earlyStart = maxEarlyFinish;
     task.earlyFinish = maxEarlyFinish + task.duration;
-  };
-  tasks.forEach(t => calculateEarly(t.id));
-  const maxEF = Math.max(...Array.from(taskMap.values()).map(t => t.earlyFinish));
-  const visited2 = new Set<string>();
-  const calculateLate = (taskId: string): void => {
-    if (visited2.has(taskId)) return;
-    visited2.add(taskId);
+  }
+  
+  // Project completion time = max(EF of all tasks)
+  const projectCompletion = Math.max(...Array.from(taskMap.values()).map(t => t.earlyFinish));
+  
+  // Backward pass: Calculate LS and LF
+  // LF = min(LS of all successors), or project completion if no successors
+  // LS = LF - duration
+  const reverseTopoOrder = [...topoOrder].reverse();
+  for (const taskId of reverseTopoOrder) {
     const task = taskMap.get(taskId)!;
-    const dependents = Array.from(taskMap.values()).filter(t => t.dependencies.includes(taskId));
-    if (dependents.length === 0) task.lateFinish = maxEF;
-    else task.lateFinish = Math.min(...dependents.map(t => t.lateStart));
+    const succIds = successors.get(taskId) || [];
+    if (succIds.length === 0) {
+      // No successors - this is an end task
+      task.lateFinish = projectCompletion;
+    } else {
+      let minLateStart = Infinity;
+      for (const succId of succIds) {
+        const succTask = taskMap.get(succId)!;
+        minLateStart = Math.min(minLateStart, succTask.lateStart);
+      }
+      task.lateFinish = minLateStart;
+    }
     task.lateStart = task.lateFinish - task.duration;
-  };
-  const sortedByEF = Array.from(taskMap.values()).sort((a, b) => b.earlyFinish - a.earlyFinish);
-  sortedByEF.forEach(t => { if (!visited2.has(t.id)) calculateLate(t.id); });
-  Array.from(taskMap.values()).forEach(task => { task.isCritical = task.earlyStart === task.lateStart; });
+  }
+  
+  // Calculate slack and identify critical path
+  // Slack = LS - ES = LF - EF
+  // Critical path = tasks with slack = 0
+  Array.from(taskMap.values()).forEach(task => {
+    task.slack = Math.round((task.lateStart - task.earlyStart) * 100) / 100;
+    // Use a small epsilon for floating point comparison
+    task.isCritical = Math.abs(task.slack) < 0.001;
+  });
+  
   return Array.from(taskMap.values());
 }
 
 const CCPMSchedule: React.FC<CCPMScheduleProps> = ({ currentUser }) => {
   const [projectName, setProjectName] = useState('新产品开发项目');
   const [tasks, setTasks] = useState<CCPMTask[]>([
-    { id: '1', name: '需求分析', duration: 10, safeDuration: 15, resources: ['BA'], dependencies: [], earlyStart: 0, earlyFinish: 10, lateStart: 0, lateFinish: 10, isCritical: true },
-    { id: '2', name: '系统设计', duration: 12, safeDuration: 20, resources: ['架构师'], dependencies: ['1'], earlyStart: 10, earlyFinish: 22, lateStart: 10, lateFinish: 22, isCritical: true },
-    { id: '3', name: '前端开发', duration: 20, safeDuration: 30, resources: ['前端'], dependencies: ['2'], earlyStart: 22, earlyFinish: 42, lateStart: 22, lateFinish: 42, isCritical: true },
-    { id: '4', name: '后端开发', duration: 25, safeDuration: 40, resources: ['后端'], dependencies: ['2'], earlyStart: 22, earlyFinish: 47, lateStart: 22, lateFinish: 47, isCritical: true },
-    { id: '5', name: '接口联调', duration: 8, safeDuration: 12, resources: ['前端', '后端'], dependencies: ['3', '4'], earlyStart: 47, earlyFinish: 55, lateStart: 47, lateFinish: 55, isCritical: true },
-    { id: '6', name: '测试验收', duration: 10, safeDuration: 15, resources: ['测试'], dependencies: ['5'], earlyStart: 55, earlyFinish: 65, lateStart: 55, lateFinish: 65, isCritical: true },
+    { id: '1', name: '需求分析', duration: 10, safeDuration: 15, resources: ['BA'], dependencies: [], earlyStart: 0, earlyFinish: 10, lateStart: 0, lateFinish: 10, slack: 0, isCritical: true },
+    { id: '2', name: '系统设计', duration: 12, safeDuration: 20, resources: ['架构师'], dependencies: ['1'], earlyStart: 10, earlyFinish: 22, lateStart: 10, lateFinish: 22, slack: 0, isCritical: true },
+    { id: '3', name: '前端开发', duration: 20, safeDuration: 30, resources: ['前端'], dependencies: ['2'], earlyStart: 22, earlyFinish: 42, lateStart: 27, lateFinish: 47, slack: 5, isCritical: false },
+    { id: '4', name: '后端开发', duration: 25, safeDuration: 40, resources: ['后端'], dependencies: ['2'], earlyStart: 22, earlyFinish: 47, lateStart: 22, lateFinish: 47, slack: 0, isCritical: true },
+    { id: '5', name: '接口联调', duration: 8, safeDuration: 12, resources: ['前端', '后端'], dependencies: ['3', '4'], earlyStart: 47, earlyFinish: 55, lateStart: 47, lateFinish: 55, slack: 0, isCritical: true },
+    { id: '6', name: '测试验收', duration: 10, safeDuration: 15, resources: ['测试'], dependencies: ['5'], earlyStart: 55, earlyFinish: 65, lateStart: 55, lateFinish: 65, slack: 0, isCritical: true },
   ]);
   const [bufferPercentage, setBufferPercentage] = useState(50);
   const [savedSchedules, setSavedSchedules] = useState<any[]>([]);
@@ -68,7 +137,7 @@ const CCPMSchedule: React.FC<CCPMScheduleProps> = ({ currentUser }) => {
   const loadSavedSchedules = async () => { const { data } = await supabase.from('lab_ccpm_schedules').select('*').order('created_at', { ascending: false }).limit(10); if (data) setSavedSchedules(data); };
   const showToast = (type: 'success' | 'error', message: string) => { setToast({ type, message }); setTimeout(() => setToast(null), 3000); };
 
-  const addTask = () => { const newTask: CCPMTask = { id: Date.now().toString(), name: '新任务', duration: 5, safeDuration: 10, resources: [], dependencies: [], earlyStart: 0, earlyFinish: 5, lateStart: 0, lateFinish: 5, isCritical: false }; setTasks([...tasks, newTask]); };
+  const addTask = () => { const newTask: CCPMTask = { id: Date.now().toString(), name: '新任务', duration: 5, safeDuration: 10, resources: [], dependencies: [], earlyStart: 0, earlyFinish: 5, lateStart: 0, lateFinish: 5, slack: 0, isCritical: false }; setTasks([...tasks, newTask]); };
   const removeTask = (id: string) => { if (tasks.length <= 2) { showToast('error', '至少保留两个任务'); return; } setTasks(tasks.filter(t => t.id !== id).map(t => ({ ...t, dependencies: t.dependencies.filter(dep => dep !== id) }))); };
   const updateTask = (id: string, field: keyof CCPMTask, value: any) => { setTasks(tasks.map(t => t.id === id ? { ...t, [field]: value } : t)); };
   const toggleDependency = (taskId: string, depId: string) => { const task = tasks.find(t => t.id === taskId); if (!task) return; const newDeps = task.dependencies.includes(depId) ? task.dependencies.filter(d => d !== depId) : [...task.dependencies, depId]; updateTask(taskId, 'dependencies', newDeps); };
@@ -126,8 +195,8 @@ const CCPMSchedule: React.FC<CCPMScheduleProps> = ({ currentUser }) => {
                 <h3 className="font-semibold text-gray-900">任务列表</h3>
                 <button onClick={addTask} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Plus size={18} /></button>
               </div>
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {tasks.map((task) => (
+              <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                {calculatedTasks.map((task) => (
                   <div key={task.id} className={`p-3 rounded-xl space-y-2 ${task.isCritical ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50'}`}>
                     <div className="flex items-center gap-2">
                       {task.isCritical && <Zap size={12} className="text-indigo-500" />}
@@ -137,6 +206,13 @@ const CCPMSchedule: React.FC<CCPMScheduleProps> = ({ currentUser }) => {
                     <div className="grid grid-cols-2 gap-2">
                       <div><label className="text-xs text-gray-500">50%估算</label><input type="number" value={task.duration} onChange={(e) => updateTask(task.id, 'duration', parseInt(e.target.value) || 0)} className="w-full px-2 py-1 text-sm border border-gray-200 rounded-lg" /></div>
                       <div><label className="text-xs text-gray-500">安全估算</label><input type="number" value={task.safeDuration} onChange={(e) => updateTask(task.id, 'safeDuration', parseInt(e.target.value) || 0)} className="w-full px-2 py-1 text-sm border border-gray-200 rounded-lg" /></div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1 text-center text-xs bg-white rounded-lg p-2">
+                      <div><span className="text-gray-400">ES</span><div className="font-medium text-gray-700">{task.earlyStart}</div></div>
+                      <div><span className="text-gray-400">EF</span><div className="font-medium text-gray-700">{task.earlyFinish}</div></div>
+                      <div><span className="text-gray-400">LS</span><div className="font-medium text-gray-700">{task.lateStart}</div></div>
+                      <div><span className="text-gray-400">LF</span><div className="font-medium text-gray-700">{task.lateFinish}</div></div>
+                      <div><span className="text-gray-400">Slack</span><div className={`font-medium ${task.slack === 0 ? 'text-red-500' : 'text-green-600'}`}>{task.slack}</div></div>
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">资源</label>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FlaskConical, Calculator, Users, Kanban, 
-  ChevronLeft, ArrowRight, TrendingDown,
+  ChevronLeft, ArrowLeft, ArrowRight, TrendingDown,
   TrendingUp, Link2, GitBranch,
   DollarSign, Lock, Crown, Loader2, AlertCircle,
   Wrench, Cog, AlertTriangle, BarChart3, Layers
@@ -319,9 +319,9 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
         <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between shadow-sm">
           <button 
             onClick={() => setActiveTool(null)}
-            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
           >
-            <ChevronLeft size={18} />
+            <ArrowLeft size={18} />
             <span className="text-sm font-medium">返回工具库</span>
           </button>
           

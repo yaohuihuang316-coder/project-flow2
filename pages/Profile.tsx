@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Bug, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star } from 'lucide-react';
+import { Award, Download, X, Zap, Flame, Crown, Medal, Lock, Target, Trophy, LogOut, Mail, Calendar, Shield, Loader2, Info, FileSignature, Star, Sunrise, MessageSquare, Wrench, BookOpen, Play, GitBranch, Heart } from 'lucide-react';
 import { UserProfile, ActivityLog } from '../types';
 import { supabase } from '../lib/supabaseClient';
 // @ts-ignore
@@ -17,10 +17,23 @@ interface ProfileProps {
 const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   const [selectedCert, setSelectedCert] = useState<any | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [, setActivityLogs] = useState<ActivityLog[]>([]);
   
   // Real Certificate Data
   const [certificates, setCertificates] = useState<any[]>([]);
+
+  // User skills for radar chart
+  const [userSkills, setUserSkills] = useState({
+    plan_score: 0, exec_score: 0, cost_score: 0,
+    risk_score: 0, lead_score: 0, agile_score: 0
+  });
+  
+  // Achievements data
+  const [achievementsDef, setAchievementsDef] = useState<any[]>([]);
+  const [userAchievements, setUserAchievements] = useState<any[]>([]);
+  
+  // Activity data with types
+  const [activityData, setActivityData] = useState<any[]>([]);
 
   // Print Ref for capturing the certificate
   const printRef = useRef<HTMLDivElement>(null);
@@ -72,60 +85,169 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
       fetchData();
   }, [currentUser]);
 
-  // --- Heatmap Logic ---
+  // Fetch user skills, achievements, and activity
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!currentUser) return;
+      
+      // 1. Fetch user skills
+      const { data: skillsData } = await supabase
+        .from('app_user_skills')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single();
+      
+      if (skillsData) {
+        setUserSkills(skillsData);
+      }
+      
+      // 2. Fetch achievements definition
+      const { data: achievementsData } = await supabase
+        .from('app_achievements')
+        .select('*')
+        .order('rarity', { ascending: false });
+      
+      if (achievementsData) {
+        setAchievementsDef(achievementsData);
+      }
+      
+      // 3. Fetch user unlocked achievements
+      const { data: userAchData } = await supabase
+        .from('app_user_achievements')
+        .select('*')
+        .eq('user_id', currentUser.id);
+      
+      if (userAchData) {
+        setUserAchievements(userAchData);
+      }
+      
+      // 4. Fetch learning activity for heatmap
+      const { data: activityRaw } = await supabase
+        .from('app_learning_activity')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .gte('activity_date', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+      
+      if (activityRaw) {
+        setActivityData(activityRaw);
+      }
+    };
+    
+    fetchProfileData();
+  }, [currentUser]);
+
+  // --- Heatmap Logic with Activity Types ---
   const heatmapData = useMemo(() => {
     const today = new Date();
     const days = [];
-    const logMap: Record<string, number> = {};
-    activityLogs.forEach(log => {
-        const dateStr = log.created_at.split('T')[0];
-        logMap[dateStr] = (logMap[dateStr] || 0) + log.points;
+    const activityMap: Record<string, { count: number, types: Set<string> }> = {};
+    
+    activityData.forEach(act => {
+      const dateStr = act.activity_date;
+      if (!activityMap[dateStr]) {
+        activityMap[dateStr] = { count: 0, types: new Set() };
+      }
+      activityMap[dateStr].count += act.xp_earned || 1;
+      activityMap[dateStr].types.add(act.activity_type);
     });
+    
     for (let i = 364; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        let count = logMap[dateStr] || 0;
-        let level = 0;
-        if (count === 0) level = 0;
-        else if (count <= 2) level = 1;
-        else if (count <= 5) level = 2;
-        else if (count <= 10) level = 3;
-        else level = 4;
-        days.push({ date: dateStr, count, level });
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const activity = activityMap[dateStr];
+      const count = activity?.count || 0;
+      let level = 0;
+      if (count === 0) level = 0;
+      else if (count <= 10) level = 1;
+      else if (count <= 30) level = 2;
+      else if (count <= 60) level = 3;
+      else level = 4;
+      
+      // Determine primary activity type for color
+      const types = activity?.types || new Set();
+      let type = 'none';
+      if (types.has('course')) type = 'course';
+      else if (types.has('simulation')) type = 'simulation';
+      else if (types.has('tool')) type = 'tool';
+      else if (types.has('login')) type = 'login';
+      
+      days.push({ date: dateStr, count, level, type });
     }
     return days;
-  }, [activityLogs]);
+  }, [activityData]);
 
-  const getHeatmapColor = (level: number) => {
-      switch (level) {
-          case 0: return 'bg-[#ebedf0]';
-          case 1: return 'bg-[#9be9a8]';
-          case 2: return 'bg-[#40c463]';
-          case 3: return 'bg-[#30a14e]';
-          case 4: return 'bg-[#216e39]';
-          default: return 'bg-[#ebedf0]';
-      }
+  const getHeatmapColor = (level: number, type: string) => {
+    if (level === 0) return 'bg-[#ebedf0]';
+    
+    // Color based on activity type
+    switch (type) {
+      case 'course': // Green shades
+        return ['bg-[#dcfce7]', 'bg-[#86efac]', 'bg-[#22c55e]', 'bg-[#166534]'][level - 1];
+      case 'simulation': // Blue shades
+        return ['bg-[#dbeafe]', 'bg-[#93c5fd]', 'bg-[#3b82f6]', 'bg-[#1e40af]'][level - 1];
+      case 'tool': // Purple shades
+        return ['bg-[#f3e8ff]', 'bg-[#d8b4fe]', 'bg-[#a855f7]', 'bg-[#6b21a8]'][level - 1];
+      case 'login': // Yellow shades
+        return ['bg-[#fef9c3]', 'bg-[#fde047]', 'bg-[#eab308]', 'bg-[#854d0e]'][level - 1];
+      default:
+        return ['bg-[#9be9a8]', 'bg-[#40c463]', 'bg-[#30a14e]', 'bg-[#216e39]'][level - 1];
+    }
   };
 
-  // --- Mock Data for Skills ---
+  // --- Skills Data from Database ---
   const skillsData = [
-    { subject: '规划 (Plan)', A: 145, fullMark: 150 },
-    { subject: '执行 (Exec)', A: 125, fullMark: 150 },
-    { subject: '预算 (Cost)', A: 135, fullMark: 150 },
-    { subject: '风险 (Risk)', A: 148, fullMark: 150 },
-    { subject: '领导力 (Lead)', A: 140, fullMark: 150 },
-    { subject: '敏捷 (Agile)', A: 130, fullMark: 150 },
+    { subject: '规划 (Plan)', A: userSkills.plan_score, fullMark: 100 },
+    { subject: '执行 (Exec)', A: userSkills.exec_score, fullMark: 100 },
+    { subject: '预算 (Cost)', A: userSkills.cost_score, fullMark: 100 },
+    { subject: '风险 (Risk)', A: userSkills.risk_score, fullMark: 100 },
+    { subject: '领导力 (Lead)', A: userSkills.lead_score, fullMark: 100 },
+    { subject: '敏捷 (Agile)', A: userSkills.agile_score, fullMark: 100 },
   ];
 
-  const badges = [
-      { id: 1, name: 'PMP大师', condition: '通过 PMP 模拟考试且分数 > 85', icon: Crown, unlocked: true, color: 'text-yellow-600', bg: 'bg-yellow-100' },
-      { id: 2, name: '早起鸟', condition: '连续 7 天在早上 8 点前登录学习', icon: Zap, unlocked: true, color: 'text-yellow-500', bg: 'bg-yellow-50' },
-      { id: 3, name: '全能王', condition: '完成所有基础课程章节', icon: Trophy, unlocked: true, color: 'text-purple-500', bg: 'bg-purple-100' },
-      { id: 4, name: '连胜大师', condition: '连续学习 30 天未中断', icon: Flame, unlocked: true, color: 'text-orange-500', bg: 'bg-orange-100' },
-      { id: 5, name: 'Bug猎手', condition: '在实战项目中修复 10 个以上 Bug', icon: Bug, unlocked: true, color: 'text-green-500', bg: 'bg-green-100' },
-      { id: 6, name: '完美主义', condition: '在任意测验中获得 100 分', icon: Target, unlocked: false, color: 'text-gray-400', bg: 'bg-gray-100' },
-  ];
+  // Prepare badges with unlock status
+  const badgesWithStatus = useMemo(() => {
+    const iconMap: Record<string, any> = {
+      'Trophy': Trophy,
+      'BookOpen': BookOpen,
+      'Target': Target,
+      'Play': Play,
+      'Sunrise': Sunrise,
+      'Flame': Flame,
+      'Zap': Zap,
+      'Crown': Crown,
+      'Star': Star,
+      'Wrench': Wrench,
+      'GitBranch': GitBranch,
+      'MessageSquare': MessageSquare,
+      'Heart': Heart,
+    };
+    
+    return achievementsDef.map(ach => {
+      const userAch = userAchievements.find(ua => ua.achievement_id === ach.id);
+      const Icon = iconMap[ach.icon] || Trophy;
+      const rarityColors = {
+        'common': { color: 'text-gray-600', bg: 'bg-gray-100' },
+        'rare': { color: 'text-blue-600', bg: 'bg-blue-100' },
+        'epic': { color: 'text-purple-600', bg: 'bg-purple-100' },
+        'legendary': { color: 'text-yellow-600', bg: 'bg-yellow-100' },
+      };
+      const colors = rarityColors[ach.rarity as keyof typeof rarityColors] || rarityColors.common;
+      
+      return {
+        id: ach.id,
+        name: ach.name,
+        condition: ach.description,
+        icon: Icon,
+        unlocked: !!userAch,
+        progress: userAch?.progress || 0,
+        color: colors.color,
+        bg: colors.bg,
+        rarity: ach.rarity,
+        isNew: userAch?.is_new || false,
+      };
+    });
+  }, [achievementsDef, userAchievements]);
 
   // --- Download Handler ---
   const handleDownload = async (certTitle: string) => {
@@ -279,11 +401,29 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                         {heatmapData.map((day, i) => (
                             <div 
                                 key={i} 
-                                className={`w-3.5 h-3.5 rounded-[3px] transition-all hover:ring-2 hover:ring-gray-400 ${getHeatmapColor(day.level)}`}
+                                className={`w-3.5 h-3.5 rounded-[3px] transition-all hover:ring-2 hover:ring-gray-400 ${getHeatmapColor(day.level, day.type)}`}
                                 title={`${day.count} points on ${day.date}`}
                             ></div>
                         ))}
                     </div>
+                </div>
+                <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-[#22c55e]"></div>
+                    <span>课程</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-[#3b82f6]"></div>
+                    <span>模拟</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-[#a855f7]"></div>
+                    <span>工具</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-[#eab308]"></div>
+                    <span>登录</span>
+                  </div>
                 </div>
             </div>
 
@@ -311,12 +451,12 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-gray-900">徽章收藏馆</h2>
-                    <p className="text-sm text-gray-500">已解锁 {badges.filter(b => b.unlocked).length} / {badges.length} 个成就</p>
+                    <p className="text-sm text-gray-500">已解锁 {badgesWithStatus.filter(b => b.unlocked).length} / {badgesWithStatus.length} 个成就</p>
                 </div>
              </div>
 
              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                 {badges.map((badge) => (
+                 {badgesWithStatus.map((badge) => (
                      <div 
                         key={badge.id}
                         className={`relative group rounded-2xl p-4 flex flex-col items-center text-center gap-3 border transition-all ${
@@ -337,6 +477,14 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
                              <div className="bg-black/90 backdrop-blur text-white text-xs p-3 rounded-xl shadow-xl text-center leading-relaxed">
                                  <p className="font-bold text-yellow-400 mb-1">获取条件</p>
                                  {badge.condition}
+                                 {!badge.unlocked && badge.progress > 0 && (
+                                   <div className="mt-2">
+                                     <div className="w-full bg-gray-700 rounded-full h-1.5">
+                                       <div className="bg-yellow-400 h-1.5 rounded-full" style={{ width: `${Math.min(badge.progress, 100)}%` }}></div>
+                                     </div>
+                                     <p className="text-[10px] text-gray-400 mt-1">进度: {badge.progress}%</p>
+                                   </div>
+                                 )}
                                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-black/90 rotate-45"></div>
                              </div>
                          </div>

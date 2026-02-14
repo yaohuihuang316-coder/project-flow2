@@ -4,7 +4,7 @@ import { Page, UserProfile } from '../../types';
 import {
   LayoutDashboard, Users, Crown,
   LogOut, Bell, Menu, X, MessageSquare,
-  ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, BarChart3,
+  ChevronDown, BookOpen, Clock, Network, Megaphone, TrendingUp, BarChart3,
   Home
 } from 'lucide-react';
 
@@ -41,7 +41,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
       label: '资源中心 (Resources)',
       items: [
         { label: '体系课程', page: Page.ADMIN_CONTENT, param: 'courses', icon: BookOpen, roles: ['SuperAdmin', 'Manager', 'Editor'] },
-        { label: '核心算法', page: Page.ADMIN_CONTENT, param: 'labs', icon: Tag, roles: ['SuperAdmin', 'Manager', 'Editor'] },
         { label: '实战项目', page: Page.ADMIN_CONTENT, param: 'projects', icon: Clock, roles: ['SuperAdmin', 'Manager', 'Editor'] },
         { label: '知识图谱', page: Page.ADMIN_CONTENT, param: 'graph', icon: Network, roles: ['SuperAdmin', 'Manager', 'Editor'] },
       ]
@@ -187,8 +186,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
             <h2 className="font-bold text-gray-900 text-lg">
               {/* Dynamic Title based on selection */}
               {currentPage === Page.ADMIN_CONTENT && currentTabParam === 'courses' ? '体系课程管理' :
-                currentPage === Page.ADMIN_CONTENT && currentTabParam === 'labs' ? '核心算法实验' :
-                  currentPage === Page.ADMIN_CONTENT && currentTabParam === 'projects' ? '实战项目剧本' :
+                currentPage === Page.ADMIN_CONTENT && currentTabParam === 'projects' ? '实战项目剧本' :
                     currentPage === Page.ADMIN_CONTENT && currentTabParam === 'graph' ? '知识图谱构建' :
                       '控制台'}
             </h2>
