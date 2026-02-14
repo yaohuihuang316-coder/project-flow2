@@ -237,9 +237,9 @@ CREATE TABLE IF NOT EXISTS app_user_follows (
     UNIQUE(follower_id, following_id)
 );
 
--- 16. 话题表
+-- 16. 话题表 (使用bigint自增ID，与现有数据库兼容)
 CREATE TABLE IF NOT EXISTS app_topics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     description TEXT,
     icon TEXT,
@@ -251,9 +251,9 @@ CREATE TABLE IF NOT EXISTS app_topics (
 
 -- 17. 帖子话题关联表
 CREATE TABLE IF NOT EXISTS app_post_topics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id BIGSERIAL PRIMARY KEY,
     post_id BIGINT REFERENCES app_community_posts(id) ON DELETE CASCADE,
-    topic_id UUID REFERENCES app_topics(id) ON DELETE CASCADE,
+    topic_id BIGINT REFERENCES app_topics(id) ON DELETE CASCADE,
     UNIQUE(post_id, topic_id)
 );
 
@@ -585,7 +585,27 @@ INSERT INTO app_kb_edges (source_id, target_id, type, relation_type, strength) V
 (19, 17, 'related', 'related', 2)
 ON CONFLICT DO NOTHING;
 
--- 4. 话题数据
+-- 4. 测试用户数据（用于社区帖子）
+-- 注意：role 列受约束限制，使用允许的枚举值
+INSERT INTO app_users (id, email, name, role, status, subscription_tier, created_at) VALUES
+('u-001', 'zhang@example.com', '张经理', 'Manager', '正常', 'pro', NOW() - INTERVAL '30 days'),
+('u-002', 'li@example.com', '李敏捷', 'Student', '正常', 'free', NOW() - INTERVAL '25 days'),
+('u-003', 'wang@example.com', '王总监', 'Manager', '正常', 'pro_plus', NOW() - INTERVAL '60 days'),
+('u-004', 'chen@example.com', '陈Scrum', 'Manager', '正常', 'pro', NOW() - INTERVAL '20 days'),
+('u-005', 'liu@example.com', '刘助理', 'Student', '正常', 'free', NOW() - INTERVAL '15 days'),
+('u-006', 'zhao@example.com', '赵PM', 'Manager', '正常', 'pro', NOW() - INTERVAL '45 days'),
+('u-007', 'qian@example.com', '钱教练', 'SuperAdmin', '正常', 'pro_plus', NOW() - INTERVAL '90 days'),
+('u-008', 'sun@example.com', '孙助理', 'Student', '正常', 'free', NOW() - INTERVAL '10 days'),
+('u-009', 'zhou@example.com', '周经理', 'Manager', '正常', 'pro', NOW() - INTERVAL '35 days'),
+('u-010', 'wu@example.com', '吴敏捷', 'Manager', '正常', 'pro', NOW() - INTERVAL '40 days')
+ON CONFLICT (id) DO NOTHING;
+
+-- 6. 话题数据 (先添加缺失的列)
+ALTER TABLE app_topics ADD COLUMN IF NOT EXISTS icon TEXT;
+ALTER TABLE app_topics ADD COLUMN IF NOT EXISTS color TEXT;
+ALTER TABLE app_topics ADD COLUMN IF NOT EXISTS follower_count INTEGER DEFAULT 0;
+ALTER TABLE app_topics ADD COLUMN IF NOT EXISTS post_count INTEGER DEFAULT 0;
+
 INSERT INTO app_topics (name, description, icon, color, follower_count, post_count) VALUES
 ('PMP备考', 'PMP认证考试备考交流', '📚', '#3b82f6', 1200, 450),
 ('敏捷实践', 'Scrum、看板等敏捷方法实践', '🏃', '#22c55e', 980, 320),
@@ -595,7 +615,7 @@ INSERT INTO app_topics (name, description, icon, color, follower_count, post_cou
 ('求职招聘', 'PM岗位招聘信息', '💼', '#06b6d4', 480, 200)
 ON CONFLICT (name) DO NOTHING;
 
--- 5. 社区帖子
+-- 7. 社区帖子
 INSERT INTO app_community_posts (user_id, user_name, user_avatar, role, content, tags, likes, comments, created_at) VALUES
 ('u-001', '张经理', 'https://i.pravatar.cc/150?u=001', 'Manager', '刚带领团队完成了一个大型ERP实施项目，分享一下 lessons learned：1. 需求变更必须书面确认 2. 预留20%缓冲时间 3. 干系人管理比技术更重要', '["#项目管理", "#经验分享"]', 45, 12, NOW() - INTERVAL '2 hours'),
 ('u-002', '李敏捷', 'https://i.pravatar.cc/150?u=002', 'Student', '求助：团队 velocity 持续下降，从30点降到18点，大家有什么诊断方法吗？', '["#敏捷实践", "#求助"]', 12, 8, NOW() - INTERVAL '5 hours'),
@@ -608,20 +628,20 @@ INSERT INTO app_community_posts (user_id, user_name, user_avatar, role, content,
 ('u-009', '周经理', 'https://i.pravatar.cc/150?u=009', 'Manager', '项目延期了两个月，今天终于上线了。复盘一下：最大的问题是对技术难点预估不足', '["#复盘", "#经验分享"]', 123, 19, NOW() - INTERVAL '4 days'),
 ('u-010', '吴敏捷', 'https://i.pravatar.cc/150?u=010', 'Manager', '关于估算的一个技巧：用历史数据做参考，比凭空估算准确得多', '["#估算", "#技巧"]', 89, 12, NOW() - INTERVAL '5 days');
 
--- 6. 公告数据
+-- 8. 公告数据
 INSERT INTO app_announcements (title, content, type, priority, target_audience, is_active, start_at, end_at) VALUES
 ('系统维护通知', '系统将于今晚02:00-04:00进行例行维护，期间部分功能可能不可用', 'warning', 90, 'all', true, NOW(), NOW() + INTERVAL '1 day'),
 ('Pro Lab上线', '全新的Pro Lab高级实验室正式上线！包含蒙特卡洛模拟、FMEA分析等10个专业工具', 'success', 80, 'all', true, NOW(), NOW() + INTERVAL '7 days'),
 ('社区规范更新', '请大家文明交流，禁止发布广告和违规内容', 'info', 50, 'all', true, NOW(), NULL);
 
--- 7. 兑换码测试数据
+-- 9. 兑换码测试数据
 INSERT INTO membership_codes (code, tier, duration_days, is_used, created_at) VALUES
 ('PF-PRO-TEST01', 'pro', 30, false, NOW()),
 ('PF-PRO-TEST02', 'pro', 90, false, NOW()),
 ('PF-PROPLUS-01', 'pro_plus', 30, false, NOW()),
 ('PF-LIFETIME-01', 'pro_plus', 36500, false, NOW());
 
--- 8. 系统配置默认值
+-- 10. 系统配置默认值
 INSERT INTO app_system_configs (key, value, description) VALUES
 ('site_name', '{"value": "ProjectFlow"}', '站点名称'),
 ('site_logo', '{"value": ""}', '站点Logo URL'),
