@@ -341,44 +341,138 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             return;
         }
 
-        // 动态导入 jsPDF
+        // 动态导入 jsPDF 和 html2canvas
         const { jsPDF } = await import('jspdf');
+        const html2canvas = (await import('html2canvas')).default;
         
-        const doc = new jsPDF();
         const scenario = selectedScenario!;
+        const maxScore = calculateMaxScore(scenario);
+        const percentage = Math.round((totalScore / maxScore) * 100);
         
-        // 标题
-        doc.setFontSize(20);
-        doc.text('ProjectFlow 模拟评估报告', 20, 20);
+        // 创建一个临时的 DOM 元素用于渲染报告内容
+        const reportDiv = document.createElement('div');
+        reportDiv.style.cssText = `
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            width: 794px;
+            padding: 40px;
+            background: white;
+            font-family: 'Microsoft YaHei', 'SimHei', 'PingFang SC', sans-serif;
+            color: #333;
+        `;
         
-        // 场景信息
-        doc.setFontSize(14);
-        doc.text(`场景: ${scenario.title}`, 20, 40);
-        doc.setFontSize(12);
-        doc.text(`难度: ${scenario.difficulty}`, 20, 50);
-        doc.text(`完成时间: ${new Date().toLocaleString()}`, 20, 60);
-        
-        // 得分
-        doc.setFontSize(16);
-        doc.text(`总得分: ${totalScore} / ${calculateMaxScore(scenario)}`, 20, 80);
-        
-        // 决策记录
-        doc.setFontSize(12);
-        let y = 100;
-        doc.text('决策记录:', 20, y);
-        y += 10;
-        
-        stageHistory.forEach((decision, idx) => {
+        // 生成决策历史 HTML
+        const decisionHistoryHTML = stageHistory.map((history, idx) => {
             const stage = scenario.stages[idx];
-            const dec = stage?.decisions.find(d => d.id === decision.decision_id);
-            if (dec) {
-                doc.text(`${idx + 1}. ${dec.text} (得分: ${decision.score})`, 25, y);
-                y += 8;
+            const decision = stage?.decisions.find(d => d.id === history.decision_id);
+            const scoreClass = history.score > 0 ? 'color: #22c55e;' : history.score < 0 ? 'color: #ef4444;' : 'color: #6b7280;';
+            const optimalBadge = decision?.is_optimal ? '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px;">最优解</span>' : '';
+            return `
+                <div style="display: flex; gap: 16px; padding: 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 12px;">
+                    <div style="width: 32px; height: 32px; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">${idx + 1}</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #111; margin-bottom: 4px;">${stage?.title || '未知阶段'}</div>
+                        <div style="color: #6b7280; font-size: 14px; margin-bottom: 8px;">你的选择: ${decision?.text || '未知'}</div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="${scoreClass} font-weight: 600; font-size: 14px;">${history.score > 0 ? '+' : ''}${history.score} 分</span>
+                            ${optimalBadge}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // 设置报告内容
+        reportDiv.innerHTML = `
+            <div style="text-align: center; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 3px solid #3b82f6;">
+                <div style="font-size: 28px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">ProjectFlow 模拟评估报告</div>
+                <div style="font-size: 14px; color: #6b7280;">AI 驱动的项目管理能力评估</div>
+            </div>
+            
+            <div style="margin-bottom: 24px;">
+                <div style="font-size: 20px; font-weight: bold; color: #111; margin-bottom: 16px;">${scenario.title}</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 14px; color: #4b5563;">
+                    <div>难度级别: <span style="font-weight: 500; color: #111;">${scenario.difficulty}</span></div>
+                    <div>完成时间: <span style="font-weight: 500; color: #111;">${new Date().toLocaleString('zh-CN')}</span></div>
+                    <div>场景分类: <span style="font-weight: 500; color: #111;">${scenario.category}</span></div>
+                    <div>决策数量: <span style="font-weight: 500; color: #111;">${stageHistory.length} 个</span></div>
+                </div>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border-radius: 16px; padding: 24px; color: white; margin-bottom: 24px; text-align: center;">
+                <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">综合得分</div>
+                <div style="font-size: 48px; font-weight: bold; margin-bottom: 8px;">${percentage}%</div>
+                <div style="font-size: 16px; opacity: 0.9;">${totalScore} / ${maxScore} 分</div>
+                <div style="margin-top: 16px; background: rgba(255,255,255,0.2); border-radius: 8px; height: 8px; overflow: hidden;">
+                    <div style="width: ${percentage}%; height: 100%; background: white; border-radius: 8px; transition: width 1s ease;"></div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 24px;">
+                <div style="font-size: 18px; font-weight: bold; color: #111; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                    <span style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></span>
+                    决策回顾
+                </div>
+                ${decisionHistoryHTML}
+            </div>
+            
+            <div style="background: #f3f4f6; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">学习目标</div>
+                <ul style="margin: 0; padding-left: 20px; color: #6b7280; font-size: 13px; line-height: 1.8;">
+                    ${(scenario.learning_objectives || []).map(obj => `<li>${obj}</li>`).join('')}
+                </ul>
+            </div>
+            
+            <div style="text-align: center; padding-top: 24px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 12px;">
+                <div>ProjectFlow - 项目管理学习平台</div>
+                <div style="margin-top: 4px;">本报告由 AI 自动生成，仅供参考</div>
+            </div>
+        `;
+        
+        document.body.appendChild(reportDiv);
+        
+        try {
+            // 使用 html2canvas 将 DOM 渲染为 canvas
+            const canvas = await html2canvas(reportDiv, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                logging: false
+            });
+            
+            // 计算 PDF 尺寸 (A4)
+            const imgWidth = 210; // A4 宽度 mm
+            const pageHeight = 297; // A4 高度 mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            // 创建 PDF
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const imgData = canvas.toDataURL('image/png');
+            
+            let heightLeft = imgHeight;
+            let position = 0;
+            
+            // 添加第一页
+            doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            
+            // 如果内容超过一页，添加更多页面
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                doc.addPage();
+                doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
             }
-        });
-
-        // 保存
-        doc.save(`simulation-report-${scenario.title}.pdf`);
+            
+            // 保存 PDF
+            const safeTitle = scenario.title.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+            doc.save(`ProjectFlow-模拟报告-${safeTitle}.pdf`);
+        } finally {
+            // 清理临时 DOM 元素
+            document.body.removeChild(reportDiv);
+        }
     };
 
     // 获取难度颜色

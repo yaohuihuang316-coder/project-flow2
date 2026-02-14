@@ -55,8 +55,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         { label: '社区管理', page: Page.ADMIN_COMMUNITY, icon: MessageSquare, roles: ['SuperAdmin', 'Manager'] },
         { label: '全站公告', page: Page.ADMIN_ANNOUNCEMENTS, icon: Megaphone, roles: ['SuperAdmin', 'Manager'] },
         { label: '会员管理', page: Page.ADMIN_MEMBERSHIP, icon: Crown, roles: ['SuperAdmin', 'Manager'] },
-        { label: '实战项目', page: Page.ADMIN_SIMULATION, icon: Target, roles: ['SuperAdmin', 'Manager'] },
-        { label: '核心算法', page: Page.ADMIN_TOOLS, icon: Cog, roles: ['SuperAdmin', 'Manager'] },
       ]
     },
   ];

@@ -46,10 +46,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     avatar: data.avatar,
                     department: data.department,
                     joined_at: data.created_at,
+                    xp: data.xp || 0,
+                    streak: data.streak || 0,
                     membershipTier: normalizeMembershipTier(data.subscription_tier),
                     completedCoursesCount: data.completed_courses_count || 0,
                     isLifetimeMember: data.is_lifetime_member || false,
                     aiTier: data.ai_tier || 'none',
+                    aiDailyResetAt: data.ai_daily_reset_at,
                     aiDailyUsed: data.ai_daily_used || 0
                 });
             }, 800);
@@ -118,32 +121,39 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
   };
 
-  // Demo Login with different tiers
+  // Demo Login with different tiers - 使用与数据库匹配的ID
   const handleDemoLogin = async (tier: 'free' | 'pro' | 'pro_plus' = 'free') => {
+      // 使用与数据库 db_final_setup.sql 中匹配的测试账号
       const demoUsers = {
           free: {
-              id: 'u-free-001',
-              email: 'demo-free@projectflow.com',
-              name: '小李 (Free)',
+              id: 'test-free-001',
+              email: 'free@test.com',
+              name: 'Free用户',
               role: 'Student',
               avatar: 'https://i.pravatar.cc/150?u=free001',
-              completedCourses: 0
+              streak: 3,
+              xp: 350,
+              completedCourses: 1
           },
           pro: {
-              id: 'u-pro-001',
-              email: 'demo-pro@projectflow.com',
-              name: '王经理 (Pro)',
-              role: 'Manager',
+              id: 'test-pro-001',
+              email: 'pro@test.com',
+              name: 'Pro用户',
+              role: 'Student',
               avatar: 'https://i.pravatar.cc/150?u=pro001',
+              streak: 15,
+              xp: 1200,
               completedCourses: 5
           },
           pro_plus: {
-              id: 'u-proplus-001',
-              email: 'demo-proplus@projectflow.com',
-              name: '陈总监 (Pro+)',
-              role: 'Director',
-              avatar: 'https://i.pravatar.cc/150?u=proplus001',
-              completedCourses: 12
+              id: 'test-pp-001',
+              email: 'pp@test.com',
+              name: 'ProPlus用户',
+              role: 'Student',
+              avatar: 'https://i.pravatar.cc/150?u=pp001',
+              streak: 30,
+              xp: 2800,
+              completedCourses: 10
           }
       };
 
@@ -156,6 +166,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           status: '正常',
           department: 'Project Management Office',
           avatar: user.avatar,
+          streak: user.streak,
+          xp: user.xp,
           created_at: new Date().toISOString()
       };
 
@@ -174,6 +186,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           avatar: user.avatar,
           department: 'Project Management Office',
           joined_at: dbUser.created_at,
+          xp: user.xp,
+          streak: user.streak,
           membershipTier: tier,
           completedCoursesCount: user.completedCourses,
           isLifetimeMember: false,

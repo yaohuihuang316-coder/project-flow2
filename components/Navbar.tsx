@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserProfile } from '../types';
-import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users, Bot, Crown, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Library, User, LogOut, Bell, CheckCircle, Info, AlertCircle, X, Users, Bot, Crown, CreditCard, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface NavbarProps {
@@ -433,6 +433,17 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, setPage, currentUser, onLo
                          <div className="text-[10px] text-gray-500">{currentUser.role}</div>
                      </div>
                  </div>
+             )}
+
+             {/* Admin Button - only for SuperAdmin, Manager, Editor */}
+             {currentUser && ['SuperAdmin', 'Manager', 'Editor'].includes(currentUser.role) && (
+                 <button
+                     onClick={() => setPage(Page.ADMIN_DASHBOARD)}
+                     className="p-2.5 rounded-full hover:bg-gray-200/50 text-gray-400 hover:text-blue-600 transition-colors duration-300"
+                     title="后台管理"
+                 >
+                     <Shield size={18} />
+                 </button>
              )}
 
              <button 

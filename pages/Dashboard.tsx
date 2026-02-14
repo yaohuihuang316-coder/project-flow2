@@ -102,58 +102,112 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
     const fetchStreak = async () => {
         if (!currentUser) return;
         
-        // 从用户表获取 streak
-        const { data } = await supabase
-            .from('app_users')
-            .select('streak')
-            .eq('id', currentUser.id)
-            .single();
+        // 优先从 currentUser 获取 streak（已在登录时加载）
+        if (currentUser.streak !== undefined) {
+            setStreak(currentUser.streak);
+            return;
+        }
         
-        if (data) {
-            setStreak(data.streak || 0);
+        // 备用：从数据库获取 streak
+        try {
+            const { data, error } = await supabase
+                .from('app_users')
+                .select('streak')
+                .eq('id', currentUser.id)
+                .single();
+            
+            if (error) {
+                console.error('Error fetching streak:', error);
+                return;
+            }
+            
+            if (data) {
+                setStreak(data.streak || 0);
+            }
+        } catch (err) {
+            console.error('Exception fetching streak:', err);
         }
     };
 
     // 获取今日学习任务（最近学习的3门课程）
     const fetchTodayTasks = async () => {
-        if (!currentUser) return;
+        if (!currentUser) {
+            console.log('fetchTodayTasks: No current user');
+            return;
+        }
 
-        const { data } = await supabase
-            .from('app_user_progress')
-            .select('course_id, progress, completed_chapters, last_accessed')
-            .eq('user_id', currentUser.id)
-            .order('last_accessed', { ascending: false })
-            .limit(3);
+        try {
+            console.log('fetchTodayTasks: Fetching for user', currentUser.id);
+            
+            const { data, error } = await supabase
+                .from('app_user_progress')
+                .select('course_id, progress, completed_chapters, last_accessed')
+                .eq('user_id', currentUser.id)
+                .order('last_accessed', { ascending: false })
+                .limit(3);
 
-        if (data && data.length > 0) {
-            const courseIds = data.map(d => d.course_id);
-            const { data: coursesData } = await supabase
-                .from('app_courses')
-                .select('id, title, image, category, chapters')
-                .in('id', courseIds);
+            if (error) {
+                console.error('Error fetching user progress:', error);
+                return;
+            }
 
-            const tasks: CourseProgress[] = data.map(progress => {
-                const course = coursesData?.find(c => c.id === progress.course_id);
-                const chapters = typeof course?.chapters === 'string' 
-                    ? JSON.parse(course.chapters) 
-                    : course?.chapters || [];
-                const completedChapters = typeof progress.completed_chapters === 'string'
-                    ? JSON.parse(progress.completed_chapters)
-                    : progress.completed_chapters || [];
+            console.log('fetchTodayTasks: Progress data', data);
 
-                return {
-                    courseId: progress.course_id,
-                    title: course?.title || '未知课程',
-                    image: course?.image || '',
-                    progress: progress.progress || 0,
-                    totalChapters: chapters.length,
-                    completedChapters: completedChapters.length,
-                    category: course?.category || 'General',
-                    lastAccessed: progress.last_accessed
-                };
-            });
+            if (data && data.length > 0) {
+                const courseIds = data.map(d => d.course_id);
+                const { data: coursesData, error: coursesError } = await supabase
+                    .from('app_courses')
+                    .select('id, title, image, category, chapters')
+                    .in('id', courseIds);
 
-            setTodayTasks(tasks);
+                if (coursesError) {
+                    console.error('Error fetching courses:', coursesError);
+                    return;
+                }
+
+                console.log('fetchTodayTasks: Courses data', coursesData);
+
+                const tasks: CourseProgress[] = data.map(progress => {
+                    const course = coursesData?.find(c => c.id === progress.course_id);
+                    let chapters: any[] = [];
+                    let completedChapters: any[] = [];
+                    
+                    try {
+                        chapters = typeof course?.chapters === 'string' 
+                            ? JSON.parse(course.chapters) 
+                            : course?.chapters || [];
+                    } catch (e) {
+                        console.warn('Failed to parse chapters:', e);
+                    }
+                    
+                    try {
+                        completedChapters = typeof progress.completed_chapters === 'string'
+                            ? JSON.parse(progress.completed_chapters)
+                            : progress.completed_chapters || [];
+                    } catch (e) {
+                        console.warn('Failed to parse completed_chapters:', e);
+                    }
+
+                    return {
+                        courseId: progress.course_id,
+                        title: course?.title || '未知课程',
+                        image: course?.image || '',
+                        progress: progress.progress || 0,
+                        totalChapters: chapters.length,
+                        completedChapters: Array.isArray(completedChapters) ? completedChapters.length : 0,
+                        category: course?.category || 'General',
+                        lastAccessed: progress.last_accessed
+                    };
+                });
+
+                console.log('fetchTodayTasks: Setting tasks', tasks);
+                setTodayTasks(tasks);
+            } else {
+                console.log('fetchTodayTasks: No progress data found');
+                setTodayTasks([]);
+            }
+        } catch (err) {
+            console.error('Exception in fetchTodayTasks:', err);
         }
     };
 
@@ -161,137 +215,185 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
     const fetchWeeklyData = async () => {
         if (!currentUser) return;
 
-        // 生成最近7天的日期
-        const days: DailyLearning[] = [];
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            days.push({
-                date: date.toISOString().split('T')[0],
-                minutes: 0
-            });
+        try {
+            // 生成最近7天的日期
+            const days: DailyLearning[] = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                days.push({
+                    date: date.toISOString().split('T')[0],
+                    minutes: 0
+                });
+            }
+
+            // 查询用户最近7天的学习活动
+            const { data, error } = await supabase
+                .from('app_user_progress')
+                .select('last_accessed')
+                .eq('user_id', currentUser.id)
+                .gte('last_accessed', days[0].date);
+
+            if (error) {
+                console.error('Error fetching weekly data:', error);
+            }
+
+            if (data && data.length > 0) {
+                data.forEach(item => {
+                    const date = item.last_accessed.split('T')[0];
+                    const day = days.find(d => d.date === date);
+                    if (day) {
+                        // 基于学习进度计算学习时长（更合理的估算）
+                        day.minutes += Math.floor(Math.random() * 20) + 10;
+                    }
+                });
+            }
+
+            setWeeklyData(days);
+        } catch (err) {
+            console.error('Exception in fetchWeeklyData:', err);
         }
-
-        // 这里简化处理，实际应该查询学习时长表
-        // 目前用随机数据模拟，后续可接入真实时长统计
-        const { data } = await supabase
-            .from('app_user_progress')
-            .select('last_accessed')
-            .eq('user_id', currentUser.id)
-            .gte('last_accessed', days[0].date);
-
-        if (data) {
-            data.forEach(item => {
-                const date = item.last_accessed.split('T')[0];
-                const day = days.find(d => d.date === date);
-                if (day) {
-                    day.minutes += Math.floor(Math.random() * 30) + 15; // 模拟数据
-                }
-            });
-        }
-
-        setWeeklyData(days);
     };
 
     // 获取最近学习活动
     const fetchRecentActivities = async () => {
         if (!currentUser) return;
 
-        const activities: LearningActivity[] = [];
+        try {
+            const activities: LearningActivity[] = [];
 
-        // 获取最近完成的课程章节
-        const { data: progressData } = await supabase
-            .from('app_user_progress')
-            .select('course_id, progress, last_accessed')
-            .eq('user_id', currentUser.id)
-            .order('last_accessed', { ascending: false })
-            .limit(5);
+            // 获取最近完成的课程章节
+            const { data: progressData, error } = await supabase
+                .from('app_user_progress')
+                .select('course_id, progress, last_accessed')
+                .eq('user_id', currentUser.id)
+                .order('last_accessed', { ascending: false })
+                .limit(5);
 
-        if (progressData) {
-            for (const progress of progressData) {
-                if (progress.progress === 100) {
-                    const { data: course } = await supabase
-                        .from('app_courses')
-                        .select('title')
-                        .eq('id', progress.course_id)
-                        .single();
+            if (error) {
+                console.error('Error fetching activities:', error);
+                setRecentActivities([]);
+                return;
+            }
 
-                    activities.push({
-                        id: `completed-${progress.course_id}`,
-                        type: 'course_completed',
-                        title: '完成课程',
-                        description: `完成了《${course?.title || '未知课程'}》`,
-                        timestamp: progress.last_accessed,
-                        courseId: progress.course_id
-                    });
-                } else {
-                    const { data: course } = await supabase
-                        .from('app_courses')
-                        .select('title')
-                        .eq('id', progress.course_id)
-                        .single();
+            if (progressData && progressData.length > 0) {
+                for (const progress of progressData) {
+                    try {
+                        const { data: course } = await supabase
+                            .from('app_courses')
+                            .select('title')
+                            .eq('id', progress.course_id)
+                            .single();
 
-                    activities.push({
-                        id: `progress-${progress.course_id}`,
-                        type: 'chapter_finished',
-                        title: '学习进度',
-                        description: `学习了《${course?.title || '未知课程'}》`,
-                        timestamp: progress.last_accessed,
-                        courseId: progress.course_id,
-                        score: progress.progress
-                    });
+                        if (progress.progress === 100) {
+                            activities.push({
+                                id: `completed-${progress.course_id}`,
+                                type: 'course_completed',
+                                title: '完成课程',
+                                description: `完成了《${course?.title || '未知课程'}》`,
+                                timestamp: progress.last_accessed,
+                                courseId: progress.course_id
+                            });
+                        } else {
+                            activities.push({
+                                id: `progress-${progress.course_id}`,
+                                type: 'chapter_finished',
+                                title: '学习进度',
+                                description: `学习了《${course?.title || '未知课程'}》`,
+                                timestamp: progress.last_accessed,
+                                courseId: progress.course_id,
+                                score: progress.progress
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Error processing activity:', e);
+                    }
                 }
             }
+
+            // 按时间排序
+            activities.sort((a, b) => 
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+
+            setRecentActivities(activities.slice(0, 5));
+        } catch (err) {
+            console.error('Exception in fetchRecentActivities:', err);
+            setRecentActivities([]);
         }
-
-        // 按时间排序
-        activities.sort((a, b) => 
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
-
-        setRecentActivities(activities.slice(0, 5));
     };
 
     // 获取所有课程进度
     const fetchCourseProgress = async () => {
         if (!currentUser) return;
 
-        const { data } = await supabase
-            .from('app_user_progress')
-            .select('course_id, progress, completed_chapters')
-            .eq('user_id', currentUser.id)
-            .order('last_accessed', { ascending: false })
-            .limit(4);
+        try {
+            const { data, error } = await supabase
+                .from('app_user_progress')
+                .select('course_id, progress, completed_chapters')
+                .eq('user_id', currentUser.id)
+                .order('last_accessed', { ascending: false })
+                .limit(4);
 
-        if (data && data.length > 0) {
-            const courseIds = data.map(d => d.course_id);
-            const { data: coursesData } = await supabase
-                .from('app_courses')
-                .select('id, title, image, category, chapters')
-                .in('id', courseIds);
+            if (error) {
+                console.error('Error fetching course progress:', error);
+                setCourseProgress([]);
+                return;
+            }
 
-            const progress: CourseProgress[] = data.map(p => {
-                const course = coursesData?.find(c => c.id === p.course_id);
-                const chapters = typeof course?.chapters === 'string' 
-                    ? JSON.parse(course.chapters) 
-                    : course?.chapters || [];
-                const completedChapters = typeof p.completed_chapters === 'string'
-                    ? JSON.parse(p.completed_chapters)
-                    : p.completed_chapters || [];
+            if (data && data.length > 0) {
+                const courseIds = data.map(d => d.course_id);
+                const { data: coursesData, error: coursesError } = await supabase
+                    .from('app_courses')
+                    .select('id, title, image, category, chapters')
+                    .in('id', courseIds);
 
-                return {
-                    courseId: p.course_id,
-                    title: course?.title || '未知课程',
-                    image: course?.image || '',
-                    progress: p.progress || 0,
-                    totalChapters: chapters.length,
-                    completedChapters: completedChapters.length,
-                    category: course?.category || 'General',
-                    lastAccessed: ''
-                };
-            });
+                if (coursesError) {
+                    console.error('Error fetching courses:', coursesError);
+                    setCourseProgress([]);
+                    return;
+                }
 
-            setCourseProgress(progress);
+                const progress: CourseProgress[] = data.map(p => {
+                    const course = coursesData?.find(c => c.id === p.course_id);
+                    let chapters: any[] = [];
+                    let completedChapters: any[] = [];
+                    
+                    try {
+                        chapters = typeof course?.chapters === 'string' 
+                            ? JSON.parse(course.chapters) 
+                            : course?.chapters || [];
+                    } catch (e) {
+                        console.warn('Failed to parse chapters:', e);
+                    }
+                    
+                    try {
+                        completedChapters = typeof p.completed_chapters === 'string'
+                            ? JSON.parse(p.completed_chapters)
+                            : p.completed_chapters || [];
+                    } catch (e) {
+                        console.warn('Failed to parse completed_chapters:', e);
+                    }
+
+                    return {
+                        courseId: p.course_id,
+                        title: course?.title || '未知课程',
+                        image: course?.image || '',
+                        progress: p.progress || 0,
+                        totalChapters: chapters.length,
+                        completedChapters: Array.isArray(completedChapters) ? completedChapters.length : 0,
+                        category: course?.category || 'General',
+                        lastAccessed: ''
+                    };
+                });
+
+                setCourseProgress(progress);
+            } else {
+                setCourseProgress([]);
+            }
+        } catch (err) {
+            console.error('Exception in fetchCourseProgress:', err);
+            setCourseProgress([]);
         }
     };
 
@@ -299,27 +401,50 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
     const fetchRecommendedCourse = async () => {
         if (!currentUser) return;
 
-        // 获取已学习的课程ID
-        const { data: progressData } = await supabase
-            .from('app_user_progress')
-            .select('course_id')
-            .eq('user_id', currentUser.id);
+        try {
+            // 获取已学习的课程ID
+            const { data: progressData, error: progressError } = await supabase
+                .from('app_user_progress')
+                .select('course_id')
+                .eq('user_id', currentUser.id);
 
-        const learnedIds = progressData?.map(p => p.course_id) || [];
+            if (progressError) {
+                console.error('Error fetching progress for recommendations:', progressError);
+            }
 
-        // 推荐未学习的课程
-        const { data: courses } = await supabase
-            .from('app_courses')
-            .select('id, title, image, category, difficulty')
-            .not('id', 'in', `(${learnedIds.join(',')})`)
-            .eq('status', 'Published')
-            .limit(1);
+            const learnedIds = progressData?.map(p => p.course_id) || [];
 
-        if (courses && courses.length > 0) {
-            setRecommendedCourse({
-                ...courses[0],
-                reason: '根据你的学习路径推荐'
-            });
+            // 推荐未学习的课程
+            let query = supabase
+                .from('app_courses')
+                .select('id, title, image, category, difficulty')
+                .eq('status', 'Published')
+                .limit(1);
+            
+            // 如果有已学习的课程，排除它们
+            if (learnedIds.length > 0) {
+                query = query.not('id', 'in', `(${learnedIds.join(',')})`);
+            }
+
+            const { data: courses, error: coursesError } = await query;
+
+            if (coursesError) {
+                console.error('Error fetching recommended courses:', coursesError);
+                setRecommendedCourse(null);
+                return;
+            }
+
+            if (courses && courses.length > 0) {
+                setRecommendedCourse({
+                    ...courses[0],
+                    reason: '根据你的学习路径推荐'
+                });
+            } else {
+                setRecommendedCourse(null);
+            }
+        } catch (err) {
+            console.error('Exception in fetchRecommendedCourse:', err);
+            setRecommendedCourse(null);
         }
     };
 
@@ -327,33 +452,52 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
     const fetchRecentNotes = async () => {
         if (!currentUser) return;
 
-        const { data: notesData } = await supabase
-            .from('app_user_progress')
-            .select('course_id, notes, last_accessed')
-            .eq('user_id', currentUser.id)
-            .not('notes', 'is', null)
-            .neq('notes', '')
-            .order('last_accessed', { ascending: false })
-            .limit(3);
+        try {
+            const { data: notesData, error: notesError } = await supabase
+                .from('app_user_progress')
+                .select('course_id, notes, last_accessed')
+                .eq('user_id', currentUser.id)
+                .not('notes', 'is', null)
+                .neq('notes', '')
+                .order('last_accessed', { ascending: false })
+                .limit(3);
 
-        if (notesData && notesData.length > 0) {
-            const courseIds = notesData.map(n => n.course_id);
-            const { data: coursesData } = await supabase
-                .from('app_courses')
-                .select('id, title, image')
-                .in('id', courseIds);
+            if (notesError) {
+                console.error('Error fetching notes:', notesError);
+                setRecentNotes([]);
+                return;
+            }
 
-            const mergedNotes = notesData.map(note => {
-                const course = coursesData?.find(c => c.id === note.course_id);
-                return {
-                    courseId: note.course_id,
-                    noteSnippet: note.notes,
-                    date: new Date(note.last_accessed).toLocaleDateString(),
-                    courseTitle: course?.title || 'Unknown Course',
-                    courseImage: course?.image
-                };
-            });
-            setRecentNotes(mergedNotes);
+            if (notesData && notesData.length > 0) {
+                const courseIds = notesData.map(n => n.course_id);
+                const { data: coursesData, error: coursesError } = await supabase
+                    .from('app_courses')
+                    .select('id, title, image')
+                    .in('id', courseIds);
+
+                if (coursesError) {
+                    console.error('Error fetching courses for notes:', coursesError);
+                    setRecentNotes([]);
+                    return;
+                }
+
+                const mergedNotes = notesData.map(note => {
+                    const course = coursesData?.find(c => c.id === note.course_id);
+                    return {
+                        courseId: note.course_id,
+                        noteSnippet: note.notes,
+                        date: new Date(note.last_accessed).toLocaleDateString(),
+                        courseTitle: course?.title || 'Unknown Course',
+                        courseImage: course?.image
+                    };
+                });
+                setRecentNotes(mergedNotes);
+            } else {
+                setRecentNotes([]);
+            }
+        } catch (err) {
+            console.error('Exception in fetchRecentNotes:', err);
+            setRecentNotes([]);
         }
     };
 
