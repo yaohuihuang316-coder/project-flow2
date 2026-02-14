@@ -314,14 +314,14 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
     if (!activeTool) return null;
 
     return (
-      <div className="w-full h-screen flex flex-col bg-[#F5F5F7]">
+      <div className="w-full h-screen flex flex-col bg-[#F5F5F7] pt-16">
         {/* 工具页面顶部导航栏 */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-4 shadow-sm">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center gap-4 shadow-sm">
           <button 
             onClick={() => setActiveTool(null)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            className="flex items-center gap-2 px-5 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl transition-all shadow-lg hover:shadow-xl"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={20} />
             <span className="text-sm font-semibold">返回工具库</span>
           </button>
           
@@ -393,15 +393,19 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
           ) : (
             <>
               {/* 当前会员等级提示 */}
-              <div className={`rounded-2xl p-5 mb-8 shadow-lg border-2 border-white/30 ${MEMBERSHIP_CONFIG[userTier].gradient}`}>
+              <div className={`rounded-2xl p-6 mb-8 shadow-2xl ring-4 ring-offset-4 ring-offset-gray-100 ${
+                userTier === 'free' ? 'bg-gradient-to-r from-gray-600 to-gray-700 ring-gray-400' :
+                userTier === 'pro' ? 'bg-gradient-to-r from-blue-600 to-cyan-600 ring-blue-400' :
+                'bg-gradient-to-r from-purple-600 to-pink-600 ring-purple-400'
+              }`}>
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/90 flex items-center justify-center shadow-sm">
-                      <Crown size={24} className="text-purple-600" />
+                    <div className="w-14 h-14 rounded-xl bg-white flex items-center justify-center shadow-lg">
+                      <Crown size={28} className="text-gray-800" />
                     </div>
                     <div>
-                      <div className="font-bold text-lg text-white drop-shadow-md">{MEMBERSHIP_CONFIG[userTier].name}</div>
-                      <div className="text-sm text-white font-medium drop-shadow-sm">
+                      <div className="font-bold text-xl text-white" style={{textShadow: '0 2px 4px rgba(0,0,0,0.3)'}}>{MEMBERSHIP_CONFIG[userTier].name}</div>
+                      <div className="text-sm text-white/90 mt-1" style={{textShadow: '0 1px 2px rgba(0,0,0,0.3)'}}>
                         {userTier === 'free' && '完成5门课程解锁工具实验室（Pro会员）'}
                         {userTier === 'pro' && `已解锁5个专业工具，完成10门课程解锁全部${totalCount}个工具`}
                         {userTier === 'pro_plus' && `已解锁全部${totalCount}个专业工具`}

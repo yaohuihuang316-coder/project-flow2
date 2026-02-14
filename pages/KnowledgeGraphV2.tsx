@@ -87,17 +87,25 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       .select('*')
       .eq('user_id', currentUser?.id);
 
-    // 构建节点数据
+    // 构建节点数据 - 居中布局
+    const containerWidth = containerRef.current?.clientWidth || 1200;
+    const containerHeight = containerRef.current?.clientHeight || 800;
+    const centerX = containerWidth / 2;
+    const centerY = containerHeight / 2;
+    
     const processedNodes: KnowledgeNode[] = (kbData || []).map((node: any, index: number) => {
       const progress = progressData?.find((p: any) => p.course_id === node.course_id);
       const mastery = progress?.progress || 0;
+      const totalNodes = kbData?.length || 1;
+      const angle = (index / totalNodes) * Math.PI * 2;
+      const radius = Math.min(containerWidth, containerHeight) * 0.35;
       
       return {
         id: node.id,
         name: node.label,
         category: node.type === 'concept' ? 'foundation' : node.type === 'skill' ? 'advanced' : 'expert',
-        x: 400 + Math.cos(index * 0.5) * 300,
-        y: 300 + Math.sin(index * 0.5) * 200,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius * 0.7,
         symbolSize: node.difficulty * 15 + 20,
         value: node.difficulty,
         mastery: mastery,
@@ -177,11 +185,23 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       // 绘制背景网格
       drawGrid(ctx, canvas.width, canvas.height);
 
-      // 绘制连接线
+      // 过滤节点（根据搜索和视图模式）
+      const filteredNodes = nodes.filter(node => {
+        if (viewMode === 'unlocked' && !node.unlocked) return false;
+        if (viewMode === 'path' && !pathNodes.includes(node.id)) return false;
+        if (searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+        return true;
+      });
+      
+      // 绘制连接线（只显示过滤后节点相关的连接）
       links.forEach(link => {
         const sourceNode = nodes.find(n => n.id === link.source);
         const targetNode = nodes.find(n => n.id === link.target);
         if (sourceNode && targetNode && sourceNode.x && sourceNode.y && targetNode.x && targetNode.y) {
+          // 搜索模式下只显示匹配节点的连接
+          if (searchQuery && !filteredNodes.find(n => n.id === sourceNode.id) && !filteredNodes.find(n => n.id === targetNode.id)) {
+            return;
+          }
           drawLink(ctx, sourceNode, targetNode, link, hoveredNode, pathNodes);
         }
       });
@@ -189,14 +209,16 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       // 绘制节点
       nodes.forEach(node => {
         if (node.x && node.y) {
-          drawNode(ctx, node, time, hoveredNode, selectedNode?.id);
+          const isDimmed = Boolean(searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase()));
+          drawNode(ctx, node, time, hoveredNode, selectedNode?.id, isDimmed);
         }
       });
 
       // 绘制标签
       nodes.forEach(node => {
         if (node.x && node.y) {
-          drawLabel(ctx, node, hoveredNode);
+          const isDimmed = Boolean(searchQuery && !node.name.toLowerCase().includes(searchQuery.toLowerCase()));
+          drawLabel(ctx, node, hoveredNode, isDimmed);
         }
       });
 
@@ -271,11 +293,20 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
     node: KnowledgeNode, 
     time: number,
     hoveredId: string | null,
-    selectedId: string | undefined
+    selectedId: string | undefined,
+    isDimmed: boolean = false
   ) => {
     const isHovered = hoveredId === node.id;
     const isSelected = selectedId === node.id;
     const isUnlocked = node.unlocked;
+    
+    // 保存当前状态
+    ctx.save();
+    
+    // 设置透明度（用于搜索高亮）
+    if (isDimmed) {
+      ctx.globalAlpha = 0.15;
+    }
     
     const baseRadius = node.symbolSize / 2;
     const pulseRadius = baseRadius + Math.sin(time * 2) * (isHovered ? 5 : 2);
@@ -344,10 +375,17 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       ctx.textBaseline = 'middle';
       ctx.fillText('🔒', node.x!, node.y!);
     }
+    
+    ctx.restore();
   };
 
-  const drawLabel = (ctx: CanvasRenderingContext2D, node: KnowledgeNode, hoveredId: string | null) => {
+  const drawLabel = (ctx: CanvasRenderingContext2D, node: KnowledgeNode, hoveredId: string | null, isDimmed: boolean = false) => {
     const isHovered = hoveredId === node.id;
+    
+    ctx.save();
+    if (isDimmed) {
+      ctx.globalAlpha = 0.15;
+    }
     
     ctx.fillStyle = '#1e293b';
     ctx.font = isHovered ? 'bold 14px sans-serif' : '12px sans-serif';
@@ -363,6 +401,8 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
     
     ctx.fillStyle = node.unlocked ? '#1e293b' : '#94a3b8';
     ctx.fillText(node.name, node.x!, textY);
+    
+    ctx.restore();
   };
 
   // 鼠标事件处理
@@ -643,13 +683,13 @@ ${lowMastery.slice(0, 5).map((n, i) => `${i+1}️⃣ **${n.name}** - 掌握度 $
         </div>
       </div>
 
-      {/* Canvas */}
+      {/* Canvas - 居中显示 */}
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
         onClick={handleClick}
         className="absolute inset-0 cursor-default"
-        style={{ marginTop: '140px' }}
+        style={{ top: '140px' }}
       />
 
       {/* 节点详情面板 */}
