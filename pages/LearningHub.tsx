@@ -2854,6 +2854,7 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
     const [subTab, setSubTab] = useState<SubCategory>('Course');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
     const [courses, setCourses] = useState<any[]>([]);
+    const [scenarios, setScenarios] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -2866,6 +2867,31 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
         };
         fetchCourses();
     }, [mainTab, subTab]);
+
+    // 获取模拟场景数据
+    useEffect(() => {
+        const fetchScenarios = async () => {
+            if (mainTab !== 'Implementation') return;
+            setIsLoading(true);
+            const { data } = await supabase
+                .from('app_simulation_scenarios')
+                .select('*')
+                .eq('is_published', true)
+                .order('created_at', { ascending: false });
+            if (data) {
+                const parsed = data.map(s => ({
+                    ...s,
+                    stages: typeof s.stages === 'string' ? JSON.parse(s.stages) : s.stages || [],
+                    learning_objectives: typeof s.learning_objectives === 'string' 
+                        ? JSON.parse(s.learning_objectives) 
+                        : s.learning_objectives || [],
+                }));
+                setScenarios(parsed);
+            }
+            setIsLoading(false);
+        };
+        fetchScenarios();
+    }, [mainTab]);
 
     return (
         <ToastProvider>
@@ -2902,13 +2928,17 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
                     )}
                     {mainTab === 'Advanced' && !selectedItem && (<AdvancedLabView onSelect={(t: any) => setSelectedItem({ type: 'lab', ...t })} userMembership={currentUser?.membershipTier || 'free'} />)}
                     {mainTab === 'Implementation' && !selectedItem && (
-                        <div className="pb-10 grid grid-cols-1 gap-8">
-                            {CLASSIC_CASES.map((caseItem) => (
-                                <div key={caseItem.id} onClick={() => setSelectedItem({ type: 'simulation', data: caseItem })} className="group bg-white rounded-[2.5rem] p-0 border border-gray-200 overflow-hidden cursor-pointer hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col md:flex-row h-auto md:h-[320px]">
-                                    <div className="w-full md:w-1/2 h-48 md:h-full relative overflow-hidden"><img src={caseItem.cover_image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-8"><div className="text-white"><div className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${caseItem.difficulty === 'High' ? 'bg-red-500' : 'bg-blue-500'}`}>{caseItem.difficulty}</div><h3 className="text-2xl font-bold leading-tight">{caseItem.title}</h3></div></div></div>
-                                    <div className="flex-1 p-8 flex flex-col justify-between relative"><div><div className="flex items-center gap-2 mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest"><Terminal size={14} className="text-blue-500" />Interactive Simulation</div><p className="text-gray-600 text-sm leading-relaxed line-clamp-4">{caseItem.summary}</p></div><div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-6"><div className="flex items-center gap-4 text-xs font-bold text-gray-400"><span className="flex items-center gap-1"><History size={14} /> 0% Complete</span><span className="flex items-center gap-1"><Clock size={14} /> ~30 min</span></div><button className="flex items-center gap-2 text-xs font-bold bg-black text-white px-6 py-3 rounded-xl group-hover:bg-blue-600 transition-colors shadow-lg">Start Case <PlayCircle size={14} /></button></div></div>
+                        <div className="min-h-[300px]">
+                            {isLoading ? (<div className="flex justify-center h-64 items-center"><Loader2 className="animate-spin text-gray-400" /></div>) : scenarios.length > 0 ? (
+                                <div className="pb-10 grid grid-cols-1 gap-8">
+                                    {scenarios.map((caseItem: any) => (
+                                        <div key={caseItem.id} onClick={() => setSelectedItem({ type: 'simulation', data: caseItem })} className="group bg-white rounded-[2.5rem] p-0 border border-gray-200 overflow-hidden cursor-pointer hover:shadow-2xl transition-all hover:-translate-y-1 flex flex-col md:flex-row h-auto md:h-[320px]">
+                                            <div className="w-full md:w-1/2 h-48 md:h-full relative overflow-hidden"><img src={caseItem.cover_image || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-8"><div className="text-white"><div className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${caseItem.difficulty === 'Hard' || caseItem.difficulty === 'Expert' ? 'bg-red-500' : caseItem.difficulty === 'Medium' ? 'bg-orange-500' : 'bg-blue-500'}`}>{caseItem.difficulty}</div><h3 className="text-2xl font-bold leading-tight">{caseItem.title}</h3></div></div></div>
+                                            <div className="flex-1 p-8 flex flex-col justify-between relative"><div><div className="flex items-center gap-2 mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest"><Terminal size={14} className="text-blue-500" />Interactive Simulation</div><p className="text-gray-600 text-sm leading-relaxed line-clamp-4">{caseItem.description}</p><div className="mt-3 flex flex-wrap gap-2">{(caseItem.learning_objectives || []).slice(0, 3).map((obj: string, idx: number) => (<span key={idx} className="text-[10px] bg-gray-100 text-gray-600 px-2 py-1 rounded">{obj}</span>))}</div></div><div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-6"><div className="flex items-center gap-4 text-xs font-bold text-gray-400"><span className="flex items-center gap-1"><History size={14} /> {(caseItem.stages || []).length} 个阶段</span><span className="flex items-center gap-1"><Clock size={14} /> ~{caseItem.estimated_time || 15} min</span></div><button className="flex items-center gap-2 text-xs font-bold bg-black text-white px-6 py-3 rounded-xl group-hover:bg-blue-600 transition-colors shadow-lg">开始模拟 <PlayCircle size={14} /></button></div></div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : (<div className="text-center py-20 text-gray-400">暂无实战场景</div>)}
                         </div>
                     )}
                 </div>

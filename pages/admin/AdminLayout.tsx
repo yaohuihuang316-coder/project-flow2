@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Crown,
   LogOut, Bell, Menu, X, MessageSquare,
   ChevronDown, BookOpen, Tag, Clock, Network, Megaphone, TrendingUp, BarChart3,
-  Target, Cog
+  Target, Cog, Home
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -161,6 +161,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
               <div className="text-[10px] text-gray-500 truncate">{role}</div>
             </div>
           </div>
+          <button
+            onClick={() => onNavigate(Page.DASHBOARD)}
+            className="flex items-center justify-center gap-2 text-xs font-bold text-blue-600 hover:bg-blue-50 py-2 rounded-lg transition-colors w-full border border-transparent hover:border-blue-100 mb-2"
+          >
+            <Home size={14} />
+            返回前台
+          </button>
           <button
             onClick={onLogout}
             className="flex items-center justify-center gap-2 text-xs font-bold text-red-500 hover:bg-red-50 py-2 rounded-lg transition-colors w-full border border-transparent hover:border-red-100"

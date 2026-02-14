@@ -216,3 +216,43 @@ export interface MembershipRequirement {
   benefits: string[];
   icon: string;
 }
+
+// ==========================================
+// 会员计划配置类型（数据库驱动）
+// ==========================================
+
+export interface MembershipPlanFeature {
+  icon: string;
+  text: string;
+}
+
+export interface MembershipPlanConfig {
+  level: number;
+  name: string;
+  badge: string;
+  color: string;
+  gradient: string;
+  icon: string;
+  requiredCourses: number;
+  priceMonthly?: number;
+  priceYearly?: number;
+  features: MembershipPlanFeature[];
+  isActive: boolean;
+}
+
+// 数据库会员计划原始数据
+export interface MembershipPlanDB {
+  id: string; // 'free', 'pro', 'pro_plus'
+  name: string;
+  badge: string;
+  color: string;
+  gradient: string;
+  icon: string;
+  required_courses: number;
+  price_monthly: number | null;
+  price_yearly: number | null;
+  features: MembershipPlanFeature[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

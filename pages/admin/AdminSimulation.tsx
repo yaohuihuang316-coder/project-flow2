@@ -128,25 +128,56 @@ const AdminSimulation: React.FC = () => {
             return;
         }
 
+        // 验证每个阶段至少有一个决策选项
+        for (let i = 0; i < editingScenario.stages.length; i++) {
+            const stage = editingScenario.stages[i];
+            if (!stage.decisions || stage.decisions.length === 0) {
+                alert(`阶段 ${i + 1} 至少需要有一个决策选项`);
+                return;
+            }
+            // 验证每个决策选项有文本内容
+            for (let j = 0; j < stage.decisions.length; j++) {
+                if (!stage.decisions[j].text.trim()) {
+                    alert(`阶段 ${i + 1} 的选项 ${j + 1} 需要填写描述`);
+                    return;
+                }
+            }
+        }
+
         setIsSaving(true);
         try {
+            // 计算预计时间（如果没有设置）
+            const estimatedTime = editingScenario.estimated_time || editingScenario.stages.length * 5;
+            
             const payload = {
-                title: editingScenario.title,
-                description: editingScenario.description,
+                title: editingScenario.title.trim(),
+                description: editingScenario.description.trim(),
                 difficulty: editingScenario.difficulty,
                 category: editingScenario.category,
-                cover_image: editingScenario.cover_image,
+                cover_image: editingScenario.cover_image?.trim() || '',
                 stages: editingScenario.stages,
                 learning_objectives: editingScenario.learning_objectives.filter(o => o.trim()),
-                estimated_time: editingScenario.estimated_time,
-                is_published: editingScenario.is_published
+                estimated_time: estimatedTime,
+                is_published: editingScenario.is_published,
+                completion_count: 0
             };
 
             if (editingScenario.id) {
-                // 更新
+                // 更新 - 保留原有的 completion_count
+                const { data: existing } = await supabase
+                    .from('app_simulation_scenarios')
+                    .select('completion_count')
+                    .eq('id', editingScenario.id)
+                    .single();
+                
+                const updatePayload = {
+                    ...payload,
+                    completion_count: existing?.completion_count || 0
+                };
+
                 const { error } = await supabase
                     .from('app_simulation_scenarios')
-                    .update(payload)
+                    .update(updatePayload)
                     .eq('id', editingScenario.id);
                 if (error) throw error;
             } else {
@@ -179,29 +210,40 @@ const AdminSimulation: React.FC = () => {
                 .delete()
                 .eq('id', id);
             
-            if (error) throw error;
+            if (error) {
+                console.error('Delete error:', error);
+                throw new Error(error.message || '删除失败，请检查权限');
+            }
             await fetchScenarios();
-        } catch (err) {
+            alert('删除成功！');
+        } catch (err: any) {
             console.error('删除失败:', err);
-            alert('删除失败');
+            alert('删除失败: ' + (err.message || '未知错误'));
         }
     };
 
     // 复制场景
     const handleDuplicate = async (scenario: any) => {
-        const newScenario = {
-            ...scenario,
-            id: undefined,
-            title: scenario.title + ' (复制)',
-            is_published: false,
-            stages: scenario.stages.map((s: any) => ({
-                ...s,
-                id: `stage-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                decisions: s.decisions.map((d: any) => ({
-                    ...d,
-                    id: `dec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                }))
+        // 深拷贝并生成新的 ID
+        const newStages = (scenario.stages || []).map((s: any, sIdx: number) => ({
+            ...s,
+            id: `stage-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 5)}`,
+            decisions: (s.decisions || []).map((d: any, dIdx: number) => ({
+                ...d,
+                id: `dec-${Date.now()}-${sIdx}-${dIdx}-${Math.random().toString(36).substr(2, 5)}`
             }))
+        }));
+
+        const newScenario: SimulationScenario = {
+            title: scenario.title + ' (复制)',
+            description: scenario.description || '',
+            difficulty: scenario.difficulty || 'Medium',
+            category: scenario.category || 'CPM',
+            cover_image: scenario.cover_image || '',
+            stages: newStages,
+            learning_objectives: scenario.learning_objectives || [''],
+            estimated_time: scenario.estimated_time || 15,
+            is_published: false
         };
 
         setEditingScenario(newScenario);

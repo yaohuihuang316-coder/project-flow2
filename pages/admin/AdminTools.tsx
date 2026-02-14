@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { 
     Plus, Edit2, Trash2, CheckCircle2, XCircle, Loader2,
     Wrench, Cog, GitBranch, Calculator, AlertTriangle,
-    BarChart3, TrendingUp, Layers, Users
+    BarChart3, TrendingUp, TrendingDown, Layers, Users,
+    Link2, DollarSign
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -51,30 +52,51 @@ const AdminTools: React.FC = () => {
 
     // 保存工具
     const handleSave = async () => {
+        // 验证必填字段
+        if (!editingTool.name?.trim()) {
+            alert('请输入工具名称');
+            return;
+        }
+        if (!editingTool.description?.trim()) {
+            alert('请输入工具描述');
+            return;
+        }
+
         try {
             const payload = {
-                name: editingTool.name,
-                description: editingTool.description,
-                category: editingTool.category,
-                icon: editingTool.icon,
-                is_active: editingTool.is_active,
-                required_tier: editingTool.required_tier,
-                difficulty: editingTool.difficulty,
+                name: editingTool.name.trim(),
+                description: editingTool.description.trim(),
+                category: editingTool.category || 'cpm',
+                icon: editingTool.icon || 'Wrench',
+                is_active: editingTool.is_active ?? true,
+                required_tier: editingTool.required_tier || 'pro',
+                difficulty: editingTool.difficulty || 'Medium',
                 config: editingTool.config || {}
             };
 
+            let result;
             if (editingTool.id) {
-                await supabase.from('app_tools').update(payload).eq('id', editingTool.id);
+                result = await supabase.from('app_tools').update(payload).eq('id', editingTool.id).select();
             } else {
-                await supabase.from('app_tools').insert(payload);
+                result = await supabase.from('app_tools').insert(payload).select();
             }
 
-            fetchTools();
+            if (result.error) {
+                console.error('Supabase error:', result.error);
+                throw new Error(result.error.message || '保存失败');
+            }
+
+            if (!result.data || result.data.length === 0) {
+                throw new Error('保存后未返回数据，请检查RLS策略');
+            }
+
+            await fetchTools();
             setShowEditor(false);
             setEditingTool({});
-        } catch (err) {
+            alert('保存成功！');
+        } catch (err: any) {
             console.error('Error saving tool:', err);
-            alert('保存失败');
+            alert('保存失败: ' + (err.message || '未知错误，请检查控制台'));
         }
     };
 
@@ -82,20 +104,25 @@ const AdminTools: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!confirm('确定要删除此工具吗？')) return;
         try {
-            await supabase.from('app_tools').delete().eq('id', id);
-            fetchTools();
-        } catch (err) {
+            const { error } = await supabase.from('app_tools').delete().eq('id', id);
+            if (error) throw error;
+            await fetchTools();
+            alert('删除成功！');
+        } catch (err: any) {
             console.error('Error deleting tool:', err);
+            alert('删除失败: ' + (err.message || '未知错误'));
         }
     };
 
     // 切换状态
     const toggleStatus = async (id: string, current: boolean) => {
         try {
-            await supabase.from('app_tools').update({ is_active: !current }).eq('id', id);
-            fetchTools();
-        } catch (err) {
+            const { error } = await supabase.from('app_tools').update({ is_active: !current }).eq('id', id);
+            if (error) throw error;
+            await fetchTools();
+        } catch (err: any) {
             console.error('Error toggling status:', err);
+            alert('状态切换失败: ' + (err.message || '未知错误'));
         }
     };
 
@@ -106,8 +133,11 @@ const AdminTools: React.FC = () => {
             'AlertTriangle': AlertTriangle,
             'BarChart3': BarChart3,
             'TrendingUp': TrendingUp,
+            'TrendingDown': TrendingDown,
             'Layers': Layers,
             'Users': Users,
+            'Link2': Link2,
+            'DollarSign': DollarSign,
             'Cog': Cog
         };
         const IconComponent = icons[iconName] || Wrench;
@@ -289,10 +319,9 @@ const AdminTools: React.FC = () => {
                                         onChange={e => setEditingTool({...editingTool, category: e.target.value})}
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
-                                        <option value="cpm">CPM</option>
-                                        <option value="pert">PERT</option>
+                                        <option value="cpm">关键路径法 (CPM)</option>
                                         <option value="risk">风险管理</option>
-                                        <option value="evm">挣值管理</option>
+                                        <option value="evm">挣值管理 (EVM)</option>
                                         <option value="resource">资源管理</option>
                                         <option value="agile">敏捷工具</option>
                                     </select>
@@ -304,13 +333,16 @@ const AdminTools: React.FC = () => {
                                         onChange={e => setEditingTool({...editingTool, icon: e.target.value})}
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
-                                        <option value="GitBranch">GitBranch</option>
-                                        <option value="Calculator">Calculator</option>
-                                        <option value="AlertTriangle">AlertTriangle</option>
-                                        <option value="BarChart3">BarChart3</option>
-                                        <option value="TrendingUp">TrendingUp</option>
-                                        <option value="Layers">Layers</option>
-                                        <option value="Users">Users</option>
+                                        <option value="GitBranch">GitBranch (分支)</option>
+                                        <option value="Calculator">Calculator (计算)</option>
+                                        <option value="AlertTriangle">AlertTriangle (警告)</option>
+                                        <option value="BarChart3">BarChart3 (图表)</option>
+                                        <option value="TrendingUp">TrendingUp (上升)</option>
+                                        <option value="TrendingDown">TrendingDown (下降)</option>
+                                        <option value="Layers">Layers (层级)</option>
+                                        <option value="Users">Users (用户)</option>
+                                        <option value="Link2">Link2 (链接)</option>
+                                        <option value="DollarSign">DollarSign (货币)</option>
                                     </select>
                                 </div>
                             </div>

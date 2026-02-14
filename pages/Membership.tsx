@@ -4,11 +4,42 @@ import {
   Crown, Check, X, Sparkles, Gift, Zap, BookOpen, 
   Target, MessageSquare, FileText, Bot, Calculator,
   TrendingUp, Shield, Users, Loader2, AlertCircle,
-  Ticket, Star
+  Ticket, Star, Loader
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { MEMBERSHIP_CONFIG, getNextTierInfo } from '../lib/membership';
+import { 
+  MembershipPlanConfig, 
+  getMembershipConfig, 
+  getNextTierInfoAsync,
+  clearMembershipConfigCache
+} from '../lib/membership';
+import { MembershipTier } from '../types';
+
+// 图标映射
+const iconMap: Record<string, React.ElementType> = {
+  Star,
+  Crown,
+  Sparkles,
+  Gift,
+  Zap,
+  BookOpen,
+  Target,
+  MessageSquare,
+  FileText,
+  Bot,
+  Calculator,
+  TrendingUp,
+  Shield,
+  Users,
+  Check,
+  X
+};
+
+// 获取图标组件
+const getIconComponent = (iconName: string): React.ElementType => {
+  return iconMap[iconName] || Star;
+};
 
 interface MembershipProps {
   currentUser?: UserProfile | null;
@@ -24,15 +55,45 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     nextTierProgress: 0,
     nextTierRequired: 5
   });
+  
+  // 动态会员配置
+  const [membershipConfig, setMembershipConfig] = useState<Record<MembershipTier, MembershipPlanConfig> | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [nextTierInfo, setNextTierInfo] = useState<{
+    tier: MembershipTier;
+    name: string;
+    badge: string;
+    requiredCourses: number;
+    completedCourses: number;
+    remainingCourses: number;
+    progress: number;
+  } | null>(null);
 
   const currentTier = currentUser?.membershipTier || 'free';
-  const nextTierInfo = getNextTierInfo(currentUser || null);
 
-  // 获取用户课程完成统计
+  // 加载会员配置
+  useEffect(() => {
+    const loadConfig = async () => {
+      setIsLoadingConfig(true);
+      try {
+        const config = await getMembershipConfig();
+        setMembershipConfig(config);
+      } catch (error) {
+        console.error('Failed to load membership config:', error);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+    
+    loadConfig();
+  }, []);
+
+  // 获取用户课程完成统计和下一等级信息
   useEffect(() => {
     const fetchStats = async () => {
       if (!currentUser) return;
       
+      // 获取课程完成统计
       const { data } = await supabase
         .from('app_user_progress')
         .select('progress')
@@ -40,17 +101,29 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
       
       if (data) {
         const completed = data.filter(d => d.progress >= 100).length;
-        const nextRequired = currentTier === 'free' ? 5 : currentTier === 'pro' ? 10 : 0;
-        setStats({
-          completedCourses: completed,
-          nextTierProgress: Math.min(completed, nextRequired),
-          nextTierRequired: nextRequired
-        });
+        
+        // 获取下一等级信息（使用动态配置）
+        const nextTier = await getNextTierInfoAsync(currentUser);
+        setNextTierInfo(nextTier);
+        
+        if (nextTier) {
+          setStats({
+            completedCourses: completed,
+            nextTierProgress: Math.min(completed, nextTier.requiredCourses),
+            nextTierRequired: nextTier.requiredCourses
+          });
+        } else {
+          setStats({
+            completedCourses: completed,
+            nextTierProgress: completed,
+            nextTierRequired: completed
+          });
+        }
       }
     };
     
     fetchStats();
-  }, [currentUser, currentTier]);
+  }, [currentUser]);
 
   // 兑换码
   const handleRedeemCode = async () => {
@@ -112,6 +185,9 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           : new Date(Date.now() + codeData.duration_days * 24 * 60 * 60 * 1000).toISOString()
       });
       
+      // 清除配置缓存
+      clearMembershipConfigCache();
+      
       setRedeemMessage({
         type: 'success',
         text: `🎉 兑换成功！您已获得 ${codeData.tier === 'pro' ? 'Pro' : 'Pro+'} 会员${codeData.duration_days === 36500 ? '（永久）' : `（${codeData.duration_days}天）`}`
@@ -147,6 +223,22 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
       </div>
     );
   }
+
+  // 加载中状态
+  if (isLoadingConfig || !membershipConfig) {
+    return (
+      <div className="pt-24 pb-12 px-6 max-w-6xl mx-auto text-center">
+        <div className="bg-white rounded-3xl p-12 shadow-sm">
+          <Loader size={48} className="mx-auto text-purple-600 mb-4 animate-spin" />
+          <p className="text-gray-500">加载会员配置中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const freeConfig = membershipConfig.free;
+  const proConfig = membershipConfig.pro;
+  const proPlusConfig = membershipConfig.pro_plus;
 
   // 会员权益详细对比数据
   const comparisonData = [
@@ -200,7 +292,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
 
       {/* Current Status Banner */}
       {currentTier !== 'free' && (
-        <div className={`mb-10 rounded-3xl p-6 ${MEMBERSHIP_CONFIG[currentTier].gradient} text-white`}>
+        <div className={`mb-10 rounded-3xl p-6 bg-gradient-to-r ${membershipConfig[currentTier].gradient} text-white`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -208,7 +300,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
               </div>
               <div>
                 <p className="text-white/80 text-sm">当前会员</p>
-                <h2 className="text-2xl font-bold">{MEMBERSHIP_CONFIG[currentTier].name}</h2>
+                <h2 className="text-2xl font-bold">{membershipConfig[currentTier].name}</h2>
                 {currentUser.membershipExpiresAt && (
                   <p className="text-white/80 text-sm">
                     有效期至: {new Date(currentUser.membershipExpiresAt).toLocaleDateString('zh-CN')}
@@ -251,29 +343,28 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Sparkles size={32} className="text-gray-600" />
+              {React.createElement(getIconComponent(freeConfig.icon), { size: 32, className: 'text-gray-600' })}
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">Free</h3>
-            <p className="text-gray-500 text-sm mb-4">免费会员</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">{freeConfig.badge}</h3>
+            <p className="text-gray-500 text-sm mb-4">{freeConfig.name}</p>
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold text-gray-900">免费</span>
+              <span className="text-4xl font-bold text-gray-900">
+                {freeConfig.priceMonthly === 0 ? '免费' : `¥${freeConfig.priceMonthly}`}
+              </span>
             </div>
             <p className="text-sm text-gray-400 mt-2">注册即可获得</p>
           </div>
 
           <ul className="space-y-4 mb-8">
-            {[
-              { icon: BookOpen, text: 'Foundation 基础课程' },
-              { icon: BookOpen, text: 'Advanced 进阶课程' },
-              { icon: Calculator, text: '3个基础工具' },
-              { icon: MessageSquare, text: '社区发帖权限' },
-              { icon: Bot, text: 'AI助手 5次/天' },
-            ].map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 text-gray-600">
-                <Check size={18} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm">{item.text}</span>
-              </li>
-            ))}
+            {freeConfig.features.map((item, idx) => {
+              const IconComponent = getIconComponent(item.icon);
+              return (
+                <li key={idx} className="flex items-center gap-3 text-gray-600">
+                  <Check size={18} className="text-green-500 flex-shrink-0" />
+                  <span className="text-sm">{item.text}</span>
+                </li>
+              );
+            })}
           </ul>
 
           <button 
@@ -299,31 +390,27 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Crown size={32} className="text-blue-600" />
+              {React.createElement(getIconComponent(proConfig.icon), { size: 32, className: 'text-blue-600' })}
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">Pro</h3>
-            <p className="text-blue-600 text-sm font-medium mb-4">专业会员</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">{proConfig.badge}</h3>
+            <p className="text-blue-600 text-sm font-medium mb-4">{proConfig.name}</p>
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold text-gray-900">¥99</span>
+              <span className="text-4xl font-bold text-gray-900">¥{proConfig.priceMonthly}</span>
               <span className="text-gray-500">/月</span>
             </div>
-            <p className="text-sm text-gray-400 mt-2">或完成 5 门课程解锁</p>
+            <p className="text-sm text-gray-400 mt-2">或完成 {proConfig.requiredCourses} 门课程解锁</p>
           </div>
 
           <ul className="space-y-4 mb-8">
-            {[
-              { icon: BookOpen, text: '全部 18 门课程' },
-              { icon: Calculator, text: '全部 12 个基础工具' },
-              { icon: Zap, text: '5个高级工具' },
-              { icon: Bot, text: 'AI助手 20次/天' },
-              { icon: Target, text: '完整版证书下载' },
-              { icon: Users, text: '精华帖标识' },
-            ].map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 text-gray-600">
-                <Check size={18} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm">{item.text}</span>
-              </li>
-            ))}
+            {proConfig.features.map((item, idx) => {
+              const IconComponent = getIconComponent(item.icon);
+              return (
+                <li key={idx} className="flex items-center gap-3 text-gray-600">
+                  <Check size={18} className="text-green-500 flex-shrink-0" />
+                  <span className="text-sm">{item.text}</span>
+                </li>
+              );
+            })}
           </ul>
 
           <button 
@@ -353,30 +440,25 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
             <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Gift size={32} className="text-amber-600" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">Pro+</h3>
-            <p className="text-amber-600 text-sm font-medium mb-4">高级会员</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">{proPlusConfig.badge}</h3>
+            <p className="text-amber-600 text-sm font-medium mb-4">{proPlusConfig.name}</p>
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold text-gray-900">¥199</span>
+              <span className="text-4xl font-bold text-gray-900">¥{proPlusConfig.priceMonthly}</span>
               <span className="text-gray-500">/月</span>
             </div>
-            <p className="text-sm text-gray-400 mt-2">或完成 10 门课程解锁</p>
+            <p className="text-sm text-gray-400 mt-2">或完成 {proPlusConfig.requiredCourses} 门课程解锁</p>
           </div>
 
           <ul className="space-y-4 mb-8">
-            {[
-              { icon: Star, text: '全部 Pro 权益' },
-              { icon: Calculator, text: '5个专家级工具' },
-              { icon: TrendingUp, text: '实战模拟中心' },
-              { icon: FileText, text: '评分报告 PDF导出' },
-              { icon: Bot, text: 'AI助手 50次/天' },
-              { icon: Shield, text: '专家认证标识' },
-              { icon: Users, text: '1对1专属客服' },
-            ].map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 text-gray-600">
-                <Check size={18} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm">{item.text}</span>
-              </li>
-            ))}
+            {proPlusConfig.features.map((item, idx) => {
+              const IconComponent = getIconComponent(item.icon);
+              return (
+                <li key={idx} className="flex items-center gap-3 text-gray-600">
+                  <Check size={18} className="text-green-500 flex-shrink-0" />
+                  <span className="text-sm">{item.text}</span>
+                </li>
+              );
+            })}
           </ul>
 
           <button 
@@ -410,19 +492,19 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
                 <th className="text-center p-4 font-bold text-gray-600 w-48">
                   <div className="flex flex-col items-center">
                     <span className="text-lg">🆓</span>
-                    <span>Free</span>
+                    <span>{freeConfig.badge}</span>
                   </div>
                 </th>
                 <th className="text-center p-4 font-bold text-blue-600 w-48 bg-blue-50/50">
                   <div className="flex flex-col items-center">
                     <span className="text-lg">💎</span>
-                    <span>Pro</span>
+                    <span>{proConfig.badge}</span>
                   </div>
                 </th>
                 <th className="text-center p-4 font-bold text-amber-600 w-48 bg-amber-50/50">
                   <div className="flex flex-col items-center">
                     <span className="text-lg">👑</span>
-                    <span>Pro+</span>
+                    <span>{proPlusConfig.badge}</span>
                   </div>
                 </th>
               </tr>
@@ -512,7 +594,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
         <h3 className="text-xl font-bold text-gray-900 text-center mb-8">常见问题</h3>
         <div className="space-y-4">
           {[
-            { q: '如何免费升级会员？', a: '完成课程学习即可自动升级。完成5门课程升级为Pro会员，完成10门课程升级为Pro+会员。' },
+            { q: '如何免费升级会员？', a: `完成课程学习即可自动升级。完成${proConfig.requiredCourses}门课程升级为Pro会员，完成${proPlusConfig.requiredCourses}门课程升级为Pro+会员。` },
             { q: '会员到期后会怎样？', a: '会员到期后，您将回到Free等级，但已完成的课程进度和成就不会丢失。' },
             { q: '可以退款吗？', a: '购买后7天内，如果使用不满意，可以申请全额退款。' },
             { q: '兑换码如何使用？', a: '在上方输入框中输入兑换码，点击"激活"即可立即获得对应会员权益。' },

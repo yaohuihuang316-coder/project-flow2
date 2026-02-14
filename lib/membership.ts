@@ -8,6 +8,7 @@
  */
 
 import { Page, UserProfile, MembershipTier, MembershipRequirement } from '../types';
+import { supabase } from './supabaseClient';
 
 /**
  * 转换数据库会员等级值为代码格式
@@ -34,8 +35,16 @@ export function toDatabaseMembershipTier(tier: MembershipTier): string {
   return tierMap[tier] || 'Free';
 }
 
-// 会员等级配置 - 与数据库保持一致
-export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
+// ==========================================
+// 会员配置数据结构
+// ==========================================
+
+export interface MembershipPlanFeature {
+  icon: string;
+  text: string;
+}
+
+export interface MembershipPlanConfig {
   level: number;
   name: string;
   badge: string;
@@ -43,7 +52,14 @@ export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
   gradient: string;
   icon: string;
   requiredCourses: number;
-}> = {
+  priceMonthly?: number;
+  priceYearly?: number;
+  features: MembershipPlanFeature[];
+  isActive: boolean;
+}
+
+// 会员等级配置 - 作为默认/回退值
+export const DEFAULT_MEMBERSHIP_CONFIG: Record<MembershipTier, MembershipPlanConfig> = {
   free: {
     level: 0,
     name: '免费会员',
@@ -51,7 +67,17 @@ export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
     color: 'bg-gray-100 text-gray-600',
     gradient: 'from-gray-400 to-gray-500',
     icon: 'Star',
-    requiredCourses: 0
+    requiredCourses: 0,
+    priceMonthly: 0,
+    priceYearly: 0,
+    features: [
+      { icon: 'BookOpen', text: 'Foundation 基础课程' },
+      { icon: 'BookOpen', text: 'Advanced 进阶课程' },
+      { icon: 'Calculator', text: '3个基础工具' },
+      { icon: 'MessageSquare', text: '社区发帖权限' },
+      { icon: 'Bot', text: 'AI助手 5次/天' }
+    ],
+    isActive: true
   },
   pro: {
     level: 1,
@@ -60,7 +86,18 @@ export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
     color: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
     gradient: 'from-blue-500 to-cyan-500',
     icon: 'Crown',
-    requiredCourses: 5  // 5门课程解锁
+    requiredCourses: 5,
+    priceMonthly: 99,
+    priceYearly: 999,
+    features: [
+      { icon: 'BookOpen', text: '全部 18 门课程' },
+      { icon: 'Calculator', text: '全部 12 个基础工具' },
+      { icon: 'Zap', text: '5个高级工具' },
+      { icon: 'Bot', text: 'AI助手 20次/天' },
+      { icon: 'Target', text: '完整版证书下载' },
+      { icon: 'Users', text: '精华帖标识' }
+    ],
+    isActive: true
   },
   pro_plus: {
     level: 2,
@@ -69,9 +106,156 @@ export const MEMBERSHIP_CONFIG: Record<MembershipTier, {
     color: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
     gradient: 'from-amber-500 to-orange-500',
     icon: 'Crown',
-    requiredCourses: 10  // 10门课程解锁
+    requiredCourses: 10,
+    priceMonthly: 199,
+    priceYearly: 1999,
+    features: [
+      { icon: 'Star', text: '全部 Pro 权益' },
+      { icon: 'Calculator', text: '5个专家级工具' },
+      { icon: 'TrendingUp', text: '实战模拟中心' },
+      { icon: 'FileText', text: '评分报告 PDF导出' },
+      { icon: 'Bot', text: 'AI助手 50次/天' },
+      { icon: 'Shield', text: '专家认证标识' },
+      { icon: 'Users', text: '1对1专属客服' }
+    ],
+    isActive: true
   }
 };
+
+// 为向后兼容保留别名
+export const MEMBERSHIP_CONFIG = DEFAULT_MEMBERSHIP_CONFIG;
+
+// 缓存变量
+let cachedMembershipConfig: Record<MembershipTier, MembershipPlanConfig> | null = null;
+let configCacheTime: number = 0;
+const CONFIG_CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+
+/**
+ * 从数据库获取会员配置
+ */
+export async function fetchMembershipConfigFromDB(): Promise<Record<MembershipTier, MembershipPlanConfig>> {
+  try {
+    const { data, error } = await supabase
+      .from('app_membership_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('required_courses', { ascending: true });
+
+    if (error) {
+      console.error('Failed to fetch membership config from DB:', error);
+      return DEFAULT_MEMBERSHIP_CONFIG;
+    }
+
+    if (!data || data.length === 0) {
+      return DEFAULT_MEMBERSHIP_CONFIG;
+    }
+
+    // 转换数据库格式为代码格式
+    const config: Partial<Record<MembershipTier, MembershipPlanConfig>> = {};
+    
+    data.forEach((plan: any, index: number) => {
+      const tier = plan.id as MembershipTier;
+      config[tier] = {
+        level: index,
+        name: plan.name,
+        badge: plan.badge,
+        color: plan.color,
+        gradient: plan.gradient,
+        icon: plan.icon,
+        requiredCourses: plan.required_courses,
+        priceMonthly: plan.price_monthly,
+        priceYearly: plan.price_yearly,
+        features: Array.isArray(plan.features) ? plan.features : DEFAULT_MEMBERSHIP_CONFIG[tier]?.features || [],
+        isActive: plan.is_active
+      };
+    });
+
+    // 确保所有等级都有配置
+    return {
+      free: config.free || DEFAULT_MEMBERSHIP_CONFIG.free,
+      pro: config.pro || DEFAULT_MEMBERSHIP_CONFIG.pro,
+      pro_plus: config.pro_plus || DEFAULT_MEMBERSHIP_CONFIG.pro_plus
+    };
+  } catch (error) {
+    console.error('Error fetching membership config:', error);
+    return DEFAULT_MEMBERSHIP_CONFIG;
+  }
+}
+
+/**
+ * 获取会员配置（带缓存）
+ */
+export async function getMembershipConfig(): Promise<Record<MembershipTier, MembershipPlanConfig>> {
+  const now = Date.now();
+  
+  // 检查缓存是否有效
+  if (cachedMembershipConfig && (now - configCacheTime) < CONFIG_CACHE_DURATION) {
+    return cachedMembershipConfig;
+  }
+
+  // 从数据库获取新配置
+  const config = await fetchMembershipConfigFromDB();
+  cachedMembershipConfig = config;
+  configCacheTime = now;
+  
+  return config;
+}
+
+/**
+ * 清除配置缓存（用于配置更新后）
+ */
+export function clearMembershipConfigCache(): void {
+  cachedMembershipConfig = null;
+  configCacheTime = 0;
+}
+
+/**
+ * 更新会员配置到数据库
+ */
+export async function updateMembershipConfigInDB(
+  tier: MembershipTier, 
+  updates: Partial<MembershipPlanConfig>
+): Promise<boolean> {
+  try {
+    const dbData: any = {};
+    
+    if (updates.name !== undefined) dbData.name = updates.name;
+    if (updates.badge !== undefined) dbData.badge = updates.badge;
+    if (updates.color !== undefined) dbData.color = updates.color;
+    if (updates.gradient !== undefined) dbData.gradient = updates.gradient;
+    if (updates.icon !== undefined) dbData.icon = updates.icon;
+    if (updates.requiredCourses !== undefined) dbData.required_courses = updates.requiredCourses;
+    if (updates.priceMonthly !== undefined) dbData.price_monthly = updates.priceMonthly;
+    if (updates.priceYearly !== undefined) dbData.price_yearly = updates.priceYearly;
+    if (updates.features !== undefined) dbData.features = updates.features;
+    if (updates.isActive !== undefined) dbData.is_active = updates.isActive;
+
+    const { error } = await supabase
+      .from('app_membership_plans')
+      .update(dbData)
+      .eq('id', tier);
+
+    if (error) {
+      console.error('Failed to update membership config:', error);
+      return false;
+    }
+
+    // 清除缓存
+    clearMembershipConfigCache();
+    return true;
+  } catch (error) {
+    console.error('Error updating membership config:', error);
+    return false;
+  }
+}
+
+/**
+ * 获取单个等级的配置（同步版本，使用默认值）
+ * 注意：此方法使用硬编码默认值，如需动态配置请使用 getMembershipConfig()
+ */
+export function getMembershipConfigSync(tier: MembershipTier): MembershipPlanConfig {
+  return DEFAULT_MEMBERSHIP_CONFIG[tier] || DEFAULT_MEMBERSHIP_CONFIG.free;
+}
 
 // 页面权限要求配置
 export const MEMBERSHIP_REQUIREMENTS: Record<string, MembershipRequirement> = {
@@ -182,7 +366,39 @@ export function hasTier(
   return levels[user.membershipTier] >= levels[minTier];
 }
 
-// 获取下一等级信息
+// 获取下一等级信息（异步版本 - 使用数据库配置）
+export async function getNextTierInfoAsync(user: UserProfile | null): Promise<{
+  tier: MembershipTier;
+  name: string;
+  badge: string;
+  requiredCourses: number;
+  completedCourses: number;
+  remainingCourses: number;
+  progress: number;
+} | null> {
+  if (!user) return null;
+  
+  const config = await getMembershipConfig();
+  const tierOrder: MembershipTier[] = ['free', 'pro', 'pro_plus'];
+  const currentIndex = tierOrder.indexOf(user.membershipTier);
+  
+  if (currentIndex >= tierOrder.length - 1) return null; // 已是最高级
+  
+  const nextTier = tierOrder[currentIndex + 1];
+  const tierConfig = config[nextTier];
+  
+  return {
+    tier: nextTier,
+    name: tierConfig.name,
+    badge: tierConfig.badge,
+    requiredCourses: tierConfig.requiredCourses,
+    completedCourses: user.completedCoursesCount || 0,
+    remainingCourses: Math.max(0, tierConfig.requiredCourses - (user.completedCoursesCount || 0)),
+    progress: Math.min(100, ((user.completedCoursesCount || 0) / Math.max(1, tierConfig.requiredCourses)) * 100)
+  };
+}
+
+// 获取下一等级信息（同步版本 - 使用默认配置）
 export function getNextTierInfo(user: UserProfile | null) {
   if (!user) return null;
   
@@ -192,7 +408,7 @@ export function getNextTierInfo(user: UserProfile | null) {
   if (currentIndex >= tierOrder.length - 1) return null; // 已是最高级
   
   const nextTier = tierOrder[currentIndex + 1];
-  const config = MEMBERSHIP_CONFIG[nextTier];
+  const config = DEFAULT_MEMBERSHIP_CONFIG[nextTier];
   
   return {
     tier: nextTier,
@@ -205,10 +421,17 @@ export function getNextTierInfo(user: UserProfile | null) {
   };
 }
 
-// 获取用户会员信息展示
+// 获取用户会员信息展示（同步版本）
 export function getMembershipDisplay(user: UserProfile | null) {
-  if (!user) return MEMBERSHIP_CONFIG.free;
-  return MEMBERSHIP_CONFIG[user.membershipTier];
+  if (!user) return DEFAULT_MEMBERSHIP_CONFIG.free;
+  return DEFAULT_MEMBERSHIP_CONFIG[user.membershipTier];
+}
+
+// 获取用户会员信息展示（异步版本）
+export async function getMembershipDisplayAsync(user: UserProfile | null) {
+  const config = await getMembershipConfig();
+  if (!user) return config.free;
+  return config[user.membershipTier];
 }
 
 // 获取升级提示文案

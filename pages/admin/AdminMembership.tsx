@@ -3,11 +3,36 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Search, Plus, Trash2, RefreshCw,
   CheckCircle2, XCircle, Loader2, Gift, Download,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Settings, Edit2, Save,
+  Star, Crown, Sparkles, Zap, BookOpen, 
+  Target, MessageSquare, FileText, Bot, Calculator,
+  TrendingUp, Shield
 } from 'lucide-react';
 import { MembershipTier, MembershipCode, MembershipStats } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
-import { MEMBERSHIP_CONFIG } from '../../lib/membership';
+import { 
+  MembershipPlanConfig, 
+  getMembershipConfig, 
+  updateMembershipConfigInDB,
+  clearMembershipConfigCache,
+  DEFAULT_MEMBERSHIP_CONFIG
+} from '../../lib/membership';
+
+// 图标选项
+const iconOptions = [
+  { value: 'Star', label: '星星', icon: Star },
+  { value: 'Crown', label: '皇冠', icon: Crown },
+  { value: 'Sparkles', label: '闪光', icon: Sparkles },
+  { value: 'Zap', label: '闪电', icon: Zap },
+  { value: 'BookOpen', label: '书本', icon: BookOpen },
+  { value: 'Target', label: '目标', icon: Target },
+  { value: 'MessageSquare', label: '消息', icon: MessageSquare },
+  { value: 'FileText', label: '文档', icon: FileText },
+  { value: 'Bot', label: '机器人', icon: Bot },
+  { value: 'Calculator', label: '计算器', icon: Calculator },
+  { value: 'TrendingUp', label: '上升', icon: TrendingUp },
+  { value: 'Shield', label: '盾牌', icon: Shield },
+];
 
 // 用户会员信息
 interface UserMembership {
@@ -22,13 +47,13 @@ interface UserMembership {
 }
 
 const AdminMembership: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'users' | 'codes'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'codes' | 'config'>('users');
   const [users, setUsers] = useState<UserMembership[]>([]);
   const [codes, setCodes] = useState<MembershipCode[]>([]);
   const [stats, setStats] = useState<MembershipStats>({
     totalUsers: 0,
     freeUsers: 0,
-    basicUsers: 0, // legacy field, kept for type compatibility
+    basicUsers: 0,
     proUsers: 0,
     proPlusUsers: 0
   });
@@ -54,9 +79,17 @@ const AdminMembership: React.FC = () => {
   });
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // 会员配置管理
+  const [membershipConfig, setMembershipConfig] = useState<Record<MembershipTier, MembershipPlanConfig> | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [editingTier, setEditingTier] = useState<MembershipTier | null>(null);
+  const [editForm, setEditForm] = useState<Partial<MembershipPlanConfig>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
   // 获取数据
   useEffect(() => {
     fetchData();
+    loadMembershipConfig();
   }, []);
 
   const fetchData = async () => {
@@ -106,6 +139,19 @@ const AdminMembership: React.FC = () => {
       console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 加载会员配置
+  const loadMembershipConfig = async () => {
+    setIsLoadingConfig(true);
+    try {
+      const config = await getMembershipConfig();
+      setMembershipConfig(config);
+    } catch (error) {
+      console.error('Failed to load membership config:', error);
+    } finally {
+      setIsLoadingConfig(false);
     }
   };
 
@@ -224,13 +270,82 @@ const AdminMembership: React.FC = () => {
     link.click();
   };
 
+  // 开始编辑会员配置
+  const handleStartEdit = (tier: MembershipTier) => {
+    if (!membershipConfig) return;
+    setEditingTier(tier);
+    setEditForm({ ...membershipConfig[tier] });
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingTier(null);
+    setEditForm({});
+  };
+
+  // 保存会员配置
+  const handleSaveConfig = async () => {
+    if (!editingTier || !editForm) return;
+    
+    setIsSaving(true);
+    try {
+      const success = await updateMembershipConfigInDB(editingTier, editForm);
+      if (success) {
+        // 刷新配置
+        await loadMembershipConfig();
+        setEditingTier(null);
+        setEditForm({});
+        alert('保存成功！');
+      } else {
+        alert('保存失败，请重试');
+      }
+    } catch (error) {
+      console.error('Failed to save config:', error);
+      alert('保存失败，请重试');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 添加/删除特性
+  const handleAddFeature = () => {
+    if (!editForm.features) return;
+    setEditForm({
+      ...editForm,
+      features: [...editForm.features, { icon: 'Check', text: '' }]
+    });
+  };
+
+  const handleRemoveFeature = (index: number) => {
+    if (!editForm.features) return;
+    setEditForm({
+      ...editForm,
+      features: editForm.features.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleUpdateFeature = (index: number, field: 'icon' | 'text', value: string) => {
+    if (!editForm.features) return;
+    const newFeatures = [...editForm.features];
+    newFeatures[index] = { ...newFeatures[index], [field]: value };
+    setEditForm({ ...editForm, features: newFeatures });
+  };
+
+  // 获取当前显示的配置
+  const getDisplayConfig = (tier: MembershipTier): MembershipPlanConfig => {
+    if (editingTier === tier && editForm) {
+      return { ...DEFAULT_MEMBERSHIP_CONFIG[tier], ...editForm } as MembershipPlanConfig;
+    }
+    return membershipConfig?.[tier] || DEFAULT_MEMBERSHIP_CONFIG[tier];
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">会员管理</h1>
-          <p className="text-gray-500 mt-1">管理用户会员等级和兑换码</p>
+          <p className="text-gray-500 mt-1">管理用户会员等级、兑换码和配置</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -271,6 +386,7 @@ const AdminMembership: React.FC = () => {
         {[
           { id: 'users', label: '用户管理', icon: Users },
           { id: 'codes', label: '兑换码', icon: Gift },
+          { id: 'config', label: '会员配置', icon: Settings },
         ].map(tab => (
           <button
             key={tab.id}
@@ -355,10 +471,10 @@ const AdminMembership: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          MEMBERSHIP_CONFIG[user.membershipTier]?.gradient || 'bg-gray-100 text-gray-700'
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${
+                          membershipConfig?.[user.membershipTier]?.gradient || 'from-gray-400 to-gray-500'
                         } text-white`}>
-                          {MEMBERSHIP_CONFIG[user.membershipTier]?.name || user.membershipTier}
+                          {membershipConfig?.[user.membershipTier]?.name || user.membershipTier}
                         </span>
                       </td>
                       <td className="p-4 text-sm text-gray-600">
@@ -488,10 +604,10 @@ const AdminMembership: React.FC = () => {
                     <tr key={code.id} className="border-t border-gray-100">
                       <td className="p-4 font-mono text-sm">{code.code}</td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                          MEMBERSHIP_CONFIG[code.tier]?.gradient || 'bg-gray-100'
+                        <span className={`px-2 py-1 rounded-lg text-xs font-medium bg-gradient-to-r ${
+                          membershipConfig?.[code.tier]?.gradient || 'from-gray-400 to-gray-500'
                         } text-white`}>
-                          {MEMBERSHIP_CONFIG[code.tier]?.name}
+                          {membershipConfig?.[code.tier]?.name}
                         </span>
                       </td>
                       <td className="p-4 text-sm text-gray-600">
@@ -531,6 +647,271 @@ const AdminMembership: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Config Tab */}
+      {activeTab === 'config' && (
+        <div className="space-y-6">
+          {isLoadingConfig ? (
+            <div className="text-center py-12">
+              <Loader2 size={32} className="mx-auto animate-spin text-purple-600 mb-4" />
+              <p className="text-gray-500">加载配置中...</p>
+            </div>
+          ) : (
+            <>
+              {/* Config Description */}
+              <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                <p className="text-sm text-blue-700">
+                  <strong>提示：</strong> 修改会员配置后，前台页面将自动显示新的配置信息。
+                  Free 会员的基础设置（如ID、等级）不可修改。
+                </p>
+              </div>
+
+              {/* Config Cards */}
+              {(['free', 'pro', 'pro_plus'] as MembershipTier[]).map((tier) => {
+                const config = getDisplayConfig(tier);
+                const isEditing = editingTier === tier;
+                const IconComponent = iconOptions.find(i => i.value === config.icon)?.icon || Star;
+
+                return (
+                  <div key={tier} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                    {/* Card Header */}
+                    <div className={`p-6 bg-gradient-to-r ${config.gradient} text-white`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                            <IconComponent size={28} />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold">{config.name}</h3>
+                            <p className="text-white/80 text-sm">Badge: {config.badge}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!isEditing ? (
+                            <button
+                              onClick={() => handleStartEdit(tier)}
+                              className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            >
+                              <Edit2 size={16} />
+                              编辑
+                            </button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleCancelEdit}
+                                className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
+                              >
+                                取消
+                              </button>
+                              <button
+                                onClick={handleSaveConfig}
+                                disabled={isSaving}
+                                className="px-4 py-2 bg-white text-gray-900 hover:bg-gray-100 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
+                              >
+                                {isSaving && <Loader2 size={16} className="animate-spin" />}
+                                <Save size={16} />
+                                保存
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="p-6">
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          {/* Basic Info */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">名称</label>
+                              <input
+                                type="text"
+                                value={editForm.name || ''}
+                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Badge</label>
+                              <input
+                                type="text"
+                                value={editForm.badge || ''}
+                                onChange={(e) => setEditForm({ ...editForm, badge: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Icon & Colors */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">图标</label>
+                              <select
+                                value={editForm.icon || ''}
+                                onChange={(e) => setEditForm({ ...editForm, icon: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              >
+                                {iconOptions.map(opt => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">所需课程数</label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={editForm.requiredCourses || 0}
+                                onChange={(e) => setEditForm({ ...editForm, requiredCourses: parseInt(e.target.value) || 0 })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Gradient & Color */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">渐变色 (from...to...)</label>
+                              <input
+                                type="text"
+                                value={editForm.gradient || ''}
+                                onChange={(e) => setEditForm({ ...editForm, gradient: e.target.value })}
+                                placeholder="e.g., from-blue-500 to-cyan-500"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">颜色类名</label>
+                              <input
+                                type="text"
+                                value={editForm.color || ''}
+                                onChange={(e) => setEditForm({ ...editForm, color: e.target.value })}
+                                placeholder="e.g., bg-blue-500 text-white"
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Pricing */}
+                          {tier !== 'free' && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">月付价格 (¥)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={editForm.priceMonthly || 0}
+                                  onChange={(e) => setEditForm({ ...editForm, priceMonthly: parseInt(e.target.value) || 0 })}
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">年付价格 (¥)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={editForm.priceYearly || 0}
+                                  onChange={(e) => setEditForm({ ...editForm, priceYearly: parseInt(e.target.value) || 0 })}
+                                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Features */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="block text-sm font-medium text-gray-700">权益列表</label>
+                              <button
+                                onClick={handleAddFeature}
+                                className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                              >
+                                + 添加权益
+                              </button>
+                            </div>
+                            <div className="space-y-2">
+                              {editForm.features?.map((feature, idx) => (
+                                <div key={idx} className="flex gap-2">
+                                  <select
+                                    value={feature.icon}
+                                    onChange={(e) => handleUpdateFeature(idx, 'icon', e.target.value)}
+                                    className="w-24 px-2 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                  >
+                                    {iconOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="text"
+                                    value={feature.text}
+                                    onChange={(e) => handleUpdateFeature(idx, 'text', e.target.value)}
+                                    placeholder="权益描述"
+                                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                  />
+                                  <button
+                                    onClick={() => handleRemoveFeature(idx)}
+                                    className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Read-only Display */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-gray-500 mb-1">所需课程</div>
+                              <div className="font-medium text-gray-900">{config.requiredCourses} 门</div>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-gray-500 mb-1">月付价格</div>
+                              <div className="font-medium text-gray-900">
+                                {config.priceMonthly === 0 ? '免费' : `¥${config.priceMonthly}`}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-gray-500 mb-1">年付价格</div>
+                              <div className="font-medium text-gray-900">
+                                {config.priceYearly === 0 ? '-' : `¥${config.priceYearly}`}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-gray-500 mb-1">图标</div>
+                              <div className="font-medium text-gray-900">{config.icon}</div>
+                            </div>
+                          </div>
+
+                          {/* Features List */}
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">权益列表</h4>
+                            <ul className="space-y-1">
+                              {config.features.map((feature, idx) => {
+                                const FIcon = iconOptions.find(i => i.value === feature.icon)?.icon || CheckCircle2;
+                                return (
+                                  <li key={idx} className="flex items-center gap-2 text-sm text-gray-600">
+                                    <FIcon size={14} className="text-green-500" />
+                                    {feature.text}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
 

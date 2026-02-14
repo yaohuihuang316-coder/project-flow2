@@ -117,13 +117,34 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             if (error) throw error;
 
             if (data) {
-                const parsedScenarios: SimulationScenario[] = data.map(s => ({
-                    ...s,
-                    stages: typeof s.stages === 'string' ? JSON.parse(s.stages) : s.stages || [],
-                    learning_objectives: typeof s.learning_objectives === 'string' 
-                        ? JSON.parse(s.learning_objectives) 
-                        : s.learning_objectives || [],
-                }));
+                const parsedScenarios: SimulationScenario[] = data.map(s => {
+                    let stages = [];
+                    let learningObjectives = [];
+                    
+                    try {
+                        stages = typeof s.stages === 'string' ? JSON.parse(s.stages) : s.stages || [];
+                    } catch (e) {
+                        console.error('解析 stages 失败:', e);
+                        stages = [];
+                    }
+                    
+                    try {
+                        learningObjectives = typeof s.learning_objectives === 'string' 
+                            ? JSON.parse(s.learning_objectives) 
+                            : s.learning_objectives || [];
+                    } catch (e) {
+                        console.error('解析 learning_objectives 失败:', e);
+                        learningObjectives = [];
+                    }
+                    
+                    return {
+                        ...s,
+                        stages,
+                        learning_objectives: learningObjectives,
+                        estimated_time: s.estimated_time || 15,
+                        completion_count: s.completion_count || 0
+                    };
+                });
                 setScenarios(parsedScenarios);
             }
         } catch (err: any) {
@@ -137,23 +158,32 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
     const fetchUserProgress = async (scenarioId: string) => {
         if (!currentUser) return null;
         
-        const { data } = await supabase
-            .from('app_simulation_progress')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('scenario_id', scenarioId)
-            .single();
-        
-        if (data) {
-            return {
-                ...data,
-                decisions_made: typeof data.decisions_made === 'string' 
-                    ? JSON.parse(data.decisions_made) 
-                    : data.decisions_made || [],
-                resources_state: typeof data.resources_state === 'string'
-                    ? JSON.parse(data.resources_state)
-                    : data.resources_state || {},
-            } as UserSimulationProgress;
+        try {
+            const { data, error } = await supabase
+                .from('app_simulation_progress')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .eq('scenario_id', scenarioId)
+                .maybeSingle();
+            
+            if (error) {
+                console.error('获取用户进度失败:', error);
+                return null;
+            }
+            
+            if (data) {
+                return {
+                    ...data,
+                    decisions_made: typeof data.decisions_made === 'string' 
+                        ? JSON.parse(data.decisions_made) 
+                        : data.decisions_made || [],
+                    resources_state: typeof data.resources_state === 'string'
+                        ? JSON.parse(data.resources_state)
+                        : data.resources_state || {},
+                } as UserSimulationProgress;
+            }
+        } catch (err) {
+            console.error('解析用户进度失败:', err);
         }
         return null;
     };
@@ -172,9 +202,9 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
         if (progress && progress.status === 'in_progress') {
             // 恢复进度
             setCurrentStageIndex(progress.current_stage);
-            setResources(progress.resources_state);
-            setTotalScore(progress.score);
-            setStageHistory(progress.decisions_made);
+            setResources(progress.resources_state || {});
+            setTotalScore(progress.score || 0);
+            setStageHistory(progress.decisions_made || []);
         } else {
             // 新开始
             setCurrentStageIndex(0);
@@ -183,16 +213,24 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             setStageHistory([]);
             
             // 创建新进度记录
-            await supabase.from('app_simulation_progress').insert({
-                user_id: currentUser.id,
-                scenario_id: scenario.id,
-                current_stage: 0,
-                decisions_made: [],
-                resources_state: scenario.stages[0]?.resources || {},
-                score: 0,
-                max_score: calculateMaxScore(scenario),
-                status: 'in_progress'
-            });
+            try {
+                const { error } = await supabase.from('app_simulation_progress').insert({
+                    user_id: currentUser.id,
+                    scenario_id: scenario.id,
+                    current_stage: 0,
+                    decisions_made: [],
+                    resources_state: scenario.stages[0]?.resources || {},
+                    score: 0,
+                    max_score: calculateMaxScore(scenario),
+                    status: 'in_progress',
+                    started_at: new Date().toISOString()
+                });
+                if (error) {
+                    console.error('创建进度记录失败:', error);
+                }
+            } catch (err) {
+                console.error('创建进度记录失败:', err);
+            }
         }
 
         setView('running');
@@ -200,14 +238,16 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
 
     // 计算最大可能分数
     const calculateMaxScore = (scenario: SimulationScenario): number => {
+        if (!scenario.stages || scenario.stages.length === 0) return 100;
         let max = 0;
         scenario.stages.forEach(stage => {
+            if (!stage.decisions || stage.decisions.length === 0) return;
             const bestDecision = stage.decisions.reduce((best, d) => 
-                d.impact.score > best.impact.score ? d : best
+                (d.impact?.score || 0) > (best.impact?.score || 0) ? d : best
             , stage.decisions[0]);
-            max += bestDecision?.impact.score || 0;
+            max += bestDecision?.impact?.score || 0;
         });
-        return max;
+        return max || 100; // 默认至少100分
     };
 
     // 做出决策
@@ -239,9 +279,16 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
         const nextStage = currentStageIndex + 1;
         const isCompleted = nextStage >= selectedScenario.stages.length;
 
-        await supabase
-            .from('app_simulation_progress')
-            .upsert({
+        try {
+            // 先尝试查询是否已有记录
+            const { data: existing } = await supabase
+                .from('app_simulation_progress')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .eq('scenario_id', selectedScenario.id)
+                .maybeSingle();
+
+            const progressData = {
                 user_id: currentUser.id,
                 scenario_id: selectedScenario.id,
                 current_stage: isCompleted ? currentStageIndex : nextStage,
@@ -250,8 +297,27 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                 score: newScore,
                 max_score: calculateMaxScore(selectedScenario),
                 status: isCompleted ? 'completed' : 'in_progress',
-                completed_at: isCompleted ? new Date().toISOString() : null
-            }, { onConflict: 'user_id,scenario_id' });
+                completed_at: isCompleted ? new Date().toISOString() : null,
+                started_at: new Date().toISOString()
+            };
+
+            if (existing) {
+                // 更新现有记录
+                const { error } = await supabase
+                    .from('app_simulation_progress')
+                    .update(progressData)
+                    .eq('id', existing.id);
+                if (error) console.error('更新进度失败:', error);
+            } else {
+                // 插入新记录
+                const { error } = await supabase
+                    .from('app_simulation_progress')
+                    .insert(progressData);
+                if (error) console.error('插入进度失败:', error);
+            }
+        } catch (err) {
+            console.error('保存进度失败:', err);
+        }
 
         setIsSaving(false);
 
@@ -553,7 +619,42 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
     const renderRunningSimulation = () => {
         if (!selectedScenario) return null;
         
+        // 安全检查：确保 stages 存在且有数据
+        if (!selectedScenario.stages || selectedScenario.stages.length === 0) {
+            return (
+                <div className="fixed inset-0 bg-[#1a1a2e] text-white z-50 flex flex-col items-center justify-center">
+                    <AlertCircle size={48} className="text-red-400 mb-4" />
+                    <h2 className="text-xl font-bold mb-2">场景数据错误</h2>
+                    <p className="text-gray-400 mb-6">该场景没有配置任何阶段</p>
+                    <button 
+                        onClick={() => setView('list')}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+                    >
+                        返回列表
+                    </button>
+                </div>
+            );
+        }
+        
         const currentStage = selectedScenario.stages[currentStageIndex];
+        
+        // 安全检查：确保当前阶段存在
+        if (!currentStage) {
+            return (
+                <div className="fixed inset-0 bg-[#1a1a2e] text-white z-50 flex flex-col items-center justify-center">
+                    <AlertCircle size={48} className="text-red-400 mb-4" />
+                    <h2 className="text-xl font-bold mb-2">阶段数据错误</h2>
+                    <p className="text-gray-400 mb-6">无法加载当前阶段</p>
+                    <button 
+                        onClick={() => setView('list')}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700"
+                    >
+                        返回列表
+                    </button>
+                </div>
+            );
+        }
+        
         const progress = ((currentStageIndex) / selectedScenario.stages.length) * 100;
 
         return (
