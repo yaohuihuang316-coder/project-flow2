@@ -316,7 +316,7 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
     return (
       <div className="w-full h-screen flex flex-col bg-[#F5F5F7]">
         {/* 工具页面顶部导航栏 */}
-        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center justify-between shadow-sm">
+        <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-4 shadow-sm">
           <button 
             onClick={() => setActiveTool(null)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
@@ -329,8 +329,6 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
             <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${tools.find(t => t.id === activeTool)?.color || 'from-gray-400 to-gray-500'}`} />
             <span className="font-semibold text-gray-900">{toolNames[activeTool]}</span>
           </div>
-          
-          <div className="w-24" />
         </div>
         
         {/* 工具内容区域 */}
@@ -349,13 +347,13 @@ const ToolsLab: React.FC<ToolsLabProps> = ({ onBack, currentUser, onNavigate }) 
 
   if (!activeTool) {
     return (
-      <div className="w-full min-h-screen bg-[#F5F5F7] p-6">
+      <div className="w-full min-h-screen bg-[#F5F5F7] pt-20 pb-12 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
             <button 
               onClick={onBack}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl shadow-sm border border-gray-200 transition-all"
               title="返回上一页"
             >
               <ChevronLeft size={20} />

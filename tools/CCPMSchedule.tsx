@@ -97,11 +97,13 @@ function calculateCriticalChain(tasks: CCPMTask[]): CCPMTask[] {
   
   // Calculate slack and identify critical path
   // Slack = LS - ES = LF - EF
-  // Critical path = tasks with slack = 0
+  // Critical path = tasks with slack = 0 (or very close to 0 due to floating point)
   Array.from(taskMap.values()).forEach(task => {
-    task.slack = Math.round((task.lateStart - task.earlyStart) * 100) / 100;
+    task.slack = task.lateStart - task.earlyStart;
     // Use a small epsilon for floating point comparison
     task.isCritical = Math.abs(task.slack) < 0.001;
+    // Round slack for display purposes after critical path determination
+    task.slack = Math.round(task.slack * 100) / 100;
   });
   
   return Array.from(taskMap.values());
@@ -212,7 +214,7 @@ const CCPMSchedule: React.FC<CCPMScheduleProps> = ({ currentUser }) => {
                       <div><span className="text-gray-400">EF</span><div className="font-medium text-gray-700">{task.earlyFinish}</div></div>
                       <div><span className="text-gray-400">LS</span><div className="font-medium text-gray-700">{task.lateStart}</div></div>
                       <div><span className="text-gray-400">LF</span><div className="font-medium text-gray-700">{task.lateFinish}</div></div>
-                      <div><span className="text-gray-400">Slack</span><div className={`font-medium ${task.slack === 0 ? 'text-red-500' : 'text-green-600'}`}>{task.slack}</div></div>
+                      <div><span className="text-gray-400">Slack</span><div className={`font-medium ${Math.abs(task.slack) < 0.001 ? 'text-red-500' : 'text-green-600'}`}>{task.slack}</div></div>
                     </div>
                     <div>
                       <label className="text-xs text-gray-500">资源</label>
