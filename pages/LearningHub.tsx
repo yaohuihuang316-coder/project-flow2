@@ -187,45 +187,6 @@ const LAB_CATEGORIES = {
     }
 };
 
-// 保留为参考，当前使用数据库数据
-// const CLASSIC_CASES = [
-    {
-        id: 'case-dia',
-        title: '丹佛国际机场 (DIA) 行李系统',
-        summary: '历史上著名的范围蔓延与技术激进案例。自动化行李系统导致机场延期开放16个月，超支20亿美元。',
-        difficulty: 'High',
-        cover_image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-        id: 'case-nhs',
-        title: '英国 NHS 民用IT系统',
-        summary: '世界上最大的民用IT项目失败案例。耗资120亿英镑，最终因需求过于复杂且无法落地而被废弃。',
-        difficulty: 'Critical',
-        cover_image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-        id: 'case-tesla',
-        title: 'Model 3 "生产地狱"',
-        summary: '特斯拉如何通过激进的自动化策略遭遇瓶颈，又是如何通过快速迭代和帐篷工厂解决产能危机的。',
-        difficulty: 'Medium',
-        cover_image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-        id: 'case-olympics',
-        title: '2012 伦敦奥运会',
-        summary: '教科书级别的成功项目管理。如何在绝对不可延期的截止日期前，通过风险管理确保按时交付。',
-        difficulty: 'Medium',
-        cover_image: 'https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&q=80&w=800',
-    },
-    {
-        id: 'case-apollo',
-        title: '阿波罗 13 号救援',
-        summary: '“失败不是选项”。在极端资源受限（氧气、电力）的情况下，如何通过敏捷决策和团队协作将宇航员带回家。',
-        difficulty: 'High',
-        cover_image: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&q=80&w=800',
-    }
-];
-
 // --- CPM ALGORITHM ENGINE ---
 interface CpmTask {
     id: string; name: string; duration: number; predecessors: string[];
