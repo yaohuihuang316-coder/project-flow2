@@ -221,7 +221,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               id: 'test-teacher-001',
               email: 'teacher@test.com',
               name: '张老师',
-              role: 'Editor',
+              role: 'Teacher',
               avatar: 'https://i.pravatar.cc/150?u=teacher001',
               streak: 45,
               xp: 3500,

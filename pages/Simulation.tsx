@@ -1229,10 +1229,16 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                     <button
                         onClick={() => {
                             // 生成并下载HTML报告
+                            const difficultyMap: Record<string, string> = {
+                                'Easy': '简单',
+                                'Medium': '中等', 
+                                'Hard': '困难',
+                                'Expert': '专家'
+                            };
                             const reportData: SimulationReportData = {
                                 scenarioTitle: selectedScenario.title,
                                 scenarioDescription: selectedScenario.description,
-                                difficulty: selectedScenario.difficulty,
+                                difficulty: difficultyMap[selectedScenario.difficulty] || selectedScenario.difficulty,
                                 category: selectedScenario.category,
                                 totalScore,
                                 maxScore,

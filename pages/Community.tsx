@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Search, MessageSquare, Heart, Share2, MoreHorizontal,
     Image as ImageIcon, Hash, TrendingUp, Users, Filter, Send, CornerDownRight, CheckCircle2, AlertTriangle, Loader2,
-    UserPlus, UserCheck
+    UserPlus, UserCheck, Pin, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { UserProfile, Comment } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -19,15 +19,22 @@ const TRENDING_TOPICS = [
     { id: 3, name: 'DevOps 工具链', count: 632 },
 ];
 
+const POSTS_PER_PAGE = 10;
+
 const Community: React.FC<CommunityProps> = ({ currentUser }) => {
     const [posts, setPosts] = useState<any[]>([]);
     const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [newPostContent, setNewPostContent] = useState('');
+    const [newPostTags, setNewPostTags] = useState('');
     const [activeTab, setActiveTab] = useState<'recommend' | 'latest' | 'following'>('recommend');
     const [isLoading, setIsLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
     const [toast, setToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     // Interaction States
     const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
@@ -71,6 +78,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             const { data, error } = await supabase
                 .from('app_community_posts')
                 .select('*')
+                .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -83,10 +91,10 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags || [],
                 }));
                 setPosts(formattedData);
-                setFilteredPosts(formattedData);
+                setTotalPages(Math.ceil(data.length / POSTS_PER_PAGE));
             } else {
                 setPosts([]);
-                setFilteredPosts([]);
+                setTotalPages(1);
             }
         } catch (err) {
             console.error("Unexpected error:", err);
@@ -97,33 +105,52 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
     useEffect(() => {
         fetchPosts();
-        fetchUserLikes(); // 加载用户点赞状态
-        fetchUserFollows(); // 加载关注列表
+        fetchUserLikes();
+        fetchUserFollows();
     }, [currentUser]);
 
-    // 标签页筛选（搜索改为数据库查询）
+    // 标签页筛选和分页
     useEffect(() => {
         let filtered = posts;
         
         // 标签页筛选
         if (activeTab === 'following' && currentUser) {
             filtered = filtered.filter(post => followedUsers.has(post.user_id));
-        } else if (activeTab === 'latest') {
-            filtered = [...filtered].sort((a, b) => 
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
         }
-        // recommend 保持默认排序
+        
+        // 排序：置顶始终在最前，其余按时间或推荐排序
+        if (activeTab === 'latest') {
+            filtered = [...filtered].sort((a, b) => {
+                // 置顶帖子优先
+                if (a.is_pinned && !b.is_pinned) return -1;
+                if (!a.is_pinned && b.is_pinned) return 1;
+                // 然后按时间
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+        } else {
+            // recommend: 置顶优先，然后按热度(点赞+评论)
+            filtered = [...filtered].sort((a, b) => {
+                if (a.is_pinned && !b.is_pinned) return -1;
+                if (!a.is_pinned && b.is_pinned) return 1;
+                return (b.likes + b.comments) - (a.likes + a.comments);
+            });
+        }
         
         setFilteredPosts(filtered);
+        setCurrentPage(1);
     }, [posts, activeTab, followedUsers, currentUser]);
+
+    // 分页数据
+    const paginatedPosts = filteredPosts.slice(
+        (currentPage - 1) * POSTS_PER_PAGE,
+        currentPage * POSTS_PER_PAGE
+    );
 
     // 真实数据库搜索
     const handleSearch = async (query: string) => {
         setSearchQuery(query);
         
         if (!query.trim()) {
-            // 清空搜索，重新加载全部
             fetchPosts();
             return;
         }
@@ -132,11 +159,11 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         try {
             const searchTerm = `%${query}%`;
             
-            // 搜索内容、用户名
             const { data, error } = await supabase
                 .from('app_community_posts')
                 .select('*')
                 .or(`content.ilike.${searchTerm},user_name.ilike.${searchTerm}`)
+                .order('is_pinned', { ascending: false })
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
@@ -147,6 +174,8 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags || [],
                 }));
                 setFilteredPosts(formattedData);
+                setTotalPages(Math.ceil(data.length / POSTS_PER_PAGE));
+                setCurrentPage(1);
             } else {
                 setFilteredPosts([]);
             }
@@ -167,36 +196,21 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         const isLiked = likedPosts.has(postId);
         const newLikes = isLiked ? currentLikes - 1 : currentLikes + 1;
 
-        // 乐观更新UI
         const updatedPosts = posts.map(p => p.id === postId ? { ...p, likes: newLikes } : p);
         setPosts(updatedPosts);
-        setFilteredPosts(updatedPosts);
 
         const newLikedSet = new Set(likedPosts);
         if (isLiked) newLikedSet.delete(postId);
         else newLikedSet.add(postId);
         setLikedPosts(newLikedSet);
 
-        // ✅ 持久化到数据库
         if (isLiked) {
-            // 取消点赞:删除点赞记录
-            await supabase
-                .from('app_user_likes')
-                .delete()
-                .eq('user_id', currentUser.id)
-                .eq('post_id', postId);
+            await supabase.from('app_user_likes').delete().eq('user_id', currentUser.id).eq('post_id', postId);
         } else {
-            // 点赞:插入点赞记录
-            await supabase
-                .from('app_user_likes')
-                .insert({ user_id: currentUser.id, post_id: postId });
+            await supabase.from('app_user_likes').insert({ user_id: currentUser.id, post_id: postId });
         }
 
-        // 更新帖子点赞数
-        await supabase
-            .from('app_community_posts')
-            .update({ likes: newLikes })
-            .eq('id', postId);
+        await supabase.from('app_community_posts').update({ likes: newLikes }).eq('id', postId);
     };
 
     const showToast = (msg: string, type: 'success' | 'error') => {
@@ -219,7 +233,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         const isFollowing = followedUsers.has(targetUserId);
         
         if (isFollowing) {
-            // 取消关注
             const { error } = await supabase
                 .from('app_user_follows')
                 .delete()
@@ -233,13 +246,9 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                 showToast(`已取消关注 ${targetUserName}`, 'success');
             }
         } else {
-            // 关注
             const { error } = await supabase
                 .from('app_user_follows')
-                .insert({
-                    follower_id: currentUser.id,
-                    following_id: targetUserId
-                });
+                .insert({ follower_id: currentUser.id, following_id: targetUserId });
             
             if (!error) {
                 const newFollowed = new Set(followedUsers);
@@ -252,8 +261,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         }
     };
 
-
-
     const handlePost = async () => {
         if (!newPostContent.trim()) return;
         if (!currentUser) {
@@ -263,15 +270,19 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
 
         setIsPosting(true);
 
+        // 解析标签
+        const tags = newPostTags.split(/[,，]/).map(t => t.trim()).filter(t => t);
+
         const { error } = await supabase.from('app_community_posts').insert({
             user_id: currentUser.id,
             user_name: currentUser.name,
             user_avatar: currentUser.avatar,
             role: currentUser.role,
             content: newPostContent,
-            tags: JSON.stringify([]),
+            tags: JSON.stringify(tags),
             likes: 0,
-            comments: 0
+            comments: 0,
+            is_pinned: false
         });
 
         setIsPosting(false);
@@ -281,11 +292,12 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
         } else {
             showToast("发布成功！", "success");
             setNewPostContent('');
+            setNewPostTags('');
             fetchPosts();
         }
     };
 
-    // --- Comment Logic (Real DB) ---
+    // Comment Logic
     const fetchComments = async (postId: number) => {
         setIsLoadingComments(true);
         const { data } = await supabase
@@ -305,7 +317,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             setExpandedPostId(null);
         } else {
             setExpandedPostId(postId);
-            // Fetch if not already loaded or simple cache logic
             fetchComments(postId);
         }
     };
@@ -322,7 +333,6 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             likes: 0
         };
 
-        // 1. Insert Comment
         const { data, error } = await supabase
             .from('app_comments')
             .insert(newCommentPayload)
@@ -334,22 +344,46 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             return;
         }
 
-        // 2. Update Local State
         setCommentsMap(prev => ({
             ...prev,
             [postId]: [...(prev[postId] || []), data]
         }));
         setCommentInput('');
 
-        // 3. Update Post Comment Count (Optimistic + DB)
         const currentPost = posts.find(p => p.id === postId);
         const newCount = (currentPost?.comments || 0) + 1;
 
         const updatedPosts = posts.map(p => p.id === postId ? { ...p, comments: newCount } : p);
         setPosts(updatedPosts);
-        setFilteredPosts(updatedPosts);
 
         await supabase.from('app_community_posts').update({ comments: newCount }).eq('id', postId);
+    };
+
+    // Pagination Component
+    const Pagination = () => {
+        if (totalPages <= 1) return null;
+        
+        return (
+            <div className="flex items-center justify-center gap-2 mt-8">
+                <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <ChevronLeft size={20} />
+                </button>
+                <span className="text-sm text-gray-600">
+                    第 {currentPage} / {totalPages} 页
+                </span>
+                <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <ChevronRight size={20} />
+                </button>
+            </div>
+        );
     };
 
     return (
@@ -363,8 +397,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-                {/* --- Left Sidebar --- */}
+                {/* Left Sidebar */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
                     <div className="glass-card rounded-[2rem] p-6 space-y-2 sticky top-24">
                         <button onClick={() => setActiveTab('recommend')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'recommend' ? 'bg-black text-white shadow-lg scale-105' : 'hover:bg-gray-50 text-gray-600'}`}>
@@ -409,7 +442,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                     </div>
                 </div>
 
-                {/* --- Center: Feed --- */}
+                {/* Center: Feed */}
                 <div className="col-span-1 lg:col-span-6 space-y-6">
                     {/* Compose Box */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 transition-shadow hover:shadow-md">
@@ -424,6 +457,14 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     onChange={(e) => setNewPostContent(e.target.value)}
                                     disabled={!currentUser}
                                     className="w-full h-24 bg-gray-50 rounded-2xl p-4 text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none font-medium placeholder:text-gray-400"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="添加标签，用逗号分隔 (如: PMP, 经验分享)"
+                                    value={newPostTags}
+                                    onChange={(e) => setNewPostTags(e.target.value)}
+                                    disabled={!currentUser}
+                                    className="w-full mt-2 bg-gray-50 rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all font-medium placeholder:text-gray-400"
                                 />
                                 <div className="flex justify-between items-center mt-4">
                                     <div className="flex gap-2 text-gray-400">
@@ -459,211 +500,185 @@ const Community: React.FC<CommunityProps> = ({ currentUser }) => {
                                     </div>
                                 </div>
                             ))
-                        ) : filteredPosts.length > 0 ? (
-                            filteredPosts.map(post => (
-                                <div key={post.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 animate-fade-in-up">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <img
-                                                src={post.user_avatar || `https://ui-avatars.com/api/?name=${post.user_name}&background=random`}
-                                                className="w-12 h-12 rounded-full bg-gray-100 object-cover border-2 border-white shadow-sm"
-                                                alt={post.user_name}
-                                            />
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-bold text-gray-900 text-sm">{post.user_name}</h4>
-                                                    {post.role === 'Manager' || post.role === 'SuperAdmin' ? (
-                                                        <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-bold">Official</span>
-                                                    ) : null}
+                        ) : paginatedPosts.length > 0 ? (
+                            <>
+                                {paginatedPosts.map(post => (
+                                    <div key={post.id} className={`bg-white rounded-[2rem] p-6 shadow-sm border transition-all duration-300 animate-fade-in-up ${post.is_pinned ? 'border-amber-200 shadow-md' : 'border-gray-100 hover:shadow-xl'}`}>
+                                        {/* 置顶标识 */}
+                                        {post.is_pinned && (
+                                            <div className="flex items-center gap-1 text-amber-600 text-xs font-bold mb-3">
+                                                <Pin size={14} />
+                                                <span>置顶</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <img
+                                                    src={post.user_avatar || `https://ui-avatars.com/api/?name=${post.user_name}&background=random`}
+                                                    className="w-12 h-12 rounded-full bg-gray-100 object-cover border-2 border-white shadow-sm"
+                                                    alt={post.user_name}
+                                                />
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-gray-900 text-sm">{post.user_name}</h4>
+                                                        {post.role === 'Manager' || post.role === 'SuperAdmin' || post.role === 'Admin' ? (
+                                                            <span className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded font-bold">官方</span>
+                                                        ) : null}
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                                        {post.role} • {new Date(post.created_at).toLocaleDateString()}
+                                                    </p>
                                                 </div>
-                                                <p className="text-xs text-gray-500 font-medium mt-0.5">
-                                                    {post.role} • {new Date(post.created_at).toLocaleDateString()}
-                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {/* 关注按钮 */}
+                                                {currentUser && currentUser.id !== post.user_id && (
+                                                    <button
+                                                        onClick={() => handleFollow(post.user_id, post.user_name)}
+                                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                                            followedUsers.has(post.user_id)
+                                                                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                                        }`}
+                                                    >
+                                                        {followedUsers.has(post.user_id) ? (
+                                                            <><UserCheck size={14} /> 已关注</>
+                                                        ) : (
+                                                            <><UserPlus size={14} /> 关注</>
+                                                        )}
+                                                    </button>
+                                                )}
+                                                <button className="text-gray-300 hover:text-black transition-colors p-2 hover:bg-gray-50 rounded-full">
+                                                    <MoreHorizontal size={20} />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            {/* 关注按钮 */}
-                                            {currentUser && currentUser.id !== post.user_id && (
-                                                <button
-                                                    onClick={() => handleFollow(post.user_id, post.user_name)}
-                                                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                                                        followedUsers.has(post.user_id)
-                                                            ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                            : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                                                    }`}
-                                                >
-                                                    {followedUsers.has(post.user_id) ? (
-                                                        <><UserCheck size={14} /> 已关注</>
-                                                    ) : (
-                                                        <><UserPlus size={14} /> 关注</>
-                                                    )}
-                                                </button>
-                                            )}
-                                            <button className="text-gray-300 hover:text-black transition-colors p-2 hover:bg-gray-50 rounded-full">
-                                                <MoreHorizontal size={20} />
+
+                                        <p className="text-gray-800 text-sm leading-7 whitespace-pre-wrap mb-4 font-medium pl-1">
+                                            {post.content}
+                                        </p>
+
+                                        {post.image && (
+                                            <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer">
+                                                <img src={post.image} className="w-full object-cover max-h-[400px] group-hover:scale-105 transition-transform duration-700" alt="Post attachment" />
+                                            </div>
+                                        )}
+
+                                        {post.tags && post.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mb-5 pl-1">
+                                                {post.tags.map((tag: string) => (
+                                                    <span key={tag} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors">#{tag}</span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
+                                            <button
+                                                onClick={() => handleLike(post.id, post.likes)}
+                                                className={`flex items-center gap-2 text-sm font-bold transition-all group ${likedPosts.has(post.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
+                                            >
+                                                <div className={`p-2 rounded-full group-hover:bg-red-50 transition-colors ${likedPosts.has(post.id) ? 'bg-red-50' : ''}`}>
+                                                    <Heart size={20} className={`transition-transform duration-300 group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current scale-110' : ''}`} />
+                                                </div>
+                                                <span>{post.likes}</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => toggleComments(post.id)}
+                                                className={`flex items-center gap-2 text-sm font-bold transition-all group ${expandedPostId === post.id ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'}`}
+                                            >
+                                                <div className={`p-2 rounded-full group-hover:bg-blue-50 transition-colors ${expandedPostId === post.id ? 'bg-blue-50' : ''}`}>
+                                                    <MessageSquare size={20} />
+                                                </div>
+                                                <span>{post.comments || 0}</span>
+                                            </button>
+
+                                            <button className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm font-bold ml-auto group">
+                                                <div className="p-2 rounded-full group-hover:bg-gray-100 transition-colors">
+                                                    <Share2 size={20} />
+                                                </div>
                                             </button>
                                         </div>
-                                    </div>
 
-                                    <p className="text-gray-800 text-sm leading-7 whitespace-pre-wrap mb-4 font-medium pl-1">
-                                        {post.content}
-                                    </p>
-
-                                    {post.image && (
-                                        <div className="mb-5 rounded-2xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer">
-                                            <img src={post.image} className="w-full object-cover max-h-[400px] group-hover:scale-105 transition-transform duration-700" alt="Post attachment" />
-                                        </div>
-                                    )}
-
-                                    {post.tags && post.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 mb-5 pl-1">
-                                            {post.tags.map((tag: string) => (
-                                                <span key={tag} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors">#{tag}</span>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
-                                        <button
-                                            onClick={() => handleLike(post.id, post.likes)}
-                                            className={`flex items-center gap-2 text-sm font-bold transition-all group ${likedPosts.has(post.id) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}
-                                        >
-                                            <div className={`p-2 rounded-full group-hover:bg-red-50 transition-colors ${likedPosts.has(post.id) ? 'bg-red-50' : ''}`}>
-                                                <Heart size={20} className={`transition-transform duration-300 group-active:scale-75 ${likedPosts.has(post.id) ? 'fill-current scale-110' : ''}`} />
-                                            </div>
-                                            <span>{post.likes}</span>
-                                        </button>
-
-                                        <button
-                                            onClick={() => toggleComments(post.id)}
-                                            className={`flex items-center gap-2 text-sm font-bold transition-all group ${expandedPostId === post.id ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'}`}
-                                        >
-                                            <div className={`p-2 rounded-full group-hover:bg-blue-50 transition-colors ${expandedPostId === post.id ? 'bg-blue-50' : ''}`}>
-                                                <MessageSquare size={20} />
-                                            </div>
-                                            <span>{post.comments || 0}</span>
-                                        </button>
-
-                                        <button className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm font-bold ml-auto group">
-                                            <div className="p-2 rounded-full group-hover:bg-gray-100 transition-colors">
-                                                <Share2 size={20} />
-                                            </div>
-                                        </button>
-                                    </div>
-
-                                    {/* --- Collapsible Comment Section --- */}
-                                    {expandedPostId === post.id && (
-                                        <div className="mt-4 pt-4 border-t border-gray-50 bg-gray-50/50 -mx-6 px-6 pb-2 animate-fade-in rounded-b-[2rem]">
-                                            <div className="space-y-4 mb-4">
-                                                {isLoadingComments && !commentsMap[post.id] ? (
-                                                    <div className="text-center py-4"><Loader2 className="animate-spin text-gray-400 mx-auto" /></div>
-                                                ) : (
-                                                    commentsMap[post.id]?.map(comment => (
-                                                        <div key={comment.id} className="flex gap-3">
-                                                            <img
-                                                                src={comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name}`}
-                                                                className="w-8 h-8 rounded-full border border-white shadow-sm"
-                                                            />
-                                                            <div className="flex-1 bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
-                                                                <div className="flex justify-between items-baseline mb-1">
-                                                                    <span className="text-xs font-bold text-gray-900">{comment.user_name}</span>
-                                                                    <span className="text-[10px] text-gray-400">{new Date(comment.created_at).toLocaleTimeString()}</span>
+                                        {/* Comment Section */}
+                                        {expandedPostId === post.id && (
+                                            <div className="mt-4 pt-4 border-t border-gray-50 bg-gray-50/50 -mx-6 px-6 pb-2 animate-fade-in rounded-b-[2rem]">
+                                                <div className="space-y-4 mb-4">
+                                                    {isLoadingComments && !commentsMap[post.id] ? (
+                                                        <div className="text-center py-4"><Loader2 className="animate-spin text-gray-400 mx-auto" /></div>
+                                                    ) : (
+                                                        commentsMap[post.id]?.map(comment => (
+                                                            <div key={comment.id} className="flex gap-3">
+                                                                <img
+                                                                    src={comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name}`}
+                                                                    className="w-8 h-8 rounded-full border border-white shadow-sm"
+                                                                />
+                                                                <div className="flex-1 bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm">
+                                                                    <div className="flex justify-between items-baseline mb-1">
+                                                                        <span className="text-xs font-bold text-gray-900">{comment.user_name}</span>
+                                                                        <span className="text-[10px] text-gray-400">{new Date(comment.created_at).toLocaleTimeString()}</span>
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-700">{comment.content}</p>
                                                                 </div>
-                                                                <p className="text-sm text-gray-700">{comment.content}</p>
                                                             </div>
-                                                        </div>
-                                                    ))
-                                                )}
+                                                        ))
+                                                    )}
 
-                                                {(!isLoadingComments && (!commentsMap[post.id] || commentsMap[post.id].length === 0)) && (
-                                                    <p className="text-center text-xs text-gray-400 py-2">暂无评论，来抢沙发吧！</p>
-                                                )}
-                                            </div>
+                                                    {(!isLoadingComments && (!commentsMap[post.id] || commentsMap[post.id].length === 0)) && (
+                                                        <p className="text-center text-xs text-gray-400 py-2">暂无评论，来抢沙发吧！</p>
+                                                    )}
+                                                </div>
 
-                                            {/* Comment Input */}
-                                            <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-                                                <input
-                                                    type="text"
-                                                    placeholder={currentUser ? "写下你的评论..." : "登录后发表评论"}
-                                                    value={commentInput}
-                                                    onChange={e => setCommentInput(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && handleSendComment(post.id)}
-                                                    disabled={!currentUser}
-                                                    className="flex-1 pl-4 text-sm outline-none bg-transparent"
-                                                />
-                                                <button
-                                                    onClick={() => handleSendComment(post.id)}
-                                                    disabled={!commentInput.trim() || !currentUser}
-                                                    className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                                                >
-                                                    <CornerDownRight size={16} />
-                                                </button>
+                                                <div className="flex items-center gap-2 bg-white p-1.5 rounded-full border border-gray-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                                                    <input
+                                                        type="text"
+                                                        placeholder={currentUser ? "写下你的评论..." : "登录后发表评论"}
+                                                        value={commentInput}
+                                                        onChange={e => setCommentInput(e.target.value)}
+                                                        onKeyDown={e => e.key === 'Enter' && handleSendComment(post.id)}
+                                                        disabled={!currentUser}
+                                                        className="flex-1 pl-4 text-sm outline-none bg-transparent"
+                                                    />
+                                                    <button
+                                                        onClick={() => handleSendComment(post.id)}
+                                                        disabled={!commentInput.trim() || !currentUser}
+                                                        className="p-2 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        <CornerDownRight size={16} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))
+                                        )}
+                                    </div>
+                                ))}
+                                <Pagination />
+                            </>
                         ) : (
-                            <div className="text-center py-20 text-gray-400 flex flex-col items-center">
-                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                                    {activeTab === 'following' ? <Users size={24} className="opacity-50" /> : <MessageSquare size={24} className="opacity-50" />}
+                            <div className="text-center py-20">
+                                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MessageSquare size={32} className="text-gray-400" />
                                 </div>
-                                <p className="text-sm font-bold">
-                                    {activeTab === 'following' 
-                                        ? '还没有关注任何人，去发现有趣的作者吧' 
-                                        : searchQuery 
-                                            ? '没有找到相关内容' 
-                                            : '社区冷冷清清，发个帖活跃一下？'}
-                                </p>
-                                {activeTab === 'following' && (
-                                    <button 
-                                        onClick={() => setActiveTab('recommend')}
-                                        className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-bold hover:bg-blue-100 transition-colors"
-                                    >
-                                        去发现
-                                    </button>
-                                )}
+                                <p className="text-gray-500">暂无动态</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* --- Right Sidebar --- */}
+                {/* Right Sidebar */}
                 <div className="hidden lg:block lg:col-span-3 space-y-6">
-                    {/* 搜索框 */}
-                    <div className="bg-white rounded-[1.5rem] p-2 border border-gray-100 shadow-sm sticky top-24 z-10">
+                    {/* Search */}
+                    <div className="glass-card rounded-[2rem] p-2 sticky top-24">
                         <div className="relative">
-                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <input
                                 type="text"
-                                placeholder="搜索动态..."
+                                placeholder="搜索社区..."
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
+                                className="w-full pl-12 pr-4 py-3 bg-transparent outline-none text-sm font-medium placeholder:text-gray-400"
                             />
                         </div>
                     </div>
-                    
-                    {/* 关注统计 */}
-                    {currentUser && (
-                        <div className="bg-white rounded-[1.5rem] p-6 border border-gray-100 shadow-sm sticky top-40">
-                            <h3 className="text-sm font-bold text-gray-900 mb-4">我的关注</h3>
-                            <div className="flex items-center justify-between mb-4">
-                                <span className="text-gray-500 text-sm">关注用户</span>
-                                <span className="text-2xl font-bold text-gray-900">{followedUsers.size}</span>
-                            </div>
-                            <button 
-                                onClick={() => setActiveTab('following')}
-                                className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
-                                    activeTab === 'following' 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                }`}
-                            >
-                                查看关注动态
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

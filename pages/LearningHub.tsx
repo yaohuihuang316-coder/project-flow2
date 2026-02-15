@@ -2517,54 +2517,184 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
     const [isAnswered, setIsAnswered] = useState(false);
     const [isLoadingQ, setIsLoadingQ] = useState(false);
 
+    // 默认题目数据（快速加载）
+    const defaultQuestions: Question[] = [
+        {
+            id: 'q1', question_text: '在项目初期，面对需求不明确的情况，最佳策略是？', type: 'mc' as const,
+            options: ['A. 拒绝开始工作直到需求明确', 'B. 采用敏捷方法迭代开发', 'C. 估算一个最大预算', 'D. 忽略风险直接开工'],
+            correct_answer: 'B. 采用敏捷方法迭代开发',
+            explanation: '敏捷方法允许在需求不明确时通过迭代和小步快跑来逐步明确方向。'
+        },
+        {
+            id: 'q2', question_text: '当关键相关方提出变更请求，且该变更会严重影响进度时，应首先做什么？', type: 'mc' as const,
+            options: ['A. 立即拒绝', 'B. 立即接受以取悦相关方', 'C. 评估变更的影响并走变更控制流程', 'D. 偷偷加班完成'],
+            correct_answer: 'C. 评估变更的影响并走变更控制流程',
+            explanation: 'PMBOK 标准流程要求先评估影响，再由变更控制委员会 (CCB) 决策。'
+        },
+        {
+            id: 'q3', question_text: '项目团队中出现冲突，作为项目经理首先应该？', type: 'mc' as const,
+            options: ['A. 立即上报给高层', 'B. 让团队成员自行解决', 'C. 了解冲突根源并引导解决', 'D. 将冲突双方调离项目'],
+            correct_answer: 'C. 了解冲突根源并引导解决',
+            explanation: '项目经理应首先了解冲突原因，采用合作/解决问题的方式引导团队。'
+        },
+        {
+            id: 'q4', question_text: '项目进度落后，以下哪项是最有效的应对措施？', type: 'mc' as const,
+            options: ['A. 立即增加资源', 'B. 压缩关键路径上的活动', 'C. 减少项目范围', 'D. 延长项目工期'],
+            correct_answer: 'B. 压缩关键路径上的活动',
+            explanation: '关键路径决定项目最短工期，压缩关键路径活动才能有效追赶进度。'
+        },
+        {
+            id: 'q5', question_text: '在项目风险管理中，风险应对策略不包括？', type: 'mc' as const,
+            options: ['A. 规避', 'B. 转移', 'C. 接受', 'D. 隐藏'],
+            correct_answer: 'D. 隐藏',
+            explanation: 'PMBOK 定义的风险应对策略包括：规避、转移、减轻、接受，不包括隐藏。'
+        }
+    ];
+
+    // AI 题目缓存状态
+    const [aiQuestionsCache, setAiQuestionsCache] = useState<Record<string, Question[]>>({});
+    const [isPreloading, setIsPreloading] = useState(false);
+
+    // 预加载 AI 题目（进入案例详情页时就开始生成）
+    useEffect(() => {
+        const preloadAIQuestions = async () => {
+            const apiKey = getApiKey();
+            if (!apiKey || !caseData?.title) return;
+            
+            // 检查缓存
+            const cacheKey = `ai_questions_${caseData.title}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    setAiQuestionsCache(prev => ({ ...prev, [caseData.title]: parsed }));
+                    return;
+                } catch (e) { /* 缓存无效，重新生成 */ }
+            }
+            
+            // 后台预加载
+            setIsPreloading(true);
+            try {
+                const ai = new GoogleGenAI({ apiKey });
+                const prompt = `Create 5 project management multiple choice questions based on case: "${caseData.title}". Return JSON array only: [{ "question_text": "...", "options": ["A..","B.."], "correct_answer": "...", "explanation": "..." }]`;
+
+                const resp = await ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    config: { responseMimeType: 'application/json' }
+                });
+                
+                const text = resp.text || '[]';
+                const generated = JSON.parse(text);
+                
+                if (Array.isArray(generated) && generated.length > 0 && generated[0].question_text) {
+                    // 转换格式确保兼容
+                    const formattedQuestions: Question[] = generated.map((q: any, idx: number) => ({
+                        id: q.id || `ai_q${idx}`,
+                        question_text: q.question_text,
+                        type: 'mc' as const,
+                        options: q.options,
+                        correct_answer: q.correct_answer,
+                        explanation: q.explanation
+                    }));
+                    
+                    // 保存到缓存（24小时有效）
+                    localStorage.setItem(cacheKey, JSON.stringify(formattedQuestions));
+                    localStorage.setItem(`${cacheKey}_expiry`, (Date.now() + 24 * 60 * 60 * 1000).toString());
+                    
+                    setAiQuestionsCache(prev => ({ ...prev, [caseData.title]: formattedQuestions }));
+                }
+            } catch (e) {
+                console.log('AI preloading failed, will use default questions');
+            } finally {
+                setIsPreloading(false);
+            }
+        };
+        
+        // 当在 overview 页面且有 caseData 时预加载
+        if (view === 'overview' && caseData?.title) {
+            preloadAIQuestions();
+        }
+    }, [view, caseData?.title]);
+
     const startQuiz = async () => {
         setIsLoadingQ(true);
-        await generateQuestionsByAI();
-    };
-
-    const generateQuestionsByAI = async () => {
+        
         const apiKey = getApiKey();
-
-        // 1. Fallback Data (Offline/No Key)
+        
+        // 如果没有 API Key，直接使用默认题目（秒开）
         if (!apiKey) {
-            setQuestions([
-                {
-                    id: 'q1', question_text: '在项目初期，面对需求不明确的情况，最佳策略是？', type: 'mc',
-                    options: ['A. 拒绝开始工作直到需求明确', 'B. 采用敏捷方法迭代开发', 'C. 估算一个最大预算', 'D. 忽略风险直接开工'],
-                    correct_answer: 'B. 采用敏捷方法迭代开发',
-                    explanation: '敏捷方法允许在需求不明确时通过迭代和小步快跑来逐步明确方向。'
-                },
-                {
-                    id: 'q2', question_text: '当关键相关方提出变更请求，且该变更会严重影响进度时，应首先做什么？', type: 'mc',
-                    options: ['A. 立即拒绝', 'B. 立即接受以取悦相关方', 'C. 评估变更的影响并走变更控制流程', 'D. 偷偷加班完成'],
-                    correct_answer: 'C. 评估变更的影响并走变更控制流程',
-                    explanation: 'PMBOK 标准流程要求先评估影响，再由变更控制委员会 (CCB) 决策。'
-                }
-            ]);
+            setQuestions(defaultQuestions);
             setView('quiz');
             setIsLoadingQ(false);
             return;
         }
-
-        // 2. AI Generation
+        
+        // 检查是否有预加载的 AI 题目
+        if (aiQuestionsCache[caseData.title]) {
+            setQuestions(aiQuestionsCache[caseData.title]);
+            setView('quiz');
+            setIsLoadingQ(false);
+            return;
+        }
+        
+        // 检查 localStorage 缓存
+        const cacheKey = `ai_questions_${caseData.title}`;
+        const cached = localStorage.getItem(cacheKey);
+        const expiry = localStorage.getItem(`${cacheKey}_expiry`);
+        
+        if (cached && expiry && Date.now() < parseInt(expiry)) {
+            try {
+                const parsed = JSON.parse(cached);
+                setQuestions(parsed);
+                setView('quiz');
+                setIsLoadingQ(false);
+                return;
+            } catch (e) { /* 缓存无效 */ }
+        }
+        
+        // 没有缓存，实时生成（带超时保护）
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 8000)
+        );
+        
         try {
             const ai = new GoogleGenAI({ apiKey });
             const prompt = `Create 5 project management multiple choice questions based on case: "${caseData.title}". Return JSON array only: [{ "question_text": "...", "options": ["A..","B.."], "correct_answer": "...", "explanation": "..." }]`;
 
-            const resp = await ai.models.generateContent({
+            const aiPromise = ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: { responseMimeType: 'application/json' }
             });
-
+            
+            const resp = await Promise.race([aiPromise, timeoutPromise]) as any;
             const text = resp.text || '[]';
             const generated = JSON.parse(text);
-            setQuestions(generated);
+            
+            if (Array.isArray(generated) && generated.length > 0 && generated[0].question_text) {
+                const formattedQuestions: Question[] = generated.map((q: any, idx: number) => ({
+                    id: q.id || `ai_q${idx}`,
+                    question_text: q.question_text,
+                    type: 'mc' as const,
+                    options: q.options,
+                    correct_answer: q.correct_answer,
+                    explanation: q.explanation
+                }));
+                
+                // 缓存结果
+                localStorage.setItem(cacheKey, JSON.stringify(formattedQuestions));
+                localStorage.setItem(`${cacheKey}_expiry`, (Date.now() + 24 * 60 * 60 * 1000).toString());
+                
+                setQuestions(formattedQuestions);
+            } else {
+                setQuestions(defaultQuestions);
+            }
             setView('quiz');
         } catch (e) {
-            console.error(e);
-            alert("AI 服务暂时不可用，请检查 Key 或网络。");
-            setIsLoadingQ(false);
+            console.log('AI generation timeout or error, using default questions');
+            setQuestions(defaultQuestions);
+            setView('quiz');
         } finally {
             setIsLoadingQ(false);
         }
@@ -2767,17 +2897,17 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                             <div className="w-full lg:w-1/2 space-y-8">
                                 <div>
                                     <div className={`inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100 mb-4`}>
-                                        <Lock size={12} /> {caseData.difficulty} Case
+                                        <Lock size={12} /> {caseData.difficulty === 'Easy' ? '简单' : caseData.difficulty === 'Medium' ? '中等' : caseData.difficulty === 'Hard' ? '困难' : caseData.difficulty} 案例
                                     </div>
                                     <h2 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight leading-tight mb-4">{caseData.title}</h2>
                                     <p className="text-lg text-gray-600 leading-relaxed border-l-4 border-gray-200 pl-4">{caseData.summary}</p>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-                                    <h3 className="font-bold text-gray-900 flex items-center gap-2"><Terminal size={18} /> Mission Brief</h3>
+                                    <h3 className="font-bold text-gray-900 flex items-center gap-2"><Terminal size={18} /> 任务简报</h3>
                                     <div className="text-sm text-gray-500 space-y-2">
-                                        <p>• Identify key risks in the project timeline.</p>
-                                        <p>• Make critical decisions under pressure.</p>
-                                        <p>• Analyze stakeholder impact.</p>
+                                        <p>• 识别项目时间线中的关键风险。</p>
+                                        <p>• 在压力下做出关键决策。</p>
+                                        <p>• 分析相关方影响。</p>
                                     </div>
                                 </div>
                                 <button
@@ -2786,7 +2916,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                                     className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-800 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200"
                                 >
                                     {isLoadingQ ? <Loader2 className="animate-spin" /> : <Terminal size={20} />}
-                                    {isLoadingQ ? 'Initializing AI Scenario...' : 'Enter Simulation Environment'}
+                                    {isLoadingQ ? (isPreloading ? 'AI题目准备中，请稍候...' : '正在生成AI题目...') : (isPreloading ? 'AI题目已就绪 ✓' : '进入模拟环境')}
                                 </button>
                             </div>
                         </div>
@@ -2795,8 +2925,8 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                     {view === 'quiz' && (
                         <div className="max-w-3xl mx-auto mt-10 pb-20">
                             <div className="flex justify-between text-xs font-bold text-gray-400 mb-6">
-                                <span>QUESTION {currentQIndex + 1} OF {questions.length}</span>
-                                <span>SCORE: {score}</span>
+                                <span>问题 {currentQIndex + 1} / {questions.length}</span>
+                                <span>得分: {score}</span>
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-8 leading-tight">{questions[currentQIndex].question_text}</h3>
                             <div className="space-y-4">
