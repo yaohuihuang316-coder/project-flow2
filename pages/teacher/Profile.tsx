@@ -34,7 +34,7 @@ interface VerificationStatus {
 
 const TeacherProfile: React.FC<TeacherProfileProps> = ({
   currentUser: _currentUser,
-  onNavigate: _onNavigate,
+  onNavigate,
   onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<TeacherTab>('profile');
@@ -233,6 +233,13 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
           </div>
         ))}
       </div>
+      {/* 申请认证按钮 */}
+      <button
+        onClick={() => onNavigate?.(Page.TEACHER_REGISTRATION)}
+        className="w-full mt-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl text-sm font-medium hover:shadow-md transition-shadow"
+      >
+        申请教师认证
+      </button>
     </div>
   );
 

@@ -22,6 +22,7 @@ import TeacherClassroom from './pages/teacher/Classroom'; // 教师端-上课
 import TeacherAssignments from './pages/teacher/Assignments'; // 教师端-作业管理
 import TeacherInteractions from './pages/teacher/Interactions'; // 教师端-学生互动
 import TeacherProfile from './pages/teacher/Profile'; // 教师端-个人中心
+import TeacherRegistration from './pages/teacher/TeacherRegistration'; // 教师注册
 import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
@@ -175,6 +176,8 @@ const App: React.FC = () => {
         return <TeacherProfile currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
       case Page.TEACHER_CLASSROOM:
         return <TeacherClassroom currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_REGISTRATION:
+        return <TeacherRegistration />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }
