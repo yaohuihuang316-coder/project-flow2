@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { ArrowRight, Mail, User, Loader2, AlertCircle, CheckCircle2, Database } from 'lucide-react';
+import { ArrowRight, Mail, User, Loader2, AlertCircle, CheckCircle2, Database, Upload, GraduationCap, BookOpen } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { normalizeMembershipTier } from '../lib/membership';
 
@@ -13,6 +13,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [step, setStep] = useState<'email' | 'details'>('email');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState<'Student' | 'Teacher'>('Student');
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -82,14 +84,44 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           setError("请输入您的姓名");
           return;
       }
+      
+      // 教师必须上传企业许可
+      if (role === 'Teacher' && !licenseFile) {
+          setError("教师身份需要上传企业许可证明");
+          return;
+      }
+      
       setIsLoading(true);
+
+      let licenseUrl = null;
+      
+      // 上传企业许可文件（如果是教师）
+      if (role === 'Teacher' && licenseFile) {
+          try {
+              const fileExt = licenseFile.name.split('.').pop();
+              const filePath = `teacher-licenses/${email}-${Date.now()}.${fileExt}`;
+              
+              const { error: uploadError } = await supabase.storage
+                  .from('documents')
+                  .upload(filePath, licenseFile);
+              
+              if (uploadError) throw uploadError;
+              
+              licenseUrl = filePath;
+          } catch (err: any) {
+              setError("企业许可上传失败: " + err.message);
+              setIsLoading(false);
+              return;
+          }
+      }
 
       const newUser = {
           id: `u-${Date.now()}`,
           email,
           name,
-          role: 'Student', // Default role
-          status: '正常',
+          role: role,
+          status: role === 'Teacher' ? 'pending' : '正常', // 教师需要审核
+          teacher_license_url: licenseUrl,
           created_at: new Date().toISOString()
       };
 
@@ -105,7 +137,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               id: newUser.id,
               email: newUser.email,
               name: newUser.name,
-              role: 'Student',
+              role: role as any,
               joined_at: newUser.created_at,
               membershipTier: 'free',
               completedCoursesCount: 0,
@@ -121,8 +153,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
   };
 
+  // 处理文件选择
+  const handleLicenseUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          // 验证文件类型
+          const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+          if (!allowedTypes.includes(file.type)) {
+              setError("请上传 PDF 或图片格式的文件");
+              return;
+          }
+          // 验证文件大小（最大 10MB）
+          if (file.size > 10 * 1024 * 1024) {
+              setError("文件大小不能超过 10MB");
+              return;
+          }
+          setLicenseFile(file);
+          setError(null);
+      }
+  };
+
   // Demo Login with different tiers - 使用与数据库匹配的ID
-  const handleDemoLogin = async (tier: 'free' | 'pro' | 'pro_plus' | 'admin' = 'free') => {
+  const handleDemoLogin = async (tier: 'free' | 'pro' | 'pro_plus' | 'admin' | 'teacher' = 'free') => {
       // 使用与数据库 db_final_setup.sql 中匹配的测试账号
       const demoUsers = {
           free: {
@@ -164,6 +216,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               streak: 0,
               xp: 0,
               completedCourses: 0
+          },
+          teacher: {
+              id: 'test-teacher-001',
+              email: 'teacher@test.com',
+              name: '张老师',
+              role: 'Editor',
+              avatar: 'https://i.pravatar.cc/150?u=teacher001',
+              streak: 45,
+              xp: 3500,
+              completedCourses: 8
           }
       };
 
@@ -198,7 +260,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           joined_at: dbUser.created_at,
           xp: user.xp,
           streak: user.streak,
-          membershipTier: tier === 'admin' ? 'pro_plus' : tier,
+          membershipTier: tier === 'admin' || tier === 'teacher' ? 'pro_plus' : tier,
           completedCoursesCount: user.completedCourses,
           isLifetimeMember: tier === 'admin',
           aiTier: tier === 'pro_plus' || tier === 'admin' ? 'pro' : tier === 'pro' ? 'basic' : 'none',
@@ -244,9 +306,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          {/* Name Input (Step 2) */}
+          {/* Registration Details (Step 2) */}
           {step === 'details' && (
-             <div className="space-y-1 animate-fade-in-up">
+             <div className="space-y-4 animate-fade-in-up">
+                {/* Name Input */}
                 <div className="relative group transition-all duration-300 rounded-2xl p-1 bg-gradient-to-r from-blue-400/0 to-indigo-400/0 focus-within:from-blue-400 focus-within:to-indigo-400 focus-within:shadow-lg focus-within:shadow-blue-500/20">
                     <div className="relative flex items-center bg-white/80 backdrop-blur-md rounded-[14px] px-4 py-4 transition-all">
                         <User size={20} className="mr-3 text-gray-400 focus-within:text-blue-500" />
@@ -260,7 +323,101 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         />
                     </div>
                 </div>
-                <p className="text-xs text-blue-600 font-medium px-2 pt-1">✨ 看起来您是新用户，请设置昵称。</p>
+
+                {/* Role Selection */}
+                <div className="space-y-2">
+                    <p className="text-sm font-medium text-gray-700 px-2">选择身份</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setRole('Student')}
+                            className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                                role === 'Student' 
+                                    ? 'border-blue-500 bg-blue-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                role === 'Student' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                                <BookOpen size={20} />
+                            </div>
+                            <div className="text-left">
+                                <p className={`font-medium ${role === 'Student' ? 'text-blue-900' : 'text-gray-900'}`}>学生</p>
+                                <p className="text-xs text-gray-500">学习课程、参与讨论</p>
+                            </div>
+                        </button>
+                        
+                        <button
+                            type="button"
+                            onClick={() => setRole('Teacher')}
+                            className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                                role === 'Teacher' 
+                                    ? 'border-green-500 bg-green-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                role === 'Teacher' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                                <GraduationCap size={20} />
+                            </div>
+                            <div className="text-left">
+                                <p className={`font-medium ${role === 'Teacher' ? 'text-green-900' : 'text-gray-900'}`}>教师</p>
+                                <p className="text-xs text-gray-500">创建课程、管理学生</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Teacher License Upload */}
+                {role === 'Teacher' && (
+                    <div className="space-y-2 animate-fade-in-up">
+                        <p className="text-sm font-medium text-gray-700 px-2">
+                            企业许可证明 <span className="text-red-500">*</span>
+                        </p>
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={handleLicenseUpload}
+                                className="hidden"
+                                id="license-upload"
+                            />
+                            <label
+                                htmlFor="license-upload"
+                                className={`flex items-center gap-3 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
+                                    licenseFile 
+                                        ? 'border-green-500 bg-green-50' 
+                                        : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                {licenseFile ? (
+                                    <>
+                                        <CheckCircle2 size={24} className="text-green-500" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-green-900 truncate">{licenseFile.name}</p>
+                                            <p className="text-xs text-green-600">点击更换文件</p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload size={24} className="text-gray-400" />
+                                        <div className="flex-1">
+                                            <p className="font-medium text-gray-700">上传企业许可</p>
+                                            <p className="text-xs text-gray-500">支持 PDF、JPG、PNG，最大 10MB</p>
+                                        </div>
+                                    </>
+                                )}
+                            </label>
+                        </div>
+                        <p className="text-xs text-amber-600 px-2">
+                            ⚠️ 教师账号需要审核，审核通过后方可使用教师功能
+                        </p>
+                    </div>
+                )}
+
+                <p className="text-xs text-blue-600 font-medium px-2 pt-1">✨ 看起来您是新用户，请完善信息。</p>
              </div>
           )}
 
@@ -292,8 +449,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           
           {/* Demo Accounts Section */}
           <div className="w-full border-t border-gray-100 pt-6 mt-2">
-            <p className="text-xs font-medium text-gray-400 text-center mb-3">快速体验 - 演示账号 / 管理员入口</p>
-            <div className="grid grid-cols-4 gap-2">
+            <p className="text-xs font-medium text-gray-400 text-center mb-3">快速体验 - 演示账号</p>
+            <div className="grid grid-cols-5 gap-2">
               <button 
                 onClick={() => handleDemoLogin('free')}
                 className="flex flex-col items-center gap-1 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200"
@@ -314,6 +471,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               >
                 <span className="text-lg">👑</span>
                 <span className="text-xs font-bold text-amber-600">Pro+</span>
+              </button>
+              <button 
+                onClick={() => handleDemoLogin('teacher')}
+                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-green-50 hover:bg-green-100 transition-colors border border-green-200"
+              >
+                <span className="text-lg">👨‍🏫</span>
+                <span className="text-xs font-bold text-green-600">教师</span>
               </button>
               <button 
                 onClick={() => handleDemoLogin('admin')}

@@ -16,6 +16,7 @@ import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
 import Membership from './pages/Membership'; // 会员中心
 import Payment from './pages/Payment'; // 支付页面
+import TeacherDashboard from './pages/TeacherDashboard'; // 教师端
 import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
@@ -55,9 +56,14 @@ const App: React.FC = () => {
     return page.toString().startsWith('ADMIN_');
   };
 
+  // 辅助函数：判断是否为教师端页面
+  const isTeacherPage = (page: Page) => {
+    return page.toString().startsWith('TEACHER_');
+  };
+
   // 辅助函数：判断是否为沉浸式全屏页面（不显示导航栏）
   const isImmersivePage = (page: Page) => {
-    return page === Page.LOGIN || page === Page.KNOWLEDGE_GRAPH || page === Page.SIMULATION;
+    return page === Page.LOGIN || page === Page.KNOWLEDGE_GRAPH || page === Page.SIMULATION || isTeacherPage(page);
   };
 
   // 3. 登录处理
@@ -150,6 +156,8 @@ const App: React.FC = () => {
         return <Membership currentUser={currentUser} onNavigate={navigateTo} />;
       case Page.PAYMENT:
         return <Payment currentUser={currentUser} onNavigate={navigateTo} targetTier={currentParam as 'pro' | 'pro_plus'} />;
+      case Page.TEACHER_DASHBOARD:
+        return <TeacherDashboard currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }
