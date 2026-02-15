@@ -174,10 +174,8 @@ const App: React.FC = () => {
         return <TeacherInteractions currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
       case Page.TEACHER_PROFILE:
         return <TeacherProfile currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
-      case Page.TEACHER_CLASSROOM:
-        return <TeacherClassroom currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
       case Page.TEACHER_REGISTRATION:
-        return <TeacherRegistration />;
+        return <TeacherRegistration onNavigate={navigateTo} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }

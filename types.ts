@@ -65,6 +65,12 @@ export interface UserProfile {
   aiTier: AITier;
   aiDailyUsed: number;
   aiDailyResetAt?: string;
+  // 教师认证字段
+  institution_name?: string;
+  institution_code?: string;
+  job_title?: string;
+  teacher_verified_at?: string;
+  teacher_license_url?: string;
 }
 
 // 会员权限要求配置

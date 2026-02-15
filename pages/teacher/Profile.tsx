@@ -33,13 +33,13 @@ interface VerificationStatus {
 }
 
 const TeacherProfile: React.FC<TeacherProfileProps> = ({
-  currentUser: _currentUser,
+  currentUser,
   onNavigate,
   onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<TeacherTab>('profile');
 
-  // 模拟教师统计数据
+  // 教师统计数据
   const [stats] = useState<TeacherStats>({
     teachingHours: 1280,
     studentCount: 856,
@@ -47,25 +47,25 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     rating: 4.9
   });
 
-  // 模拟认证状态
-  const [verifications] = useState<VerificationStatus[]>([
+  // 认证状态 - 根据用户认证状态动态显示
+  const verifications: VerificationStatus[] = [
     { isVerified: true, type: 'identity', label: '实名认证' },
-    { isVerified: true, type: 'education', label: '学历认证' },
-    { isVerified: true, type: 'teaching', label: '教师资格' }
-  ]);
+    { isVerified: !!currentUser?.institution_name, type: 'education', label: '学历认证' },
+    { isVerified: currentUser?.role === 'Editor' || currentUser?.role === 'SuperAdmin', type: 'teaching', label: '教师资格' }
+  ];
 
-  // 模拟教师信息
-  const [teacherInfo] = useState({
-    name: '张教授',
-    title: '高级教师',
-    school: '北京大学',
-    department: '管理学院',
-    email: 'zhang.prof@pku.edu.cn',
+  // 教师信息 - 使用 currentUser 数据
+  const teacherInfo = {
+    name: currentUser?.name || '教师用户',
+    title: currentUser?.job_title || '讲师',
+    school: currentUser?.institution_name || '暂未设置机构',
+    department: currentUser?.department || '项目管理学院',
+    email: currentUser?.email || '',
     phone: '138****8888',
-    location: '北京市海淀区',
-    avatar: 'https://i.pravatar.cc/150?u=teacher',
-    bio: '专注项目管理教育15年，PMP认证讲师，敏捷开发实践专家。'
-  });
+    location: '北京市',
+    avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher',
+    bio: '专注项目管理教育，PMP认证讲师。'
+  };
 
   // ==================== 底部导航 ====================
   const renderBottomNav = () => {
