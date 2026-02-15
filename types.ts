@@ -38,7 +38,7 @@ export enum Page {
   // 已删除: ADMIN_SETTINGS, ADMIN_MONITOR, ADMIN_EVENTS, ADMIN_SYSTEM
 }
 
-export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor' | 'Student';
+export type AdminRole = 'SuperAdmin' | 'Manager' | 'Editor' | 'Teacher' | 'Student';
 
 // 会员等级类型 - 代码中使用小写，数据库读取时转换
 export type MembershipTier = 'free' | 'pro' | 'pro_plus';

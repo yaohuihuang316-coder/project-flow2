@@ -75,9 +75,11 @@ const App: React.FC = () => {
   // 3. 登录处理
   const handleLogin = (user: UserProfile) => {
     setCurrentUser(user);
-    // 如果是管理员，去后台；否则去仪表盘
+    // 根据角色跳转到不同页面
     if (['SuperAdmin', 'Manager', 'Editor'].includes(user.role)) {
       setCurrentPage(Page.ADMIN_DASHBOARD);
+    } else if (user.role === 'Teacher') {
+      setCurrentPage(Page.TEACHER_DASHBOARD);
     } else {
       setCurrentPage(Page.DASHBOARD);
     }

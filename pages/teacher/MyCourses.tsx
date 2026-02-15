@@ -245,13 +245,13 @@ const MyCourses: React.FC<MyCoursesProps> = ({
           // 当前页面，不跳转
           break;
         case 'class':
-          // 可以跳转到上课页面
+          onNavigate(Page.TEACHER_CLASSROOM);
           break;
         case 'assignments':
-          // 可以跳转到作业页面
+          onNavigate(Page.TEACHER_ASSIGNMENTS);
           break;
         case 'profile':
-          onNavigate(Page.PROFILE);
+          onNavigate(Page.TEACHER_PROFILE);
           break;
       }
     }

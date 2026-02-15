@@ -4,12 +4,12 @@ import {
     ChevronLeft, Play, CheckCircle2, AlertTriangle, Loader2, 
     Trophy, Clock, Target, Sparkles, ArrowLeft,
     ArrowRight, RotateCcw, TrendingUp, Zap, BookOpen,
-    Users, AlertCircle
+    Users, AlertCircle, Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { Page } from '../types';
-import { generateSimulationReport, SimulationReportData, KimiReportResponse } from '../lib/kimiService';
+import { generateSimulationReport, SimulationReportData, KimiReportResponse, generateHTMLReport } from '../lib/kimiService';
 
 interface SimulationProps {
     onNavigate?: (page: Page) => void;
@@ -791,11 +791,18 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             try {
                 const scenario = selectedScenario;
                 
-                // 构建报告数据
+                // 构建报告数据 - 使用中文难度
+                const difficultyMap: Record<string, string> = {
+                    'Easy': '简单',
+                    'Medium': '中等', 
+                    'Hard': '困难',
+                    'Expert': '专家'
+                };
+                
                 const reportDataVal: SimulationReportData = {
                     scenarioTitle: scenario.title,
                     scenarioDescription: scenario.description,
-                    difficulty: scenario.difficulty,
+                    difficulty: difficultyMap[scenario.difficulty] || scenario.difficulty,
                     category: scenario.category,
                     totalScore,
                     maxScore,
@@ -814,8 +821,22 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                     learningObjectives: scenario.learning_objectives || [],
                 };
                 
-                // 调用 Kimi API 生成报告
-                const kimiReportVal = await generateSimulationReport(reportDataVal);
+                // 检查缓存 - 使用场景ID+分数作为缓存键
+                const cacheKey = `sim_report_${scenario.id}_${totalScore}_${stageHistory.map(h => h.decision_id).join('_')}`;
+                const cachedReport = localStorage.getItem(cacheKey);
+                const cacheExpiry = localStorage.getItem(`${cacheKey}_expiry`);
+                
+                let kimiReportVal;
+                if (cachedReport && cacheExpiry && Date.now() < parseInt(cacheExpiry)) {
+                    // 使用缓存（24小时有效）
+                    kimiReportVal = JSON.parse(cachedReport);
+                } else {
+                    // 调用 Kimi API 生成报告
+                    kimiReportVal = await generateSimulationReport(reportDataVal);
+                    // 保存缓存
+                    localStorage.setItem(cacheKey, JSON.stringify(kimiReportVal));
+                    localStorage.setItem(`${cacheKey}_expiry`, (Date.now() + 24 * 60 * 60 * 1000).toString());
+                }
                 
                 setKimiReport(kimiReportVal);
             } catch (err) {
@@ -1204,6 +1225,45 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                         className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all"
                     >
                         返回列表
+                    </button>
+                    <button
+                        onClick={() => {
+                            // 生成并下载HTML报告
+                            const reportData: SimulationReportData = {
+                                scenarioTitle: selectedScenario.title,
+                                scenarioDescription: selectedScenario.description,
+                                difficulty: selectedScenario.difficulty,
+                                category: selectedScenario.category,
+                                totalScore,
+                                maxScore,
+                                percentage,
+                                stageHistory: stageHistory.map((history, idx) => {
+                                    const stage = selectedScenario.stages[idx];
+                                    const decision = stage?.decisions.find(d => d.id === history.decision_id);
+                                    return {
+                                        stageTitle: stage?.title || '未知阶段',
+                                        decisionText: decision?.text || '未知',
+                                        score: history.score,
+                                        feedback: decision?.impact?.feedback || '',
+                                        isOptimal: decision?.is_optimal || false,
+                                    };
+                                }),
+                                learningObjectives: selectedScenario.learning_objectives || [],
+                            };
+                            const htmlContent = generateHTMLReport(reportData, kimiReport);
+                            const blob = new Blob([htmlContent], { type: 'text/html' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `模拟演练报告_${selectedScenario.title}_${new Date().toLocaleDateString('zh-CN')}.html`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }}
+                        className="flex-1 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all flex items-center justify-center gap-2"
+                    >
+                        <Download size={20} /> 下载报告
                     </button>
                     <button
                         onClick={() => startSimulation(selectedScenario)}

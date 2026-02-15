@@ -349,9 +349,9 @@ const Assignments: React.FC<AssignmentsProps> = ({
     const navItems = [
       { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
       { id: 'courses', icon: BookOpen, label: '课程', page: Page.TEACHER_COURSES },
-      { id: 'class', icon: Video, label: '上课', highlight: true, page: Page.TEACHER_DASHBOARD },
-      { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_DASHBOARD },
-      { id: 'profile', icon: User, label: '我的', page: Page.TEACHER_DASHBOARD },
+      { id: 'class', icon: Video, label: '上课', highlight: true, page: Page.TEACHER_CLASSROOM },
+      { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
+      { id: 'profile', icon: User, label: '我的', page: Page.TEACHER_PROFILE },
     ];
 
     return (

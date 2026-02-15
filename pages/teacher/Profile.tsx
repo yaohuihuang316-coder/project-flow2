@@ -86,7 +86,19 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id as TeacherTab)}
+                onClick={() => {
+                  setActiveTab(item.id as TeacherTab);
+                  if (onNavigate && item.id !== 'profile') {
+                    const pageMap: Record<string, Page> = {
+                      'home': Page.TEACHER_DASHBOARD,
+                      'courses': Page.TEACHER_COURSES,
+                      'class': Page.TEACHER_CLASSROOM,
+                      'assignments': Page.TEACHER_ASSIGNMENTS,
+                      'profile': Page.TEACHER_PROFILE
+                    };
+                    onNavigate(pageMap[item.id]);
+                  }
+                }}
                 className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${
                   item.highlight ? '-mt-4' : ''
                 }`}

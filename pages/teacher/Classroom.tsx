@@ -319,13 +319,24 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
               <button
                 key={item.id}
                 onClick={() => {
+                  // 如果正在上课，提示确认
+                  if (isClassActive && item.id !== 'class') {
+                    if (!confirm('课堂正在进行中，确定要离开吗？')) {
+                      return;
+                    }
+                    // 结束课堂状态
+                    setIsClassActive(false);
+                    setActiveClassId(null);
+                    setClassTimer(0);
+                  }
+                  
                   setActiveTab(item.id as TeacherTab);
                   if (item.id !== 'class' && onNavigate) {
                     const pageMap: Record<string, Page> = {
                       'home': Page.TEACHER_DASHBOARD,
                       'courses': Page.TEACHER_COURSES,
-                      'assignments': Page.TEACHER_DASHBOARD,
-                      'profile': Page.PROFILE
+                      'assignments': Page.TEACHER_ASSIGNMENTS,
+                      'profile': Page.TEACHER_PROFILE
                     };
                     onNavigate(pageMap[item.id]);
                   }
@@ -442,7 +453,11 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => setIsClassActive(false)}
+                onClick={() => {
+                  if (confirm('确定要退出课堂吗？课堂将保持进行状态。')) {
+                    setIsClassActive(false);
+                  }
+                }}
                 className="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors"
               >
                 <ArrowLeft size={20} />
