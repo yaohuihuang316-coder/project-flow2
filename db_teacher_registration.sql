@@ -26,8 +26,7 @@ END $$;
 CREATE POLICY "Authenticated users can upload documents" ON storage.objects
     FOR INSERT TO authenticated
     WITH CHECK (
-        bucket_id = 'documents' AND
-        (storage.foldername(name))[1] = 'teacher-licenses'
+        bucket_id = 'documents'
     );
 
 -- 允许用户查看自己的文档
@@ -35,7 +34,7 @@ CREATE POLICY "Users can view own documents" ON storage.objects
     FOR SELECT TO authenticated
     USING (
         bucket_id = 'documents' AND
-        owner = auth.uid()::text
+        (owner::text = auth.uid()::text OR owner IS NULL)
     );
 
 -- 允许管理员查看所有文档
@@ -98,26 +97,6 @@ BEGIN
             teacher_verified_at = NOW(),
             teacher_verified_by = NEW.reviewed_by
         WHERE id = NEW.teacher_id;
-        
-        -- 发送通知（可选）
-        INSERT INTO app_messages (recipient_id, title, content, sent_at)
-        VALUES (
-            NEW.teacher_id,
-            '教师认证通过',
-            '恭喜！您的教师认证已通过审核，现在可以创建课程了。',
-            NOW()
-        );
-    END IF;
-    
-    -- 当审核拒绝时
-    IF NEW.status = 'rejected' AND OLD.status != 'rejected' THEN
-        INSERT INTO app_messages (recipient_id, title, content, sent_at)
-        VALUES (
-            NEW.teacher_id,
-            '教师认证未通过',
-            '抱歉，您的教师认证未通过审核。原因：' || COALESCE(NEW.review_notes, '资料不完整'),
-            NOW()
-        );
     END IF;
     
     RETURN NEW;

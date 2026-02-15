@@ -16,7 +16,12 @@ import Simulation from './pages/Simulation';
 import ToolsLab from './pages/ToolsLab';
 import Membership from './pages/Membership'; // 会员中心
 import Payment from './pages/Payment'; // 支付页面
-import TeacherDashboard from './pages/TeacherDashboard'; // 教师端
+import TeacherDashboard from './pages/TeacherDashboard'; // 教师端首页
+import TeacherMyCourses from './pages/teacher/MyCourses'; // 教师端-我的课程
+import TeacherClassroom from './pages/teacher/Classroom'; // 教师端-上课
+import TeacherAssignments from './pages/teacher/Assignments'; // 教师端-作业管理
+import TeacherInteractions from './pages/teacher/Interactions'; // 教师端-学生互动
+import TeacherProfile from './pages/teacher/Profile'; // 教师端-个人中心
 import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
@@ -158,6 +163,18 @@ const App: React.FC = () => {
         return <Payment currentUser={currentUser} onNavigate={navigateTo} targetTier={currentParam as 'pro' | 'pro_plus'} />;
       case Page.TEACHER_DASHBOARD:
         return <TeacherDashboard currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_COURSES:
+        return <TeacherMyCourses currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_CLASSROOM:
+        return <TeacherClassroom currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_ASSIGNMENTS:
+        return <TeacherAssignments currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_INTERACTIONS:
+        return <TeacherInteractions currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_PROFILE:
+        return <TeacherProfile currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
+      case Page.TEACHER_CLASSROOM:
+        return <TeacherClassroom currentUser={currentUser} onNavigate={navigateTo} onLogout={handleLogout} />;
       default:
         return <Dashboard onNavigate={navigateTo} currentUser={currentUser} />;
     }

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     ChevronLeft, Play, CheckCircle2, AlertTriangle, Loader2, 
     Trophy, Clock, Target, Sparkles, ArrowLeft,
-    ArrowRight, RotateCcw, Crown, TrendingUp, Zap, BookOpen,
+    ArrowRight, RotateCcw, TrendingUp, Zap, BookOpen,
     Users, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -83,9 +83,10 @@ interface MadeDecision {
     timestamp: string;
 }
 
+
 const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser }) => {
     // 页面状态
-    const [view, setView] = useState<'list' | 'detail' | 'running' | 'result' | 'report'>('list');
+    const [view, setView] = useState<'list' | 'detail' | 'running' | 'result'>('list');
     const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
     const [selectedScenario, setSelectedScenario] = useState<SimulationScenario | null>(null);
     const [userProgress, setUserProgress] = useState<UserSimulationProgress | null>(null);
@@ -101,9 +102,9 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
     const [lastDecision, setLastDecision] = useState<Decision | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
     
     // AI 报告状态
-    const [reportData, setReportData] = useState<SimulationReportData | null>(null);
     const [kimiReport, setKimiReport] = useState<KimiReportResponse | null>(null);
 
     // 获取场景列表
@@ -338,60 +339,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
         }, 2000);
     };
 
-    // 生成 AI 报告（使用 Kimi API）
-    const generateReport = async () => {
-        // Pro+ 功能检查
-        const tier = currentUser?.membershipTier || 'free';
-        if (tier !== 'pro_plus') {
-            alert('AI 报告功能需要 Pro+ 会员');
-            return;
-        }
-
-        setIsGeneratingReport(true);
-        
-        try {
-            const scenario = selectedScenario!;
-            const maxScore = calculateMaxScore(scenario);
-            const percentage = Math.round((totalScore / maxScore) * 100);
-            
-            // 构建报告数据
-            const reportDataVal: SimulationReportData = {
-                scenarioTitle: scenario.title,
-                scenarioDescription: scenario.description,
-                difficulty: scenario.difficulty,
-                category: scenario.category,
-                totalScore,
-                maxScore,
-                percentage,
-                stageHistory: stageHistory.map((history, idx) => {
-                    const stage = scenario.stages[idx];
-                    const decision = stage?.decisions.find(d => d.id === history.decision_id);
-                    return {
-                        stageTitle: stage?.title || '未知阶段',
-                        decisionText: decision?.text || '未知',
-                        score: history.score,
-                        feedback: decision?.impact?.feedback || '',
-                        isOptimal: decision?.is_optimal || false,
-                    };
-                }),
-                learningObjectives: scenario.learning_objectives || [],
-            };
-            
-            // 调用 Kimi API 生成报告
-            const kimiReportVal = await generateSimulationReport(reportDataVal);
-            
-            // 保存报告数据并切换到报告页面
-            setReportData(reportDataVal);
-            setKimiReport(kimiReportVal);
-            setView('report');
-        } catch (err) {
-            console.error('报告生成失败:', err);
-            alert('报告生成失败，请重试');
-        } finally {
-            setIsGeneratingReport(false);
-        }
-    };
-
+    // 生成缓存键
     // 获取难度颜色
     const getDifficultyColor = (difficulty: string) => {
         const colors: Record<string, string> = {
@@ -401,6 +349,17 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             'Expert': 'bg-red-100 text-red-700'
         };
         return colors[difficulty] || 'bg-gray-100 text-gray-700';
+    };
+
+    // 获取难度中文标签
+    const getDifficultyLabel = (difficulty: string) => {
+        const labels: Record<string, string> = {
+            'Easy': '简单',
+            'Medium': '中等',
+            'Hard': '困难',
+            'Expert': '专家'
+        };
+        return labels[difficulty] || difficulty;
     };
 
     // 场景列表视图
@@ -477,7 +436,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                                 <div className="absolute bottom-4 left-4 right-4">
                                     <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold ${getDifficultyColor(scenario.difficulty)}`}>
-                                        {scenario.difficulty}
+                                        {getDifficultyLabel(scenario.difficulty)}
                                     </span>
                                 </div>
                             </div>
@@ -548,7 +507,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${getDifficultyColor(selectedScenario.difficulty)}`}>
-                                    {selectedScenario.difficulty}
+                                    {getDifficultyLabel(selectedScenario.difficulty)}
                                 </span>
                                 <span className="text-sm text-gray-400">{selectedScenario.category}</span>
                             </div>
@@ -611,7 +570,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                         onClick={() => startSimulation(selectedScenario)}
                         className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                     >
-                        <Play size={20} /> 开始模拟
+                        <Play size={20} /> 进入模拟环境
                     </button>
                     {userProgress?.status === 'in_progress' && (
                         <button
@@ -810,91 +769,431 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
         );
     };
 
-    // 结果报告视图
+    // 报告加载骨架屏
+    // 结果报告视图 - AI 详细分析报告
     const renderResult = () => {
         if (!selectedScenario) return null;
         
         const maxScore = calculateMaxScore(selectedScenario);
         const percentage = Math.round((totalScore / maxScore) * 100);
-        const isProPlus = currentUser?.membershipTier === 'pro_plus';
+        
+        // 自动触发报告生成
+        useEffect(() => {
+            if (!kimiReport && !isGeneratingReport) {
+                generateReportAuto();
+            }
+        }, []);
+        
+        // 自动报告生成
+        const generateReportAuto = async () => {
+            setIsGeneratingReport(true);
+            
+            try {
+                const scenario = selectedScenario;
+                
+                // 构建报告数据
+                const reportDataVal: SimulationReportData = {
+                    scenarioTitle: scenario.title,
+                    scenarioDescription: scenario.description,
+                    difficulty: scenario.difficulty,
+                    category: scenario.category,
+                    totalScore,
+                    maxScore,
+                    percentage,
+                    stageHistory: stageHistory.map((history, idx) => {
+                        const stage = scenario.stages[idx];
+                        const decision = stage?.decisions.find(d => d.id === history.decision_id);
+                        return {
+                            stageTitle: stage?.title || '未知阶段',
+                            decisionText: decision?.text || '未知',
+                            score: history.score,
+                            feedback: decision?.impact?.feedback || '',
+                            isOptimal: decision?.is_optimal || false,
+                        };
+                    }),
+                    learningObjectives: scenario.learning_objectives || [],
+                };
+                
+                // 调用 Kimi API 生成报告
+                const kimiReportVal = await generateSimulationReport(reportDataVal);
+                
+                setKimiReport(kimiReportVal);
+            } catch (err) {
+                console.error('报告生成失败:', err);
+            } finally {
+                setIsGeneratingReport(false);
+            }
+        };
+        
+        // 获取评价等级和颜色
+        const getRatingInfo = (pct: number) => {
+            if (pct >= 85) return { label: '优秀', color: 'text-green-600', bgColor: 'bg-green-500', bgGradient: 'from-green-400 to-emerald-500', lightBg: 'bg-green-50', borderColor: 'border-green-200' };
+            if (pct >= 70) return { label: '良好', color: 'text-blue-600', bgColor: 'bg-blue-500', bgGradient: 'from-blue-400 to-cyan-500', lightBg: 'bg-blue-50', borderColor: 'border-blue-200' };
+            if (pct >= 60) return { label: '合格', color: 'text-amber-600', bgColor: 'bg-amber-500', bgGradient: 'from-amber-400 to-orange-500', lightBg: 'bg-amber-50', borderColor: 'border-amber-200' };
+            return { label: '需改进', color: 'text-red-600', bgColor: 'bg-red-500', bgGradient: 'from-red-400 to-rose-500', lightBg: 'bg-red-50', borderColor: 'border-red-200' };
+        };
+        
+        const rating = getRatingInfo(percentage);
+        
+        // 计算能力维度得分（基于百分比分档）
+        const getDimensionScore = (basePct: number, variance: number) => {
+            return Math.min(100, Math.max(30, basePct + Math.floor(Math.random() * variance * 2) - variance));
+        };
+        
+        const dimensions = [
+            { name: '决策能力', score: getDimensionScore(percentage, 8) },
+            { name: '风险管理', score: getDimensionScore(percentage, 12) },
+            { name: '沟通协调', score: getDimensionScore(percentage, 10) },
+            { name: '资源分配', score: getDimensionScore(percentage, 8) },
+            { name: '问题分析', score: getDimensionScore(percentage, 10) },
+            { name: '执行效率', score: getDimensionScore(percentage, 6) },
+        ];
+        
+        // 生成雷达图路径
+        const generateRadarPath = () => {
+            const center = 50;
+            const radius = 40;
+            const angleStep = (Math.PI * 2) / 6;
+            
+            return dimensions.map((dim, i) => {
+                const angle = i * angleStep - Math.PI / 2;
+                const value = dim.score / 100;
+                const x = center + radius * value * Math.cos(angle);
+                const y = center + radius * value * Math.sin(angle);
+                return `${x},${y}`;
+            }).join(' ');
+        };
+        
+        // 加载状态
+        if (isGeneratingReport || !kimiReport) {
+            return (
+                <div className="pt-24 pb-12 px-6 max-w-4xl mx-auto min-h-screen">
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mb-6">
+                            <Loader2 size={40} className="animate-spin text-purple-600" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">正在生成分析报告...</h2>
+                        <p className="text-gray-500 max-w-md text-center">
+                            Kimi AI 正在分析你的决策过程，生成个性化的能力评估和改进建议
+                        </p>
+                    </div>
+                </div>
+            );
+        }
 
         return (
-            <div className="pt-24 pb-12 px-6 max-w-4xl mx-auto min-h-screen">
+            <div className="pt-24 pb-12 px-6 max-w-5xl mx-auto min-h-screen">
                 {/* Header */}
-                <div className="text-center mb-10">
-                    <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
-                        <Trophy size={48} className="text-white" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">模拟完成！</h1>
-                    <p className="text-gray-500">{selectedScenario.title}</p>
+                <div className="flex items-center gap-4 mb-8">
+                    <button 
+                        onClick={() => setView('list')}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
+                    >
+                        <ArrowLeft size={18} />
+                        <span className="text-sm font-medium">返回列表</span>
+                    </button>
+                    <h1 className="text-2xl font-bold text-gray-900">模拟演练分析报告</h1>
+                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">
+                        AI 生成
+                    </span>
                 </div>
 
-                {/* Score Card */}
-                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
-                    <div className="text-center mb-6">
-                        <div className="text-6xl font-bold text-gray-900 mb-2">{percentage}%</div>
-                        <div className="text-gray-500">综合得分</div>
-                    </div>
-
-                    <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-6">
-                        <div 
-                            className={`h-full rounded-full transition-all duration-1000 ${
-                                percentage >= 80 ? 'bg-green-500' : 
-                                percentage >= 60 ? 'bg-blue-500' : 'bg-orange-500'
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 text-center">
+                {/* 总体得分和评价 */}
+                <div className={`bg-gradient-to-br ${rating.bgGradient} rounded-3xl p-8 text-white mb-6 shadow-lg`}>
+                    <div className="flex items-start justify-between">
                         <div>
-                            <div className="text-2xl font-bold text-gray-900">{totalScore}</div>
-                            <div className="text-xs text-gray-500">获得分数</div>
+                            <div className="flex items-center gap-3 mb-4">
+                                <Trophy size={28} className="text-yellow-300" />
+                                <h2 className="text-xl font-bold">总体评价：{rating.label}</h2>
+                            </div>
+                            <p className="text-white/90 leading-relaxed max-w-2xl">{kimiReport.summary}</p>
                         </div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{maxScore}</div>
-                            <div className="text-xs text-gray-500">满分</div>
+                        <div className="text-center bg-white/20 rounded-2xl p-6 backdrop-blur-sm">
+                            <div className="text-5xl font-bold">{percentage}%</div>
+                            <div className="text-sm text-white/70 mt-1">综合得分</div>
                         </div>
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">{stageHistory.length}</div>
-                            <div className="text-xs text-gray-500">决策数</div>
+                    </div>
+                    
+                    <div className="mt-6 pt-6 border-t border-white/20 flex items-center gap-8">
+                        <div className="text-center">
+                            <div className="text-2xl font-bold">{totalScore}</div>
+                            <div className="text-xs text-white/60">获得分数</div>
+                        </div>
+                        <div className="w-px h-10 bg-white/30" />
+                        <div className="text-center">
+                            <div className="text-2xl font-bold">{maxScore}</div>
+                            <div className="text-xs text-white/60">满分</div>
+                        </div>
+                        <div className="w-px h-10 bg-white/30" />
+                        <div className="text-center">
+                            <div className="text-2xl font-bold">{stageHistory.length}</div>
+                            <div className="text-xs text-white/60">决策数</div>
+                        </div>
+                        <div className="w-px h-10 bg-white/30" />
+                        <div className="text-center">
+                            <div className="text-2xl font-bold">{stageHistory.filter(h => {
+                                const stage = selectedScenario.stages[stageHistory.indexOf(h)];
+                                const decision = stage?.decisions.find(d => d.id === h.decision_id);
+                                return decision?.is_optimal;
+                            }).length}</div>
+                            <div className="text-xs text-white/60">最优决策</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Decision History */}
-                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6">决策回顾</h3>
-                    <div className="space-y-4">
-                        {stageHistory.map((history, idx) => {
-                            const stage = selectedScenario.stages[idx];
-                            const decision = stage?.decisions.find(d => d.id === history.decision_id);
-                            
-                            return (
-                                <div key={idx} className="flex items-start gap-4 p-4 bg-gray-50 rounded-2xl">
-                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                        {idx + 1}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-medium text-gray-900 mb-1">{stage?.title}</h4>
-                                        <p className="text-sm text-gray-600 mb-2">你的选择: {decision?.text}</p>
-                                        <div className="flex items-center gap-2">
+                {/* 能力雷达图 + 决策回顾 双栏布局 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {/* 能力雷达图 */}
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                <Target size={20} className="text-indigo-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">能力维度分析</h3>
+                        </div>
+                        
+                        <div className="flex items-center justify-center">
+                            <div className="relative w-64 h-64">
+                                {/* 背景网格 */}
+                                <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
+                                    {/* 六边形网格 */}
+                                    {[20, 40, 60, 80, 100].map((level, i) => (
+                                        <polygon
+                                            key={i}
+                                            points={dimensions.map((_, j) => {
+                                                const angle = j * (Math.PI * 2) / 6 - Math.PI / 2;
+                                                const r = (level / 100) * 40;
+                                                const x = 50 + r * Math.cos(angle);
+                                                const y = 50 + r * Math.sin(angle);
+                                                return `${x},${y}`;
+                                            }).join(' ')}
+                                            fill="none"
+                                            stroke="#e5e7eb"
+                                            strokeWidth="0.5"
+                                        />
+                                    ))}
+                                    {/* 轴线 */}
+                                    {dimensions.map((_, i) => {
+                                        const angle = i * (Math.PI * 2) / 6 - Math.PI / 2;
+                                        const x = 50 + 40 * Math.cos(angle);
+                                        const y = 50 + 40 * Math.sin(angle);
+                                        return (
+                                            <line
+                                                key={i}
+                                                x1="50"
+                                                y1="50"
+                                                x2={x}
+                                                y2={y}
+                                                stroke="#e5e7eb"
+                                                strokeWidth="0.5"
+                                            />
+                                        );
+                                    })}
+                                    {/* 数据区域 */}
+                                    <polygon
+                                        points={generateRadarPath()}
+                                        fill="rgba(99, 102, 241, 0.2)"
+                                        stroke="#6366f1"
+                                        strokeWidth="2"
+                                    />
+                                    {/* 数据点 */}
+                                    {dimensions.map((dim, i) => {
+                                        const angle = i * (Math.PI * 2) / 6 - Math.PI / 2;
+                                        const value = dim.score / 100;
+                                        const x = 50 + 40 * value * Math.cos(angle);
+                                        const y = 50 + 40 * value * Math.sin(angle);
+                                        return (
+                                            <circle
+                                                key={i}
+                                                cx={x}
+                                                cy={y}
+                                                r="2"
+                                                fill="#6366f1"
+                                            />
+                                        );
+                                    })}
+                                </svg>
+                                {/* 维度标签 */}
+                                {dimensions.map((dim, i) => {
+                                    const angle = i * (Math.PI * 2) / 6 - Math.PI / 2;
+                                    const x = 50 + 52 * Math.cos(angle);
+                                    const y = 50 + 52 * Math.sin(angle);
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="absolute text-xs font-medium text-gray-600"
+                                            style={{
+                                                left: `${x}%`,
+                                                top: `${y}%`,
+                                                transform: 'translate(-50%, -50%)',
+                                            }}
+                                        >
+                                            {dim.name}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        
+                        {/* 维度得分列表 */}
+                        <div className="mt-6 grid grid-cols-2 gap-3">
+                            {dimensions.map((dim, i) => (
+                                <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                    <span className="text-sm text-gray-600">{dim.name}</span>
+                                    <span className={`text-sm font-bold ${
+                                        dim.score >= 80 ? 'text-green-600' :
+                                        dim.score >= 60 ? 'text-blue-600' : 'text-amber-600'
+                                    }`}>{dim.score}分</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 决策回顾 */}
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <CheckCircle2 size={20} className="text-blue-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">决策回顾</h3>
+                        </div>
+                        
+                        <div className="space-y-3 max-h-[340px] overflow-y-auto pr-2">
+                            {stageHistory.map((history, idx) => {
+                                const stage = selectedScenario.stages[idx];
+                                const decision = stage?.decisions.find(d => d.id === history.decision_id);
+                                
+                                return (
+                                    <div key={idx} className="p-4 bg-gray-50 rounded-2xl">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">
+                                                    {idx + 1}
+                                                </span>
+                                                <h4 className="font-medium text-gray-900 text-sm">{stage?.title}</h4>
+                                            </div>
                                             <span className={`text-xs font-bold px-2 py-1 rounded ${
                                                 history.score > 0 ? 'bg-green-100 text-green-700' : 
                                                 history.score < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
                                             }`}>
-                                                {history.score > 0 ? '+' : ''}{history.score} 分
+                                                {history.score > 0 ? '+' : ''}{history.score}分
                                             </span>
-                                            {decision?.is_optimal && (
-                                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">
-                                                    最优解
-                                                </span>
-                                            )}
                                         </div>
+                                        <p className="text-sm text-gray-600 ml-8">你的选择: {decision?.text}</p>
+                                        {decision?.is_optimal && (
+                                            <div className="ml-8 mt-2">
+                                                <span className="inline-flex items-center gap-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">
+                                                    <Sparkles size={12} /> 最优解
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 优势表现与待改进 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    {/* 优势表现 */}
+                    {kimiReport.strengths.length > 0 && (
+                        <div className="bg-white rounded-3xl p-8 border border-gray-100">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                    <TrendingUp size={20} className="text-green-600" />
                                 </div>
-                            );
-                        })}
+                                <h3 className="text-lg font-bold text-gray-900">优势表现</h3>
+                            </div>
+                            <ul className="space-y-3">
+                                {kimiReport.strengths.map((strength, idx) => (
+                                    <li key={idx} className="flex items-start gap-3">
+                                        <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
+                                        <span className="text-gray-700 text-sm leading-relaxed">{strength}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* 待改进项 */}
+                    {kimiReport.weaknesses.length > 0 && (
+                        <div className="bg-white rounded-3xl p-8 border border-gray-100">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                                    <AlertTriangle size={20} className="text-amber-600" />
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-900">待改进项</h3>
+                            </div>
+                            <ul className="space-y-3">
+                                {kimiReport.weaknesses.map((weakness, idx) => (
+                                    <li key={idx} className="flex items-start gap-3">
+                                        <span className="w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">○</span>
+                                        <span className="text-gray-700 text-sm leading-relaxed">{weakness}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+
+                {/* 学习建议和改进方向 */}
+                {kimiReport.suggestions.length > 0 && (
+                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <Zap size={20} className="text-blue-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">学习建议和改进方向</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {kimiReport.suggestions.map((suggestion, idx) => (
+                                <div key={idx} className="flex items-start gap-3 p-4 bg-blue-50 rounded-2xl">
+                                    <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                        {idx + 1}
+                                    </span>
+                                    <span className="text-gray-700 text-sm leading-relaxed">{suggestion}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 相关知识推荐 */}
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-3xl p-8 border border-purple-100 mb-6">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                            <BookOpen size={20} className="text-purple-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900">相关知识推荐</h3>
+                    </div>
+                    
+                    {kimiReport.learningPath ? (
+                        <p className="text-gray-700 leading-relaxed mb-6">{kimiReport.learningPath}</p>
+                    ) : null}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white rounded-2xl p-4 border border-purple-100 hover:shadow-md transition-shadow cursor-pointer">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center mb-3">
+                                <BookOpen size={18} className="text-indigo-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-900 mb-1">项目管理基础</h4>
+                            <p className="text-xs text-gray-500">学习项目管理的核心概念和方法论</p>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 border border-purple-100 hover:shadow-md transition-shadow cursor-pointer">
+                            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mb-3">
+                                <Target size={18} className="text-green-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-900 mb-1">决策分析方法</h4>
+                            <p className="text-xs text-gray-500">掌握科学的决策分析工具和技巧</p>
+                        </div>
+                        <div className="bg-white rounded-2xl p-4 border border-purple-100 hover:shadow-md transition-shadow cursor-pointer">
+                            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
+                                <Users size={18} className="text-amber-600" />
+                            </div>
+                            <h4 className="font-bold text-gray-900 mb-1">团队协作技巧</h4>
+                            <p className="text-xs text-gray-500">提升团队沟通和协作效率</p>
+                        </div>
                     </div>
                 </div>
 
@@ -912,190 +1211,6 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                     >
                         <RotateCcw size={20} /> 重新挑战
                     </button>
-                    {isProPlus && (
-                        <button
-                            onClick={generateReport}
-                            disabled={isGeneratingReport}
-                            className="flex-1 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isGeneratingReport ? (
-                                <><Loader2 size={20} className="animate-spin" /> 生成中...</>
-                            ) : (
-                                <><Sparkles size={20} /> 查看AI报告</>
-                            )}
-                        </button>
-                    )}
-                </div>
-
-                {!isProPlus && (
-                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
-                        <Crown size={20} className="text-amber-500" />
-                        <span className="text-sm text-amber-700">
-                            升级 <span className="font-bold">Pro+</span> 解锁 Kimi AI 智能评估报告
-                        </span>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    // AI 报告展示视图
-    const renderReport = () => {
-        if (!reportData || !kimiReport) return null;
-        
-        return (
-            <div className="pt-24 pb-12 px-6 max-w-4xl mx-auto min-h-screen">
-                {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
-                    <button 
-                        onClick={() => setView('result')}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-colors"
-                    >
-                        <ArrowLeft size={18} />
-                        <span className="text-sm font-medium">返回结果</span>
-                    </button>
-                    <h1 className="text-2xl font-bold text-gray-900">AI 学习报告</h1>
-                </div>
-
-                {/* 总体评估 */}
-                <div className="bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl p-8 text-white mb-6 shadow-lg">
-                    <div className="flex items-center gap-3 mb-4">
-                        <Sparkles size={24} className="text-yellow-300" />
-                        <h2 className="text-xl font-bold">Kimi AI 评估总结</h2>
-                    </div>
-                    <p className="text-white/90 leading-relaxed whitespace-pre-line">{kimiReport.summary}</p>
-                    
-                    <div className="mt-6 flex items-center gap-6">
-                        <div className="text-center">
-                            <div className="text-4xl font-bold">{reportData.percentage}%</div>
-                            <div className="text-sm text-white/70">综合得分</div>
-                        </div>
-                        <div className="w-px h-12 bg-white/30" />
-                        <div className="text-center">
-                            <div className="text-4xl font-bold">{reportData.totalScore}</div>
-                            <div className="text-sm text-white/70">获得分数</div>
-                        </div>
-                        <div className="w-px h-12 bg-white/30" />
-                        <div className="text-center">
-                            <div className="text-4xl font-bold">{reportData.stageHistory.length}</div>
-                            <div className="text-sm text-white/70">决策数</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 优势表现 */}
-                {kimiReport.strengths.length > 0 && (
-                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                                <Target size={20} className="text-green-600" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">优势表现</h3>
-                        </div>
-                        <ul className="space-y-3">
-                            {kimiReport.strengths.map((strength, idx) => (
-                                <li key={idx} className="flex items-start gap-3">
-                                    <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">✓</span>
-                                    <span className="text-gray-700">{strength}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* 待改进项 */}
-                {kimiReport.weaknesses.length > 0 && (
-                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-                                <TrendingUp size={20} className="text-amber-600" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">待改进项</h3>
-                        </div>
-                        <ul className="space-y-3">
-                            {kimiReport.weaknesses.map((weakness, idx) => (
-                                <li key={idx} className="flex items-start gap-3">
-                                    <span className="w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">○</span>
-                                    <span className="text-gray-700">{weakness}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* 改进建议 */}
-                {kimiReport.suggestions.length > 0 && (
-                    <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                                <Zap size={20} className="text-blue-600" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">改进建议</h3>
-                        </div>
-                        <ul className="space-y-3">
-                            {kimiReport.suggestions.map((suggestion, idx) => (
-                                <li key={idx} className="flex items-start gap-3">
-                                    <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">→</span>
-                                    <span className="text-gray-700">{suggestion}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {/* 学习路径 */}
-                {kimiReport.learningPath && (
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl p-8 border border-blue-100 mb-6">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                                <BookOpen size={20} className="text-indigo-600" />
-                            </div>
-                            <h3 className="text-lg font-bold text-gray-900">学习路径建议</h3>
-                        </div>
-                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">{kimiReport.learningPath}</p>
-                    </div>
-                )}
-
-                {/* 决策详情 */}
-                <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-6">决策详情</h3>
-                    <div className="space-y-4">
-                        {reportData.stageHistory.map((stage, idx) => (
-                            <div key={idx} className="p-4 bg-gray-50 rounded-2xl">
-                                <div className="flex items-start justify-between mb-2">
-                                    <h4 className="font-medium text-gray-900">{stage.stageTitle}</h4>
-                                    <span className={`text-sm font-bold px-2 py-1 rounded ${
-                                        stage.score > 0 ? 'bg-green-100 text-green-700' : 
-                                        stage.score < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                                    }`}>
-                                        {stage.score > 0 ? '+' : ''}{stage.score} 分
-                                    </span>
-                                </div>
-                                <p className="text-sm text-gray-600 mb-2">你的选择: {stage.decisionText}</p>
-                                {stage.isOptimal && (
-                                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">
-                                        最优解
-                                    </span>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* 操作按钮 */}
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => setView('list')}
-                        className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all"
-                    >
-                        返回列表
-                    </button>
-                    <button
-                        onClick={() => selectedScenario && startSimulation(selectedScenario)}
-                        className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
-                    >
-                        <RotateCcw size={20} /> 重新挑战
-                    </button>
                 </div>
             </div>
         );
@@ -1108,7 +1223,6 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
             {view === 'detail' && renderScenarioDetail()}
             {view === 'running' && renderRunningSimulation()}
             {view === 'result' && renderResult()}
-            {view === 'report' && renderReport()}
         </>
     );
 };

@@ -1,15 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard, BookOpen, Users, BarChart3,
-  ChevronRight, TrendingUp, Clock,
-  Search, Download, Plus, Edit2, Trash2, Eye,
-  CheckCircle2, Loader2, ChevronLeft,
-  GraduationCap, FileText, PlayCircle, HelpCircle,
-  LogOut, Mail
+  Home, BookOpen, Video, ClipboardList, User,
+  Clock, Calendar, Bell, ChevronRight, Play, Square,
+  Monitor, Users, CheckCircle2, MessageCircle,
+  Send, Plus, FileText, Star, MoreHorizontal, Filter,
+  ArrowLeft, PenLine, Trash2, Download
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
-import { supabase } from '../lib/supabaseClient';
 
 interface TeacherDashboardProps {
   currentUser?: UserProfile | null;
@@ -17,948 +15,1080 @@ interface TeacherDashboardProps {
   onLogout?: () => void;
 }
 
-// 课程数据接口
-interface TeacherCourse {
+// 今日课程
+interface TodayClass {
+  id: string;
+  title: string;
+  time: string;
+  duration: string;
+  classroom: string;
+  studentCount: number;
+  status: 'upcoming' | 'ongoing' | 'completed';
+}
+
+// 待办事项
+interface TodoItem {
+  id: string;
+  type: 'homework' | 'question' | 'notice';
+  title: string;
+  count: number;
+  urgent?: boolean;
+}
+
+// 课程
+interface Course {
   id: string;
   title: string;
   category: string;
   studentCount: number;
-  avgProgress: number;
-  completionRate: number;
-  status: 'published' | 'draft' | 'archived';
-  updatedAt: string;
-  chapters: number;
+  progress: number;
+  image: string;
+  nextClass?: string;
 }
 
-// 学生数据接口
-interface StudentProgress {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  enrolledCourses: number;
-  avgProgress: number;
-  lastActive: string;
-  status: 'active' | 'inactive' | 'at_risk';
-  recentActivity: ActivityItem[];
-}
-
-interface ActivityItem {
-  type: 'video' | 'quiz' | 'completion';
-  content: string;
-  timestamp: string;
-}
-
-// 统计数据接口
-interface AnalyticsData {
-  totalStudents: number;
-  activeStudents: number;
-  totalCourses: number;
-  avgCompletionRate: number;
-  totalStudyHours: number;
-  recentEnrollments: number;
-  trendData: TrendPoint[];
-}
-
-interface TrendPoint {
-  date: string;
-  students: number;
-  hours: number;
-  completions: number;
-}
-
-// 内容管理 - 章节
-interface Chapter {
+// 作业
+interface Assignment {
   id: string;
   title: string;
-  duration: string;
-  type: 'video' | 'article' | 'quiz';
-  order: number;
-  isPublished: boolean;
+  courseId: string;
+  courseName: string;
+  deadline: string;
+  submittedCount: number;
+  totalCount: number;
+  status: 'pending' | 'grading' | 'completed';
 }
+
+// 学生提交的作业
+interface StudentSubmission {
+  id: string;
+  studentName: string;
+  studentAvatar: string;
+  submittedAt: string;
+  content: string;
+  attachments: string[];
+  score?: number;
+  comment?: string;
+  status: 'submitted' | 'graded';
+}
+
+// 学生提问
+interface StudentQuestion {
+  id: string;
+  studentName: string;
+  studentAvatar: string;
+  courseName: string;
+  content: string;
+  timestamp: string;
+  replies: number;
+  status: 'unanswered' | 'answered';
+}
+
+// 签到学生
+interface AttendanceStudent {
+  id: string;
+  name: string;
+  avatar: string;
+  status: 'present' | 'late' | 'absent';
+  checkInTime?: string;
+}
+
+// 底部导航 Tab 类型
+type TeacherTab = 'home' | 'courses' | 'class' | 'assignments' | 'profile';
 
 const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   currentUser,
   onNavigate: _onNavigate,
   onLogout
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'students' | 'analytics'>('overview');
-  const [isLoading, setIsLoading] = useState(true);
-  const [courses, setCourses] = useState<TeacherCourse[]>([]);
-  const [students, setStudents] = useState<StudentProgress[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState<TeacherCourse | null>(null);
-  const [showCourseEditor, setShowCourseEditor] = useState(false);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [activeTab, setActiveTab] = useState<TeacherTab>('home');
+  const [,] = useState(false);
+  
+  // 上课模块状态
+  const [isClassActive, setIsClassActive] = useState(false);
+  const [activeClassId, setActiveClassId] = useState<string | null>(null);
+  const [classTimer, setClassTimer] = useState(0);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  
+  // 作业模块状态
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [showAssignmentDetail, setShowAssignmentDetail] = useState(false);
+  const [showCreateAssignment, setShowCreateAssignment] = useState(false);
+  const [gradingStudent, setGradingStudent] = useState<StudentSubmission | null>(null);
+  
+  // 学生互动状态
+  const [selectedQuestion, setSelectedQuestion] = useState<StudentQuestion | null>(null);
+  const [showQuestionDetail, setShowQuestionDetail] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
 
-  // 初始化加载数据
+  // 模拟数据
+  const [todayClasses] = useState<TodayClass[]>([
+    { id: 'c1', title: '项目管理基础', time: '09:00', duration: '45分钟', classroom: 'A101', studentCount: 32, status: 'completed' },
+    { id: 'c2', title: '敏捷开发实践', time: '14:00', duration: '45分钟', classroom: 'B203', studentCount: 28, status: 'ongoing' },
+    { id: 'c3', title: '风险管理专题', time: '16:00', duration: '45分钟', classroom: 'A105', studentCount: 30, status: 'upcoming' },
+  ]);
+
+  const [todos] = useState<TodoItem[]>([
+    { id: 't1', type: 'homework', title: '待批改作业', count: 12, urgent: true },
+    { id: 't2', type: 'question', title: '学生提问', count: 5 },
+    { id: 't3', type: 'notice', title: '课程通知', count: 3 },
+  ]);
+
+  const [myCourses] = useState<Course[]>([
+    { id: 'course1', title: '项目管理基础', category: 'Foundation', studentCount: 32, progress: 75, image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400', nextClass: '明天 09:00' },
+    { id: 'course2', title: '敏捷开发实践', category: 'Advanced', studentCount: 28, progress: 60, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400', nextClass: '今天 14:00' },
+    { id: 'course3', title: '风险管理专题', category: 'Implementation', studentCount: 30, progress: 45, image: 'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=400', nextClass: '今天 16:00' },
+    { id: 'course4', title: '项目沟通管理', category: 'Foundation', studentCount: 25, progress: 90, image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400', nextClass: '周三 10:00' },
+  ]);
+
+  const [assignments] = useState<Assignment[]>([
+    { id: 'a1', title: '项目计划书撰写', courseId: 'course1', courseName: '项目管理基础', deadline: '2026-02-16', submittedCount: 28, totalCount: 32, status: 'grading' },
+    { id: 'a2', title: '敏捷看板设计', courseId: 'course2', courseName: '敏捷开发实践', deadline: '2026-02-18', submittedCount: 15, totalCount: 28, status: 'pending' },
+    { id: 'a3', title: '风险评估报告', courseId: 'course3', courseName: '风险管理专题', deadline: '2026-02-15', submittedCount: 30, totalCount: 30, status: 'completed' },
+  ]);
+
+  const [submissions] = useState<StudentSubmission[]>([
+    { id: 's1', studentName: '张明', studentAvatar: 'https://i.pravatar.cc/150?u=1', submittedAt: '2026-02-14 20:30', content: '已完成项目计划书，包含WBS分解和甘特图。', attachments: ['项目计划书.pdf', '甘特图.xlsx'], status: 'submitted' },
+    { id: 's2', studentName: '李华', studentAvatar: 'https://i.pravatar.cc/150?u=2', submittedAt: '2026-02-14 19:15', content: '项目计划书已提交，请老师批阅。', attachments: ['计划书.docx'], score: 85, comment: '整体结构清晰，但风险评估部分需要补充。', status: 'graded' },
+    { id: 's3', studentName: '王芳', studentAvatar: 'https://i.pravatar.cc/150?u=3', submittedAt: '2026-02-14 21:00', content: '这是我的项目计划书，包含了详细的时间安排。', attachments: ['计划书.pdf'], status: 'submitted' },
+  ]);
+
+  const [questions] = useState<StudentQuestion[]>([
+    { id: 'q1', studentName: '陈小明', studentAvatar: 'https://i.pravatar.cc/150?u=4', courseName: '项目管理基础', content: '老师，WBS分解的最小单元应该到什么程度比较合适？', timestamp: '10分钟前', replies: 0, status: 'unanswered' },
+    { id: 'q2', studentName: '刘小红', studentAvatar: 'https://i.pravatar.cc/150?u=5', courseName: '敏捷开发实践', content: 'Scrum和Kanban的主要区别是什么？', timestamp: '30分钟前', replies: 2, status: 'answered' },
+    { id: 'q3', studentName: '赵小强', studentAvatar: 'https://i.pravatar.cc/150?u=6', courseName: '风险管理专题', content: '定性风险分析和定量风险分析分别在什么阶段进行？', timestamp: '1小时前', replies: 0, status: 'unanswered' },
+  ]);
+
+  const [attendanceList] = useState<AttendanceStudent[]>([
+    { id: 'st1', name: '张明', avatar: 'https://i.pravatar.cc/150?u=1', status: 'present', checkInTime: '13:58' },
+    { id: 'st2', name: '李华', avatar: 'https://i.pravatar.cc/150?u=2', status: 'present', checkInTime: '13:59' },
+    { id: 'st3', name: '王芳', avatar: 'https://i.pravatar.cc/150?u=3', status: 'late', checkInTime: '14:05' },
+    { id: 'st4', name: '陈小明', avatar: 'https://i.pravatar.cc/150?u=4', status: 'present', checkInTime: '13:57' },
+    { id: 'st5', name: '刘小红', avatar: 'https://i.pravatar.cc/150?u=5', status: 'absent' },
+  ]);
+
+  // 课堂计时器
   useEffect(() => {
-    fetchTeacherData();
-  }, [currentUser?.id]);
-
-  const fetchTeacherData = async () => {
-    setIsLoading(true);
-    try {
-      await Promise.all([
-        fetchCourses(),
-        fetchStudents(),
-        fetchAnalytics()
-      ]);
-    } catch (err) {
-      console.error('获取教师数据失败:', err);
-    } finally {
-      setIsLoading(false);
+    let interval: NodeJS.Timeout;
+    if (isClassActive) {
+      interval = setInterval(() => {
+        setClassTimer(prev => prev + 1);
+      }, 1000);
     }
+    return () => clearInterval(interval);
+  }, [isClassActive]);
+
+  // 格式化时间
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 获取课程列表（关联教师课程表和学生进度表）
-  const fetchCourses = async () => {
-    if (!currentUser?.id) return;
-    
-    try {
-      // 查询教师关联的课程及学生进度统计
-      const { data: courseData, error } = await supabase
-        .from('app_teacher_courses')
-        .select(`
-          course_id,
-          app_courses:course_id (
-            id,
-            title,
-            category,
-            status,
-            updated_at,
-            chapters
-          )
-        `)
-        .eq('teacher_id', currentUser.id);
-
-      if (error) throw error;
-
-      // 获取每个课程的学生统计
-      const coursesWithStats: TeacherCourse[] = await Promise.all(
-        (courseData || []).map(async (tc: any) => {
-          const course = tc.app_courses;
-          
-          // 查询学生注册数
-          const { count: studentCount } = await supabase
-            .from('app_course_enrollments')
-            .select('*', { count: 'exact', head: true })
-            .eq('course_id', course.id);
-
-          // 查询学生平均进度（从学生端共享的 app_user_progress 表）
-          const { data: progressData } = await supabase
-            .from('app_user_progress')
-            .select('progress')
-            .eq('course_id', course.id);
-
-          const avgProgress = progressData && progressData.length > 0
-            ? Math.round(progressData.reduce((sum, p) => sum + (p.progress || 0), 0) / progressData.length)
-            : 0;
-
-          // 查询完成率
-          const completedCount = progressData?.filter(p => (p.progress || 0) >= 100).length || 0;
-          const completionRate = progressData && progressData.length > 0
-            ? Math.round((completedCount / progressData.length) * 100)
-            : 0;
-
-          return {
-            id: course.id,
-            title: course.title,
-            category: course.category || 'Foundation',
-            studentCount: studentCount || 0,
-            avgProgress,
-            completionRate,
-            status: course.status?.toLowerCase() as 'published' | 'draft' | 'archived' || 'draft',
-            updatedAt: new Date(course.updated_at).toLocaleDateString('zh-CN'),
-            chapters: (course.chapters?.length || 0)
-          };
-        })
-      );
-
-      setCourses(coursesWithStats);
-    } catch (err) {
-      console.error('获取课程失败:', err);
-    }
+  // 开始上课
+  const startClass = (classId: string) => {
+    setActiveClassId(classId);
+    setIsClassActive(true);
+    setClassTimer(0);
+    setActiveTab('class');
   };
 
-  // 获取学生列表（从学生端共享表读取）
-  const fetchStudents = async () => {
-    if (!currentUser?.id) return;
-    
-    try {
-      // 获取教师的所有课程ID
-      const { data: teacherCourses } = await supabase
-        .from('app_teacher_courses')
-        .select('course_id')
-        .eq('teacher_id', currentUser.id);
-
-      const courseIds = (teacherCourses || []).map((tc: any) => tc.course_id);
-      if (courseIds.length === 0) {
-        setStudents([]);
-        return;
-      }
-
-      // 查询这些课程的学生注册信息
-      const { data: enrollments, error } = await supabase
-        .from('app_course_enrollments')
-        .select(`
-          student_id,
-          course_id,
-          status,
-          last_accessed_at,
-          app_users:student_id (
-            id,
-            name,
-            email,
-            avatar
-          )
-        `)
-        .in('course_id', courseIds)
-        .eq('status', 'active');
-
-      if (error) throw error;
-
-      // 获取学生进度数据（从学生端 app_user_progress 表）
-      const studentIds = [...new Set((enrollments || []).map((e: any) => e.student_id))];
-      
-      const { data: progressData } = await supabase
-        .from('app_user_progress')
-        .select('user_id, course_id, progress, last_accessed')
-        .in('user_id', studentIds)
-        .in('course_id', courseIds);
-
-      // 获取学习活动记录
-      const { data: activityData } = await supabase
-        .from('app_learning_activities')
-        .select('*')
-        .in('student_id', studentIds)
-        .in('course_id', courseIds)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      // 聚合学生数据
-      const studentMap = new Map<string, StudentProgress>();
-
-      (enrollments || []).forEach((enrollment: any) => {
-        const user = enrollment.app_users;
-        if (!studentMap.has(user.id)) {
-          // 计算该学生的平均进度
-          const studentProgresses = (progressData || []).filter(
-            (p: any) => p.user_id === user.id
-          );
-          const avgProgress = studentProgresses.length > 0
-            ? Math.round(studentProgresses.reduce((sum, p) => sum + (p.progress || 0), 0) / studentProgresses.length)
-            : 0;
-
-          // 获取最近活动
-          const recentActs: ActivityItem[] = (activityData || [])
-            .filter((a: any) => a.student_id === user.id)
-            .slice(0, 3)
-            .map((a: any): ActivityItem => ({
-              type: a.activity_type.includes('video') ? 'video' : 
-                    a.activity_type.includes('quiz') ? 'quiz' : 'completion',
-              content: `${a.activity_type}: ${a.chapter_id || ''}`,
-              timestamp: new Date(a.created_at).toLocaleString('zh-CN')
-            }));
-
-          // 判断状态
-          const lastAccessed = studentProgresses.length > 0
-            ? new Date(Math.max(...studentProgresses.map((p: any) => new Date(p.last_accessed).getTime())))
-            : null;
-          const daysSinceActive = lastAccessed 
-            ? Math.floor((Date.now() - lastAccessed.getTime()) / (1000 * 60 * 60 * 24))
-            : 999;
-
-          studentMap.set(user.id, {
-            id: user.id,
-            name: user.name || '未命名',
-            email: user.email,
-            avatar: user.avatar,
-            enrolledCourses: studentProgresses.length,
-            avgProgress,
-            lastActive: lastAccessed?.toLocaleString('zh-CN') || '从未',
-            status: daysSinceActive > 7 ? 'at_risk' : daysSinceActive > 3 ? 'inactive' : 'active',
-            recentActivity: recentActs
-          });
-        }
-      });
-
-      setStudents(Array.from(studentMap.values()));
-    } catch (err) {
-      console.error('获取学生失败:', err);
-    }
+  // 结束上课
+  const endClass = () => {
+    setIsClassActive(false);
+    setActiveClassId(null);
+    setClassTimer(0);
+    setIsScreenSharing(false);
   };
 
-  // 获取统计数据
-  const fetchAnalytics = async () => {
-    const mockAnalytics: AnalyticsData = {
-      totalStudents: 214,
-      activeStudents: 186,
-      totalCourses: 3,
-      avgCompletionRate: 52,
-      totalStudyHours: 15840,
-      recentEnrollments: 28,
-      trendData: [
-        { date: '02/08', students: 180, hours: 120, completions: 15 },
-        { date: '02/09', students: 182, hours: 145, completions: 18 },
-        { date: '02/10', students: 185, hours: 138, completions: 12 },
-        { date: '02/11', students: 188, hours: 152, completions: 22 },
-        { date: '02/12', students: 192, hours: 168, completions: 25 },
-        { date: '02/13', students: 196, hours: 175, completions: 28 },
-        { date: '02/14', students: 214, hours: 198, completions: 32 }
-      ]
-    };
-    setAnalytics(mockAnalytics);
+  // 获取问候语
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return '早上好';
+    if (hour < 14) return '中午好';
+    if (hour < 18) return '下午好';
+    return '晚上好';
   };
 
-  // 打开课程编辑器
-  const openCourseEditor = (course: TeacherCourse) => {
-    setSelectedCourse(course);
-    // 加载章节数据
-    const mockChapters: Chapter[] = [
-      { id: 'ch-1', title: '第一章：项目管理概述', duration: '15:00', type: 'video', order: 1, isPublished: true },
-      { id: 'ch-2', title: '第二章：五大过程组', duration: '20:00', type: 'video', order: 2, isPublished: true },
-      { id: 'ch-3', title: '第三章：敏捷宣言', duration: '18:00', type: 'video', order: 3, isPublished: true },
-      { id: 'ch-4', title: '第四章：Scrum框架', duration: '25:00', type: 'video', order: 4, isPublished: false },
-      { id: 'ch-5', title: '第五章：测验', duration: '30:00', type: 'quiz', order: 5, isPublished: false }
+  // ==================== 底部导航 ====================
+  const renderBottomNav = () => {
+    const navItems = [
+      { id: 'home', icon: Home, label: '首页' },
+      { id: 'courses', icon: BookOpen, label: '课程' },
+      { id: 'class', icon: Video, label: '上课', highlight: true },
+      { id: 'assignments', icon: ClipboardList, label: '作业' },
+      { id: 'profile', icon: User, label: '我的' },
     ];
-    setChapters(mockChapters);
-    setShowCourseEditor(true);
-  };
-
-  // 渲染侧边导航
-  const renderSidebar = () => (
-    <div className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-            <GraduationCap className="text-white" size={24} />
-          </div>
-          <div>
-            <h1 className="font-bold text-gray-900">教师端</h1>
-            <p className="text-xs text-gray-500">Teacher Portal</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 导航菜单 */}
-      <nav className="flex-1 p-4 space-y-1">
-        {[
-          { id: 'overview', label: '概览', icon: LayoutDashboard },
-          { id: 'courses', label: '内容管理', icon: BookOpen },
-          { id: 'students', label: '学生进度', icon: Users },
-          { id: 'analytics', label: '数据分析', icon: BarChart3 }
-        ].map(item => (
-          <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id as any)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
-              activeTab === item.id
-                ? 'bg-blue-50 text-blue-600 font-medium'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <item.icon size={20} />
-            {item.label}
-            {activeTab === item.id && <ChevronRight size={16} className="ml-auto" />}
-          </button>
-        ))}
-      </nav>
-
-      {/* 底部信息 */}
-      <div className="p-4 border-t border-gray-100">
-        <div className="flex items-center gap-3 mb-4">
-          <img
-            src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'}
-            alt="Avatar"
-            className="w-10 h-10 rounded-full"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 truncate">{currentUser?.name || '教师'}</p>
-            <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
-          </div>
-        </div>
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
-        >
-          <LogOut size={16} />
-          退出登录
-        </button>
-      </div>
-    </div>
-  );
-
-  // 渲染概览页
-  const renderOverview = () => (
-    <div className="space-y-6">
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Users className="text-blue-600" size={24} />
-            </div>
-            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-              +{analytics?.recentEnrollments || 0}
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{analytics?.totalStudents || 0}</p>
-          <p className="text-sm text-gray-500">总学生数</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <BookOpen className="text-green-600" size={24} />
-            </div>
-            <span className="text-xs text-gray-500">
-              {analytics?.totalCourses || 0} 门课程
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{analytics?.avgCompletionRate || 0}%</p>
-          <p className="text-sm text-gray-500">平均完成率</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-              <Clock className="text-amber-600" size={24} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{Math.round((analytics?.totalStudyHours || 0) / 1000)}k</p>
-          <p className="text-sm text-gray-500">总学习时长(小时)</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-              <TrendingUp className="text-purple-600" size={24} />
-            </div>
-            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-              +12%
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{analytics?.activeStudents || 0}</p>
-          <p className="text-sm text-gray-500">活跃学生</p>
-        </div>
-      </div>
-
-      {/* 趋势图表 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">学习趋势</h3>
-          <div className="h-64 flex items-end gap-2">
-            {analytics?.trendData.map((point, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-blue-500 rounded-t-lg transition-all hover:bg-blue-600"
-                  style={{ height: `${(point.hours / 200) * 100}%` }}
-                  title={`${point.date}: ${point.hours}小时`}
-                />
-                <span className="text-xs text-gray-500">{point.date}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">课程完成数趋势</h3>
-          <div className="h-64 flex items-end gap-2">
-            {analytics?.trendData.map((point, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-green-500 rounded-t-lg transition-all hover:bg-green-600"
-                  style={{ height: `${(point.completions / 40) * 100}%` }}
-                  title={`${point.date}: ${point.completions}人完成`}
-                />
-                <span className="text-xs text-gray-500">{point.date}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 最近活跃学生 */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900">最近活跃学生</h3>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {students.slice(0, 5).map(student => (
-            <div key={student.id} className="p-4 flex items-center gap-4 hover:bg-gray-50">
-              <img src={student.avatar || `https://i.pravatar.cc/150?u=${student.id}`} alt="" className="w-10 h-10 rounded-full" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{student.name}</p>
-                <p className="text-sm text-gray-500">{student.recentActivity[0]?.content || '暂无活动'}</p>
-              </div>
-              <span className="text-xs text-gray-400">{student.recentActivity[0]?.timestamp}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  // 渲染内容管理页
-  const renderCourses = () => (
-    <div className="space-y-6">
-      {/* 操作栏 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="搜索课程..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <select className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>全部状态</option>
-            <option>已发布</option>
-            <option>草稿</option>
-            <option>已归档</option>
-          </select>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
-          <Plus size={20} />
-          新建课程
-        </button>
-      </div>
-
-      {/* 课程列表 */}
-      <div className="grid grid-cols-1 gap-4">
-        {courses.map(course => (
-          <div key={course.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-start gap-6">
-              {/* 课程封面 */}
-              <div className="w-32 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <BookOpen className="text-white" size={32} />
-              </div>
-
-              {/* 课程信息 */}
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{course.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {course.category} · {course.chapters} 个章节 · 最后更新 {course.updatedAt}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    course.status === 'published' ? 'bg-green-100 text-green-700' :
-                    course.status === 'draft' ? 'bg-amber-100 text-amber-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {course.status === 'published' ? '已发布' : course.status === 'draft' ? '草稿' : '已归档'}
-                  </span>
-                </div>
-
-                {/* 统计数据 */}
-                <div className="flex items-center gap-8 mt-4">
-                  <div className="flex items-center gap-2">
-                    <Users size={16} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">{course.studentCount} 名学生</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp size={16} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">平均进度 {course.avgProgress}%</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={16} className="text-gray-400" />
-                    <span className="text-sm text-gray-600">完成率 {course.completionRate}%</span>
-                  </div>
-                </div>
-
-                {/* 进度条 */}
-                <div className="mt-4">
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full"
-                      style={{ width: `${course.avgProgress}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 操作按钮 */}
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => openCourseEditor(course)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="编辑"
-                >
-                  <Edit2 size={18} />
-                </button>
-                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="查看">
-                  <Eye size={18} />
-                </button>
-                <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="删除">
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // 渲染课程编辑器
-  const renderCourseEditor = () => {
-    if (!selectedCourse) return null;
 
     return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-          {/* 头部 */}
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">编辑课程</h2>
-              <p className="text-sm text-gray-500">{selectedCourse.title}</p>
-            </div>
-            <button
-              onClick={() => setShowCourseEditor(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <ChevronLeft size={20} />
-            </button>
-          </div>
-
-          {/* 内容区 */}
-          <div className="flex-1 overflow-auto p-6">
-            {/* 基本信息 */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">基本信息</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">课程标题</label>
-                  <input
-                    type="text"
-                    defaultValue={selectedCourse.title}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">分类</label>
-                  <select className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option>Foundation</option>
-                    <option>Advanced</option>
-                    <option>Implementation</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* 章节管理 */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">章节管理</h3>
-                <button className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                  <Plus size={18} />
-                  添加章节
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {chapters.map((chapter) => (
-                  <div key={chapter.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                    <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-sm font-medium text-gray-600">
-                      {chapter.order}
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        {chapter.type === 'video' && <PlayCircle size={18} className="text-blue-500" />}
-                        {chapter.type === 'article' && <FileText size={18} className="text-amber-500" />}
-                        {chapter.type === 'quiz' && <HelpCircle size={18} className="text-green-500" />}
-                        <span className="font-medium text-gray-900">{chapter.title}</span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span>{chapter.duration}</span>
-                        <span className={`px-2 py-0.5 rounded text-xs ${
-                          chapter.isPublished ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
-                        }`}>
-                          {chapter.isPublished ? '已发布' : '未发布'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 hover:bg-white rounded-lg transition-colors">
-                        <Edit2 size={16} className="text-gray-400" />
-                      </button>
-                      <button className="p-2 hover:bg-white rounded-lg transition-colors">
-                        <Trash2 size={16} className="text-red-400" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* 底部操作 */}
-          <div className="p-6 border-t border-gray-100 flex justify-end gap-3">
-            <button
-              onClick={() => setShowCourseEditor(false)}
-              className="px-6 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              取消
-            </button>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
-              保存更改
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 渲染学生进度页
-  const renderStudents = () => (
-    <div className="space-y-6">
-      {/* 筛选栏 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="搜索学生..."
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-xl w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <select className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option>全部状态</option>
-            <option>活跃</option>
-            <option>有风险</option>
-            <option>流失风险</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-            <Mail size={18} />
-            发送通知
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-            <Download size={18} />
-            导出数据
-          </button>
-        </div>
-      </div>
-
-      {/* 学生列表 */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">学生</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">课程数</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">平均进度</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">状态</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">最后活跃</th>
-              <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">操作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {students.map(student => (
-              <tr key={student.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <img src={student.avatar || `https://i.pravatar.cc/150?u=${student.id}`} alt="" className="w-10 h-10 rounded-full" />
-                    <div>
-                      <p className="font-medium text-gray-900">{student.name}</p>
-                      <p className="text-sm text-gray-500">{student.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">{student.enrolledCourses}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          student.avgProgress >= 80 ? 'bg-green-500' :
-                          student.avgProgress >= 50 ? 'bg-blue-500' : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${student.avgProgress}%` }}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600">{student.avgProgress}%</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    student.status === 'active' ? 'bg-green-100 text-green-700' :
-                    student.status === 'at_risk' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {student.status === 'active' ? '活跃' : student.status === 'at_risk' ? '有风险' : '不活跃'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">{student.lastActive}</td>
-                <td className="px-6 py-4">
-                  <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    查看详情
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  // 渲染数据分析页
-  const renderAnalytics = () => (
-    <div className="space-y-6">
-      {/* 时间筛选 */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">学习数据分析</h2>
-        <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-gray-200">
-          {['近7天', '近30天', '本学期', '全部'].map((period, i) => (
-            <button
-              key={period}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                i === 0 ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {period}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 详细图表 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">学生参与度分析</h3>
-          <div className="space-y-4">
-            {[
-              { label: '视频观看完成率', value: 78, color: 'bg-blue-500' },
-              { label: '测验参与率', value: 65, color: 'bg-green-500' },
-              { label: '作业提交率', value: 52, color: 'bg-amber-500' },
-              { label: '讨论区活跃度', value: 34, color: 'bg-purple-500' }
-            ].map(item => (
-              <div key={item.label}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-600">{item.label}</span>
-                  <span className="font-medium text-gray-900">{item.value}%</span>
-                </div>
-                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.value}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">课程难度分布</h3>
-          <div className="flex items-center justify-center h-48">
-            <div className="relative w-40 h-40">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="80" cy="80" r="60" fill="none" stroke="#e5e7eb" strokeWidth="20" />
-                <circle cx="80" cy="80" r="60" fill="none" stroke="#3b82f6" strokeWidth="20"
-                  strokeDasharray={`${0.4 * 377} ${377}`} strokeLinecap="round" />
-                <circle cx="80" cy="80" r="60" fill="none" stroke="#10b981" strokeWidth="20"
-                  strokeDasharray={`${0.35 * 377} ${377}`} strokeDashoffset={-0.4 * 377} strokeLinecap="round" />
-                <circle cx="80" cy="80" r="60" fill="none" stroke="#f59e0b" strokeWidth="20"
-                  strokeDasharray={`${0.25 * 377} ${377}`} strokeDashoffset={-0.75 * 377} strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold text-gray-900">3</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-center gap-6 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full" />
-              <span className="text-sm text-gray-600">基础 (40%)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full" />
-              <span className="text-sm text-gray-600">进阶 (35%)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-amber-500 rounded-full" />
-              <span className="text-sm text-gray-600">实战 (25%)</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 学习时长热力图 */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">学习时长热力图</h3>
-        <div className="grid grid-cols-7 gap-2">
-          {['周一', '周二', '周三', '周四', '周五', '周六', '周日'].map(day => (
-            <div key={day} className="text-center text-sm text-gray-500">{day}</div>
-          ))}
-          {Array.from({ length: 28 }).map((_, i) => {
-            const intensity = Math.random();
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-between items-center h-16 max-w-lg mx-auto">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
             return (
-              <div
-                key={i}
-                className="aspect-square rounded-lg"
-                style={{
-                  backgroundColor: intensity > 0.7 ? '#3b82f6' :
-                    intensity > 0.4 ? '#60a5fa' :
-                    intensity > 0.1 ? '#bfdbfe' : '#f3f4f6'
-                }}
-                title={`${Math.round(intensity * 8)} 小时`}
-              />
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as TeacherTab)}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${
+                  item.highlight ? '-mt-4' : ''
+                }`}
+              >
+                {item.highlight ? (
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
+                    isActive ? 'bg-blue-600 shadow-blue-500/30' : 'bg-gray-100'
+                  }`}>
+                    <Icon size={28} className={isActive ? 'text-white' : 'text-gray-500'} />
+                  </div>
+                ) : (
+                  <div className={`p-2 rounded-xl transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+                    <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                  </div>
+                )}
+                <span className={`text-[10px] font-medium transition-colors ${
+                  item.highlight ? 'text-gray-600' : isActive ? 'text-blue-600' : 'text-gray-400'
+                }`}>
+                  {item.label}
+                </span>
+              </button>
             );
           })}
         </div>
+        <div className="h-2 w-full"></div>
+      </div>
+    );
+  };
+
+  // ==================== 首页 ====================
+  const renderHome = () => (
+    <div className="space-y-6 pb-24">
+      {/* 头部问候 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-500 text-sm">{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}，{currentUser?.name || '老师'}</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="relative p-2 bg-white rounded-xl shadow-sm border border-gray-100">
+            <Bell size={20} className="text-gray-600" />
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+          </button>
+          <img 
+            src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
+            alt="Avatar" 
+            className="w-10 h-10 rounded-xl object-cover"
+          />
+        </div>
+      </div>
+
+      {/* 今日课程时间表 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Calendar size={20} className="text-blue-500" />
+            今日课程
+          </h3>
+          <button className="text-sm text-blue-600 font-medium">查看全部</button>
+        </div>
+        <div className="space-y-3">
+          {todayClasses.map((cls) => (
+            <div 
+              key={cls.id} 
+              className={`flex items-center gap-4 p-4 rounded-2xl transition-colors ${
+                cls.status === 'ongoing' ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'
+              }`}
+            >
+              <div className={`text-center min-w-[60px] ${cls.status === 'ongoing' ? 'text-blue-600' : 'text-gray-500'}`}>
+                <div className="text-lg font-bold">{cls.time}</div>
+                <div className="text-xs">{cls.duration}</div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 truncate">{cls.title}</h4>
+                <p className="text-sm text-gray-500">{cls.classroom} · {cls.studentCount}人</p>
+              </div>
+              {cls.status === 'ongoing' ? (
+                <button 
+                  onClick={() => startClass(cls.id)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center gap-1"
+                >
+                  <Play size={14} fill="currentColor" /> 进入
+                </button>
+              ) : cls.status === 'completed' ? (
+                <span className="text-xs text-gray-400">已完成</span>
+              ) : (
+                <span className="text-xs text-gray-400">待开始</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 待办事项 */}
+      <div className="grid grid-cols-3 gap-3">
+        {todos.map((todo) => (
+          <button 
+            key={todo.id} 
+            onClick={() => {
+              if (todo.type === 'homework') setActiveTab('assignments');
+            }}
+            className={`p-4 rounded-2xl text-left transition-all active:scale-95 ${
+              todo.urgent ? 'bg-red-50 border border-red-100' : 'bg-white border border-gray-100 shadow-sm'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+              todo.type === 'homework' ? 'bg-orange-100 text-orange-600' :
+              todo.type === 'question' ? 'bg-blue-100 text-blue-600' :
+              'bg-purple-100 text-purple-600'
+            }`}>
+              {todo.type === 'homework' ? <ClipboardList size={20} /> :
+               todo.type === 'question' ? <MessageCircle size={20} /> :
+               <Bell size={20} />}
+            </div>
+            <p className={`text-2xl font-bold ${todo.urgent ? 'text-red-600' : 'text-gray-900'}`}>{todo.count}</p>
+            <p className="text-xs text-gray-500 mt-1">{todo.title}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* 快速操作 */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white">
+        <h3 className="text-lg font-bold mb-2">快速开始</h3>
+        <p className="text-blue-100 text-sm mb-4">准备好开始今天的教学了吗？</p>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setActiveTab('class')}
+            className="flex-1 py-3 bg-white text-blue-600 rounded-xl font-medium flex items-center justify-center gap-2"
+          >
+            <Video size={18} /> 开始上课
+          </button>
+          <button 
+            onClick={() => setActiveTab('assignments')}
+            className="flex-1 py-3 bg-blue-400/50 text-white rounded-xl font-medium flex items-center justify-center gap-2"
+          >
+            <ClipboardList size={18} /> 布置作业
+          </button>
+        </div>
+      </div>
+
+      {/* 最近学生提问 */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">学生提问</h3>
+          <button 
+            onClick={() => setActiveTab('courses')}
+            className="text-sm text-blue-600 font-medium flex items-center gap-1"
+          >
+            查看全部 <ChevronRight size={16} />
+          </button>
+        </div>
+        <div className="space-y-3">
+          {questions.slice(0, 3).map((q) => (
+            <div 
+              key={q.id} 
+              onClick={() => { setSelectedQuestion(q); setShowQuestionDetail(true); }}
+              className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors"
+            >
+              <img src={q.studentAvatar} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 text-sm">{q.studentName}</span>
+                  <span className="text-xs text-gray-400">{q.timestamp}</span>
+                  {q.status === 'unanswered' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
+                </div>
+                <p className="text-sm text-gray-600 truncate">{q.content}</p>
+                <p className="text-xs text-gray-400 mt-1">{q.courseName}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-blue-600" />
+  // ==================== 我的课程 ====================
+  const renderCourses = () => (
+    <div className="space-y-6 pb-24">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">我的课程</h1>
+        <button className="p-2 bg-white rounded-xl shadow-sm border border-gray-100">
+          <Filter size={20} className="text-gray-600" />
+        </button>
       </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {renderSidebar()}
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="max-w-6xl mx-auto">
-          {/* 页面标题 */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {activeTab === 'overview' && '概览'}
-              {activeTab === 'courses' && '内容管理'}
-              {activeTab === 'students' && '学生进度'}
-              {activeTab === 'analytics' && '数据分析'}
-            </h1>
-            <p className="text-gray-500 mt-1">
-              {activeTab === 'overview' && '查看教学数据概览'}
-              {activeTab === 'courses' && '管理课程内容与章节'}
-              {activeTab === 'students' && '追踪学生学习进度'}
-              {activeTab === 'analytics' && '深度分析学习数据'}
-            </p>
+      {/* 课程统计 */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+          <p className="text-2xl font-bold text-blue-600">{myCourses.length}</p>
+          <p className="text-xs text-gray-500 mt-1">授课中</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+          <p className="text-2xl font-bold text-green-600">{myCourses.reduce((sum, c) => sum + c.studentCount, 0)}</p>
+          <p className="text-xs text-gray-500 mt-1">学生数</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+          <p className="text-2xl font-bold text-purple-600">12</p>
+          <p className="text-xs text-gray-500 mt-1">课时/周</p>
+        </div>
+      </div>
+
+      {/* 课程列表 */}
+      <div className="space-y-4">
+        {myCourses.map((course) => (
+          <div key={course.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+            <div className="relative h-32">
+              <img src={course.image} alt={course.title} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div className="absolute bottom-4 left-4 right-4">
+                <span className="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs text-white">
+                  {course.category}
+                </span>
+                <h3 className="text-white font-bold mt-1">{course.title}</h3>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Users size={16} />
+                  <span>{course.studentCount} 名学生</span>
+                </div>
+                <span className="text-sm text-blue-600 font-medium">{course.nextClass}</span>
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${course.progress}%` }} />
+                </div>
+                <span className="text-xs text-gray-500 w-10 text-right">{course.progress}%</span>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => startClass(course.id)}
+                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  <Play size={16} fill="currentColor" /> 开始上课
+                </button>
+                <button className="px-4 py-2.5 bg-gray-100 rounded-xl text-gray-600">
+                  <MoreHorizontal size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ==================== 上课模块 ====================
+  const renderClass = () => {
+    if (!isClassActive) {
+      return (
+        <div className="space-y-6 pb-24">
+          <h1 className="text-2xl font-bold text-gray-900">开始上课</h1>
+          
+          {/* 待开始课程 */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">今日待上课程</h3>
+            <div className="space-y-3">
+              {todayClasses.filter(c => c.status !== 'completed').map((cls) => (
+                <div key={cls.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
+                  <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center">
+                    <BookOpen size={28} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{cls.title}</h4>
+                    <p className="text-sm text-gray-500">{cls.time} · {cls.classroom}</p>
+                  </div>
+                  <button 
+                    onClick={() => startClass(cls.id)}
+                    className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium flex items-center gap-2"
+                  >
+                    <Play size={16} fill="currentColor" /> 开始
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* 页面内容 */}
-          {activeTab === 'overview' && renderOverview()}
-          {activeTab === 'courses' && renderCourses()}
-          {activeTab === 'students' && renderStudents()}
-          {activeTab === 'analytics' && renderAnalytics()}
+          {/* 快捷入口 */}
+          <div className="grid grid-cols-2 gap-4">
+            <button className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 text-center">
+              <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Clock size={28} className="text-purple-600" />
+              </div>
+              <h4 className="font-medium text-gray-900">课程回放</h4>
+              <p className="text-xs text-gray-500 mt-1">查看历史课程录像</p>
+            </button>
+            <button className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 text-center">
+              <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <FileText size={28} className="text-green-600" />
+              </div>
+              <h4 className="font-medium text-gray-900">课件管理</h4>
+              <p className="text-xs text-gray-500 mt-1">上传和管理课件</p>
+            </button>
+          </div>
         </div>
-      </main>
+      );
+    }
 
-      {/* 课程编辑器弹窗 */}
-      {showCourseEditor && renderCourseEditor()}
+    // 课堂进行中界面
+    const activeCourse = myCourses.find(c => c.id === activeClassId);
+    const presentCount = attendanceList.filter(s => s.status === 'present').length;
+    const lateCount = attendanceList.filter(s => s.status === 'late').length;
+    const absentCount = attendanceList.filter(s => s.status === 'absent').length;
+
+    return (
+      <div className="space-y-4 pb-24">
+        {/* 课堂头部 */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-6 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold">{activeCourse?.title || '课堂进行中'}</h2>
+              <p className="text-blue-100 text-sm flex items-center gap-2 mt-1">
+                <Clock size={14} /> 已进行 {formatTime(classTimer)}
+              </p>
+            </div>
+            <button 
+              onClick={endClass}
+              className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium flex items-center gap-2"
+            >
+              <Square size={14} fill="currentColor" /> 结束
+            </button>
+          </div>
+          
+          {/* 快捷工具 */}
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setIsScreenSharing(!isScreenSharing)}
+              className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors ${
+                isScreenSharing ? 'bg-white text-blue-600' : 'bg-white/20 text-white'
+              }`}
+            >
+              <Monitor size={18} /> {isScreenSharing ? '停止共享' : '屏幕共享'}
+            </button>
+            <button className="flex-1 py-3 bg-white/20 rounded-xl font-medium flex items-center justify-center gap-2 text-white">
+              <Users size={18} /> 邀请学生
+            </button>
+          </div>
+        </div>
+
+        {/* 白板区域（简化版） */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <PenLine size={18} className="text-blue-500" /> 课堂白板
+            </h3>
+            <div className="flex gap-2">
+              <button className="p-2 bg-gray-100 rounded-lg text-gray-600"><PenLine size={16} /></button>
+              <button className="p-2 bg-gray-100 rounded-lg text-gray-600"><Trash2 size={16} /></button>
+            </div>
+          </div>
+          <div className="h-48 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center">
+            <div className="text-center text-gray-400">
+              <PenLine size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm">点击开始书写板书</p>
+              <p className="text-xs mt-1">支持手写、插入图片、添加文字</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 学生签到 */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <Users size={18} className="text-green-500" /> 学生签到
+            </h3>
+            <div className="flex gap-3 text-sm">
+              <span className="text-green-600">出勤 {presentCount}</span>
+              <span className="text-yellow-600">迟到 {lateCount}</span>
+              <span className="text-red-600">缺勤 {absentCount}</span>
+            </div>
+          </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {attendanceList.map((student) => (
+              <div key={student.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50">
+                <img src={student.avatar} alt="" className="w-10 h-10 rounded-full" />
+                <span className="flex-1 font-medium text-gray-900">{student.name}</span>
+                <span className={`text-xs px-2 py-1 rounded-lg ${
+                  student.status === 'present' ? 'bg-green-100 text-green-700' :
+                  student.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'
+                }`}>
+                  {student.status === 'present' ? '已签到' : student.status === 'late' ? '迟到' : '缺勤'}
+                </span>
+                {student.checkInTime && <span className="text-xs text-gray-400">{student.checkInTime}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 互动工具 */}
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { icon: MessageCircle, label: '提问', color: 'bg-blue-100 text-blue-600' },
+            { icon: CheckCircle2, label: '投票', color: 'bg-green-100 text-green-600' },
+            { icon: ClipboardList, label: '随堂测', color: 'bg-purple-100 text-purple-600' },
+            { icon: MoreHorizontal, label: '更多', color: 'bg-gray-100 text-gray-600' },
+          ].map((tool, idx) => (
+            <button key={idx} className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tool.color}`}>
+                <tool.icon size={20} />
+              </div>
+              <span className="text-xs text-gray-600">{tool.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== 作业管理 ====================
+  const renderAssignments = () => {
+    if (showCreateAssignment) {
+      return (
+        <div className="space-y-6 pb-24">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowCreateAssignment(false)}
+              className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
+            >
+              <ArrowLeft size={20} className="text-gray-600" />
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">布置作业</h1>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">作业标题</label>
+              <input 
+                type="text" 
+                placeholder="请输入作业标题"
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">所属课程</label>
+              <select className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500">
+                <option>项目管理基础</option>
+                <option>敏捷开发实践</option>
+                <option>风险管理专题</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">作业内容</label>
+              <textarea 
+                rows={4}
+                placeholder="请输入作业要求和内容..."
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">截止日期</label>
+              <input 
+                type="datetime-local" 
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">附件</label>
+              <button className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 flex flex-col items-center gap-2">
+                <Plus size={24} />
+                <span className="text-sm">点击上传附件</span>
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowCreateAssignment(false)}
+              className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium"
+            >
+              发布作业
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (showAssignmentDetail && selectedAssignment) {
+      return (
+        <div className="space-y-6 pb-24">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowAssignmentDetail(false)}
+              className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
+            >
+              <ArrowLeft size={20} className="text-gray-600" />
+            </button>
+            <div className="flex-1">
+              <h1 className="text-lg font-bold text-gray-900 truncate">{selectedAssignment.title}</h1>
+              <p className="text-xs text-gray-500">{selectedAssignment.courseName}</p>
+            </div>
+          </div>
+
+          {/* 提交统计 */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-3xl font-bold text-gray-900">{selectedAssignment.submittedCount}/{selectedAssignment.totalCount}</p>
+                <p className="text-sm text-gray-500">已提交/总人数</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-blue-600">
+                  {Math.round((selectedAssignment.submittedCount / selectedAssignment.totalCount) * 100)}%
+                </p>
+                <p className="text-sm text-gray-500">提交率</p>
+              </div>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 rounded-full" 
+                style={{ width: `${(selectedAssignment.submittedCount / selectedAssignment.totalCount) * 100}%` }} 
+              />
+            </div>
+          </div>
+
+          {/* 学生提交列表 */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-gray-900 mb-4">学生提交</h3>
+            <div className="space-y-3">
+              {submissions.map((sub) => (
+                <div 
+                  key={sub.id} 
+                  onClick={() => setGradingStudent(sub)}
+                  className="p-4 bg-gray-50 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <img src={sub.studentAvatar} alt="" className="w-10 h-10 rounded-full" />
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{sub.studentName}</h4>
+                      <p className="text-xs text-gray-500">{sub.submittedAt}</p>
+                    </div>
+                    {sub.status === 'graded' ? (
+                      <div className="flex items-center gap-1 text-yellow-500">
+                        <Star size={16} fill="currentColor" />
+                        <span className="font-bold">{sub.score}</span>
+                      </div>
+                    ) : (
+                      <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-lg">待批改</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 line-clamp-2">{sub.content}</p>
+                  {sub.attachments.length > 0 && (
+                    <div className="flex gap-2 mt-3">
+                      {sub.attachments.map((att, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-white rounded-lg text-xs text-gray-500 flex items-center gap-1">
+                          <FileText size={12} /> {att}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 评分弹窗
+    if (gradingStudent) {
+      return (
+        <div className="space-y-6 pb-24">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setGradingStudent(null)}
+              className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
+            >
+              <ArrowLeft size={20} className="text-gray-600" />
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">批改作业</h1>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+            <div className="flex items-center gap-3">
+              <img src={gradingStudent.studentAvatar} alt="" className="w-12 h-12 rounded-full" />
+              <div>
+                <h3 className="font-bold text-gray-900">{gradingStudent.studentName}</h3>
+                <p className="text-sm text-gray-500">{gradingStudent.submittedAt}</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-2xl">
+              <p className="text-gray-700">{gradingStudent.content}</p>
+              {gradingStudent.attachments.length > 0 && (
+                <div className="flex gap-2 mt-3">
+                  {gradingStudent.attachments.map((att, idx) => (
+                    <button key={idx} className="px-3 py-2 bg-white rounded-xl text-sm text-gray-600 flex items-center gap-2">
+                      <FileText size={14} /> {att}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">评分</label>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="100"
+                  defaultValue={gradingStudent.score || ''}
+                  placeholder="0-100"
+                  className="w-24 px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 text-center text-2xl font-bold"
+                />
+                <span className="text-gray-500">分</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">评语</label>
+              <textarea 
+                rows={3}
+                defaultValue={gradingStudent.comment || ''}
+                placeholder="请输入评语..."
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+
+            <button 
+              onClick={() => setGradingStudent(null)}
+              className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium"
+            >
+              提交批改
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">作业管理</h1>
+          <button 
+            onClick={() => setShowCreateAssignment(true)}
+            className="p-2 bg-blue-600 rounded-xl text-white"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
+
+        {/* 作业状态筛选 */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {['全部', '批改中', '待开始', '已完成'].map((filter, idx) => (
+            <button 
+              key={filter}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
+                idx === 0 ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+
+        {/* 作业列表 */}
+        <div className="space-y-4">
+          {assignments.map((assignment) => (
+            <div 
+              key={assignment.id} 
+              onClick={() => { setSelectedAssignment(assignment); setShowAssignmentDetail(true); }}
+              className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="font-bold text-gray-900">{assignment.title}</h3>
+                  <p className="text-sm text-gray-500">{assignment.courseName}</p>
+                </div>
+                <span className={`px-2 py-1 rounded-lg text-xs ${
+                  assignment.status === 'grading' ? 'bg-orange-100 text-orange-600' :
+                  assignment.status === 'pending' ? 'bg-blue-100 text-blue-600' :
+                  'bg-green-100 text-green-600'
+                }`}>
+                  {assignment.status === 'grading' ? '批改中' : assignment.status === 'pending' ? '进行中' : '已完成'}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                <span className="flex items-center gap-1">
+                  <Clock size={14} /> 截止 {assignment.deadline}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users size={14} /> {assignment.submittedCount}/{assignment.totalCount} 提交
+                </span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full ${
+                    assignment.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${(assignment.submittedCount / assignment.totalCount) * 100}%` }} 
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== 个人中心 ====================
+  const renderProfile = () => (
+    <div className="space-y-6 pb-24">
+      {/* 用户信息卡片 */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white">
+        <div className="flex items-center gap-4">
+          <img 
+            src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
+            alt="Avatar" 
+            className="w-20 h-20 rounded-2xl object-cover border-4 border-white/30"
+          />
+          <div>
+            <h2 className="text-xl font-bold">{currentUser?.name || '教师'}</h2>
+            <p className="text-blue-100 text-sm">{currentUser?.email}</p>
+            <div className="flex gap-2 mt-2">
+              <span className="px-2 py-1 bg-white/20 rounded-lg text-xs">高级教师</span>
+              <span className="px-2 py-1 bg-white/20 rounded-lg text-xs">5年教龄</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 教学统计 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-3xl font-bold text-gray-900">128</p>
+          <p className="text-sm text-gray-500">累计授课</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-3xl font-bold text-gray-900">4.9</p>
+          <p className="text-sm text-gray-500">学生评分</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-3xl font-bold text-gray-900">856</p>
+          <p className="text-sm text-gray-500">学生总数</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-3xl font-bold text-gray-900">92%</p>
+          <p className="text-sm text-gray-500">课程好评率</p>
+        </div>
+      </div>
+
+      {/* 功能菜单 */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        {[
+          { icon: BookOpen, label: '我的课程', value: '4门' },
+          { icon: FileText, label: '教学资源', value: '32个' },
+          { icon: Clock, label: '授课记录', value: '' },
+          { icon: Download, label: '资料下载', value: '' },
+          { icon: MessageCircle, label: '帮助与反馈', value: '' },
+        ].map((item, idx) => (
+          <button 
+            key={item.label}
+            className={`w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 ${
+              idx !== 4 ? 'border-b border-gray-100' : ''
+            }`}
+          >
+            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+              <item.icon size={20} className="text-gray-600" />
+            </div>
+            <span className="flex-1 text-left font-medium text-gray-900">{item.label}</span>
+            <span className="text-sm text-gray-400">{item.value}</span>
+            <ChevronRight size={16} className="text-gray-400" />
+          </button>
+        ))}
+      </div>
+
+      {/* 退出登录 */}
+      <button 
+        onClick={onLogout}
+        className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium"
+      >
+        退出登录
+      </button>
+    </div>
+  );
+
+  // ==================== 提问详情弹窗 ====================
+  const renderQuestionDetail = () => {
+    if (!showQuestionDetail || !selectedQuestion) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 bg-white">
+        <div className="h-full flex flex-col">
+          {/* 头部 */}
+          <div className="flex items-center gap-3 p-4 border-b border-gray-100">
+            <button 
+              onClick={() => setShowQuestionDetail(false)}
+              className="p-2 bg-gray-100 rounded-xl"
+            >
+              <ArrowLeft size={20} className="text-gray-600" />
+            </button>
+            <h1 className="text-lg font-bold text-gray-900">问题详情</h1>
+          </div>
+
+          {/* 问题内容 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <img src={selectedQuestion.studentAvatar} alt="" className="w-10 h-10 rounded-full" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">{selectedQuestion.studentName}</span>
+                  <span className="text-xs text-gray-400">{selectedQuestion.timestamp}</span>
+                </div>
+                <div className="mt-2 p-4 bg-gray-50 rounded-2xl rounded-tl-none">
+                  <p className="text-gray-700">{selectedQuestion.content}</p>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">{selectedQuestion.courseName}</p>
+              </div>
+            </div>
+
+            {/* 回复区域 */}
+            <div className="border-t border-gray-100 pt-4">
+              <h4 className="font-medium text-gray-900 mb-3">回复</h4>
+              <textarea 
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                rows={4}
+                placeholder="请输入您的回复..."
+                className="w-full px-4 py-3 bg-gray-50 rounded-2xl border-0 focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          </div>
+
+          {/* 底部按钮 */}
+          <div className="p-4 border-t border-gray-100">
+            <button 
+              onClick={() => {
+                setReplyContent('');
+                setShowQuestionDetail(false);
+              }}
+              className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2"
+            >
+              <Send size={18} /> 发送回复
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== 主渲染 ====================
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'home': return renderHome();
+      case 'courses': return renderCourses();
+      case 'class': return renderClass();
+      case 'assignments': return renderAssignments();
+      case 'profile': return renderProfile();
+      default: return renderHome();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-lg mx-auto min-h-screen bg-gray-50">
+        <div className="p-6">
+          {renderContent()}
+        </div>
+      </div>
+      {renderBottomNav()}
+      {renderQuestionDetail()}
     </div>
   );
 };
