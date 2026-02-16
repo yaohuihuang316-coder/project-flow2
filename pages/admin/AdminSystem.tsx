@@ -25,11 +25,26 @@ const AdminSystem = () => {
 
     // ========== ANNOUNCEMENTS ==========
     const fetchAnnouncements = async () => {
-        const { data } = await supabase
-            .from('app_announcements')
-            .select('*')
-            .order('created_at', { ascending: false });
-        setAnnouncements(data || []);
+        try {
+            console.log('AdminSystem: 开始获取公告列表...');
+            
+            const { data, error } = await supabase
+                .from('app_announcements')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (error) {
+                console.error('AdminSystem: 获取公告失败:', error);
+                throw error;
+            }
+            
+            console.log(`AdminSystem: 获取到 ${data?.length || 0} 条公告`);
+            setAnnouncements(data || []);
+        } catch (err: any) {
+            console.error('AdminSystem: 获取公告异常:', err);
+            alert('获取公告失败: ' + (err.message || '请检查RLS策略'));
+            setAnnouncements([]);
+        }
     };
 
     const handleCreateAnnouncement = async () => {

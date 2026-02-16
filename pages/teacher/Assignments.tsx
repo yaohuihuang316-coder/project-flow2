@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Home, BookOpen, Video, ClipboardList, User,
-  Users, ChevronLeft, Plus, FileText,
-  Star, MoreHorizontal, Search,
+  Users, Plus, FileText,
+  Star, Search,
   CheckCircle2, Trash2, Download,
-  CheckSquare, Square, Calendar
+  CheckSquare, Square, Calendar, X,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 
@@ -53,39 +54,620 @@ interface Course {
   studentCount: number;
 }
 
-type AssignmentView = 'list' | 'create' | 'detail' | 'grade';
+// 表单类型
+interface AssignmentForm {
+  title: string;
+  courseId: string;
+  content: string;
+  deadline: string;
+  maxScore: number;
+}
+
+interface GradeForm {
+  score: number;
+  comment: string;
+}
+
 type AssignmentFilter = 'all' | 'grading' | 'pending' | 'completed';
 
-const Assignments: React.FC<AssignmentsProps> = ({
-  currentUser,
-  onNavigate,
-  onLogout: _onLogout
+// ==================== AssignmentCreateModal 组件 ====================
+interface AssignmentCreateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (form: AssignmentForm) => void;
+  courses: Course[];
+}
+
+const AssignmentCreateModal: React.FC<AssignmentCreateModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  courses
 }) => {
-  // 视图状态
-  const [currentView, setCurrentView] = useState<AssignmentView>('list');
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
-  const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
-  const [filter, setFilter] = useState<AssignmentFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // 批量操作状态
-  const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
-  const [showBatchAction, setShowBatchAction] = useState(false);
-  
-  // 表单状态
-  const [assignmentForm, setAssignmentForm] = useState({
+  const [form, setForm] = useState<AssignmentForm>({
     title: '',
     courseId: '',
     content: '',
     deadline: '',
     maxScore: 100
   });
-  
-  // 批改状态
-  const [gradeForm, setGradeForm] = useState({
-    score: 0,
-    comment: ''
-  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title || !form.courseId || !form.deadline) return;
+    onSubmit(form);
+    setForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
+  };
+
+  const handleClose = () => {
+    setForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        {/* 头部 */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">布置新作业</h2>
+          <button
+            onClick={handleClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* 表单内容 */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              作业标题 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="请输入作业标题"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              所属课程 <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={form.courseId}
+              onChange={(e) => setForm({ ...form, courseId: e.target.value })}
+              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
+            >
+              <option value="">请选择课程</option>
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>
+                  {course.title} ({course.studentCount}人)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              作业内容 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={5}
+              placeholder="请输入作业要求、内容说明、评分标准等..."
+              value={form.content}
+              onChange={(e) => setForm({ ...form, content: e.target.value })}
+              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                截止日期 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={form.deadline}
+                onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">满分分数</label>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={form.maxScore}
+                onChange={(e) => setForm({ ...form, maxScore: parseInt(e.target.value) || 100 })}
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">附件 (可选)</label>
+            <button className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 flex flex-col items-center gap-2 hover:border-blue-300 hover:bg-blue-50/50 transition-colors">
+              <Plus size={24} />
+              <span className="text-sm">点击上传附件或拖拽文件到此处</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 底部按钮 */}
+        <div className="p-5 border-t border-gray-100 space-y-3">
+          <button
+            onClick={handleSubmit}
+            disabled={!form.title || !form.courseId || !form.deadline}
+            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+          >
+            发布作业
+          </button>
+          <button
+            onClick={handleClose}
+            className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-medium active:scale-95 transition-all"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== GradeModal 组件 ====================
+interface GradeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (form: GradeForm) => void;
+  submission: StudentSubmission | null;
+  maxScore: number;
+}
+
+const GradeModal: React.FC<GradeModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  submission,
+  maxScore
+}) => {
+  const [form, setForm] = useState<GradeForm>({ score: 0, comment: '' });
+
+  // 当提交对象变化时，重置表单
+  React.useEffect(() => {
+    if (submission) {
+      setForm({
+        score: submission.score || 0,
+        comment: submission.comment || ''
+      });
+    }
+  }, [submission]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(form);
+  };
+
+  const quickScores = [60, 80, 90, 100];
+  const quickComments = ['完成得很好', '内容充实，分析深入', '需要补充更多细节', '继续努力', '优秀！'];
+
+  if (!isOpen || !submission) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        {/* 头部 */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">批改作业</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* 内容 */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* 学生信息 */}
+          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
+            <img src={submission.studentAvatar} alt="" className="w-12 h-12 rounded-full" />
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-900">{submission.studentName}</h3>
+              <p className="text-sm text-gray-500">提交时间: {submission.submittedAt}</p>
+              {submission.status === 'late' && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded">迟交</span>
+              )}
+            </div>
+          </div>
+
+          {/* 提交内容 */}
+          <div>
+            <h3 className="font-bold text-gray-900 mb-3">提交内容</h3>
+            <div className="p-4 bg-gray-50 rounded-2xl">
+              <p className="text-gray-700 whitespace-pre-line text-sm">{submission.content}</p>
+            </div>
+            {submission.attachments.length > 0 && (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {submission.attachments.map((att, idx) => (
+                  <button
+                    key={idx}
+                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm flex items-center gap-2 hover:bg-blue-100 transition-colors"
+                  >
+                    <FileText size={16} />
+                    {att}
+                    <Download size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 评分表单 */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                评分 (0-{maxScore})
+              </label>
+              <div className="flex items-center gap-3 flex-wrap">
+                <input
+                  type="number"
+                  min={0}
+                  max={maxScore}
+                  value={form.score}
+                  onChange={(e) => setForm({ ...form, score: parseInt(e.target.value) || 0 })}
+                  className="w-24 px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 text-center text-xl font-bold"
+                />
+                <span className="text-gray-500">分</span>
+                {/* 快速评分按钮 */}
+                <div className="flex gap-2 ml-auto">
+                  {quickScores.map(score => (
+                    <button
+                      key={score}
+                      onClick={() => setForm({ ...form, score })}
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                        form.score === score
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                      }`}
+                    >
+                      {score}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">评语</label>
+              <textarea
+                rows={3}
+                placeholder="请输入评语..."
+                value={form.comment}
+                onChange={(e) => setForm({ ...form, comment: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+              />
+              {/* 快捷评语 */}
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {quickComments.map(comment => (
+                  <button
+                    key={comment}
+                    onClick={() => setForm({ ...form, comment })}
+                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                      form.comment === comment
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                    }`}
+                  >
+                    {comment}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 底部按钮 */}
+        <div className="p-5 border-t border-gray-100 space-y-3">
+          <button
+            onClick={handleSubmit}
+            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all"
+          >
+            <CheckCircle2 size={18} />
+            提交批改
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-medium active:scale-95 transition-all"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== AssignmentDetailModal 组件 ====================
+interface AssignmentDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  assignment: Assignment | null;
+  submissions: StudentSubmission[];
+  onGrade: (submission: StudentSubmission) => void;
+  onBatchGrade: (submissionIds: string[], score: number) => void;
+  onExport: () => void;
+}
+
+const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
+  isOpen,
+  onClose,
+  assignment,
+  submissions,
+  onGrade,
+  onBatchGrade,
+  onExport
+}) => {
+  const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
+  const [showBatchAction, setShowBatchAction] = useState(false);
+
+  if (!isOpen || !assignment) return null;
+
+  const currentSubs = submissions.filter(s => s.assignmentId === assignment.id);
+  const gradedCount = currentSubs.filter(s => s.status === 'graded').length;
+  const avgScore = currentSubs.filter(s => s.score !== undefined).reduce((sum, s) => sum + (s.score || 0), 0) / gradedCount || 0;
+  const submitRate = Math.round((assignment.submittedCount / assignment.totalCount) * 100);
+
+  const toggleSubmissionSelection = (submissionId: string) => {
+    setSelectedSubmissions(prev =>
+      prev.includes(submissionId)
+        ? prev.filter(id => id !== submissionId)
+        : [...prev, submissionId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const ungradedSubs = currentSubs.filter(s => s.status !== 'graded');
+    if (selectedSubmissions.length === ungradedSubs.length) {
+      setSelectedSubmissions([]);
+    } else {
+      setSelectedSubmissions(ungradedSubs.map(s => s.id));
+    }
+  };
+
+  const handleBatchPass = () => {
+    onBatchGrade(selectedSubmissions, assignment.maxScore);
+    setSelectedSubmissions([]);
+    setShowBatchAction(false);
+  };
+
+  const handleBatchScore80 = () => {
+    onBatchGrade(selectedSubmissions, 80);
+    setSelectedSubmissions([]);
+    setShowBatchAction(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* 头部 */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="flex-1 min-w-0 mr-4">
+            <h2 className="text-lg font-bold text-gray-900 truncate">{assignment.title}</h2>
+            <p className="text-xs text-gray-500">{assignment.courseName}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onExport}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600"
+              title="导出成绩"
+            >
+              <FileSpreadsheet size={20} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <X size={20} className="text-gray-500" />
+            </button>
+          </div>
+        </div>
+
+        {/* 内容 */}
+        <div className="flex-1 overflow-y-auto">
+          {/* 统计卡片 */}
+          <div className="p-5 border-b border-gray-100">
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-3 bg-gray-50 rounded-2xl">
+                <p className="text-xl font-bold text-gray-900">{assignment.submittedCount}</p>
+                <p className="text-xs text-gray-500 mt-1">已提交</p>
+              </div>
+              <div className="text-center p-3 bg-blue-50 rounded-2xl">
+                <p className="text-xl font-bold text-blue-600">{gradedCount}</p>
+                <p className="text-xs text-gray-500 mt-1">已批改</p>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-2xl">
+                <p className="text-xl font-bold text-green-600">{avgScore > 0 ? avgScore.toFixed(1) : '-'}</p>
+                <p className="text-xs text-gray-500 mt-1">平均分</p>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-2xl">
+                <p className="text-xl font-bold text-purple-600">{submitRate}%</p>
+                <p className="text-xs text-gray-500 mt-1">提交率</p>
+              </div>
+            </div>
+
+            {/* 作业要求 */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
+              <h3 className="font-bold text-gray-900 mb-2 text-sm">作业要求</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-line line-clamp-3">{assignment.content}</p>
+              <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  <Calendar size={12} />
+                  截止: {assignment.deadline}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Star size={12} />
+                  满分: {assignment.maxScore}分
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 学生提交列表 */}
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-gray-900">学生提交 ({currentSubs.length})</h3>
+              {currentSubs.some(s => s.status !== 'graded') && (
+                <button
+                  onClick={() => setShowBatchAction(!showBatchAction)}
+                  className={`text-sm font-medium transition-colors ${
+                    showBatchAction ? 'text-red-500' : 'text-blue-600'
+                  }`}
+                >
+                  {showBatchAction ? '取消' : '批量操作'}
+                </button>
+              )}
+            </div>
+
+            {/* 批量操作栏 */}
+            {showBatchAction && selectedSubmissions.length > 0 && (
+              <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-xl">
+                <span className="text-sm text-gray-600">已选 {selectedSubmissions.length} 项</span>
+                <div className="ml-auto flex gap-2">
+                  <button
+                    onClick={handleBatchScore80}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg"
+                  >
+                    批量80分
+                  </button>
+                  <button
+                    onClick={handleBatchPass}
+                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg flex items-center gap-1"
+                  >
+                    <CheckCircle2 size={14} />
+                    满分通过
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 全选 */}
+            {showBatchAction && (
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+                <button
+                  onClick={toggleSelectAll}
+                  className="flex items-center gap-2 text-sm text-gray-600"
+                >
+                  {selectedSubmissions.length === currentSubs.filter(s => s.status !== 'graded').length ? (
+                    <CheckSquare size={18} className="text-blue-600" />
+                  ) : (
+                    <Square size={18} />
+                  )}
+                  全选未批改
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {currentSubs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <ClipboardList size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">暂无学生提交</p>
+                </div>
+              ) : (
+                currentSubs.map((sub) => (
+                  <div
+                    key={sub.id}
+                    onClick={() => {
+                      if (showBatchAction && sub.status !== 'graded') {
+                        toggleSubmissionSelection(sub.id);
+                      } else {
+                        onGrade(sub);
+                      }
+                    }}
+                    className={`p-4 rounded-2xl cursor-pointer transition-colors ${
+                      showBatchAction && sub.status !== 'graded' ? 'bg-gray-50 hover:bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {showBatchAction && sub.status !== 'graded' && (
+                        <div onClick={(e) => { e.stopPropagation(); toggleSubmissionSelection(sub.id); }}>
+                          {selectedSubmissions.includes(sub.id) ? (
+                            <CheckSquare size={20} className="text-blue-600" />
+                          ) : (
+                            <Square size={20} className="text-gray-400" />
+                          )}
+                        </div>
+                      )}
+                      <img src={sub.studentAvatar} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-gray-900 text-sm">{sub.studentName}</h4>
+                          {sub.status === 'late' && (
+                            <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded">迟交</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">{sub.submittedAt}</p>
+                      </div>
+                      {sub.status === 'graded' ? (
+                        <div className="flex items-center gap-1 text-yellow-500">
+                          <Star size={16} fill="currentColor" />
+                          <span className="font-bold">{sub.score}</span>
+                        </div>
+                      ) : (
+                        <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-lg">待批改</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-2 mt-2">{sub.content}</p>
+                    {sub.attachments.length > 0 && (
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {sub.attachments.map((att, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-white rounded-lg text-xs text-gray-500 flex items-center gap-1">
+                            <FileText size={12} /> {att}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==================== 主组件 ====================
+const Assignments: React.FC<AssignmentsProps> = ({
+  currentUser,
+  onNavigate,
+  onLogout: _onLogout
+}) => {
+  // 视图状态
+  const [filter, setFilter] = useState<AssignmentFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchType, setSearchType] = useState<'title' | 'course'>('title');
+
+  // 弹窗状态
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showGradeModal, setShowGradeModal] = useState(false);
+
+  // 选中状态
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
+
+  // 批量选择状态（作业列表用）
+  const [selectedAssignments, setSelectedAssignments] = useState<string[]>([]);
+  const [showBatchDelete, setShowBatchDelete] = useState(false);
 
   // 模拟课程数据
   const [courses] = useState<Course[]>([
@@ -241,107 +823,161 @@ const Assignments: React.FC<AssignmentsProps> = ({
     return '晚上好';
   };
 
-  // 过滤作业
-  const filteredAssignments = assignments.filter(assignment => {
-    if (filter !== 'all' && assignment.status !== filter) return false;
-    if (searchQuery && !assignment.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  // 过滤作业 - 支持按标题或课程搜索
+  const filteredAssignments = useMemo(() => {
+    return assignments.filter(assignment => {
+      if (filter !== 'all' && assignment.status !== filter) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (searchType === 'title') {
+          return assignment.title.toLowerCase().includes(query);
+        } else {
+          return assignment.courseName.toLowerCase().includes(query);
+        }
+      }
+      return true;
+    });
+  }, [assignments, filter, searchQuery, searchType]);
 
-  // 获取当前作业的提交列表
-  const getCurrentSubmissions = () => {
-    if (!selectedAssignment) return [];
-    return submissions.filter(s => s.assignmentId === selectedAssignment.id);
-  };
-
-  // 提交新作业
-  const handleCreateAssignment = () => {
-    if (!assignmentForm.title || !assignmentForm.courseId || !assignmentForm.deadline) return;
-    
-    const course = courses.find(c => c.id === assignmentForm.courseId);
+  // 创建作业
+  const handleCreateAssignment = (form: AssignmentForm) => {
+    const course = courses.find(c => c.id === form.courseId);
     const newAssignment: Assignment = {
       id: `a${Date.now()}`,
-      title: assignmentForm.title,
-      courseId: assignmentForm.courseId,
+      title: form.title,
+      courseId: form.courseId,
       courseName: course?.title || '',
-      content: assignmentForm.content,
-      deadline: assignmentForm.deadline,
+      content: form.content,
+      deadline: form.deadline.replace('T', ' '),
       createdAt: new Date().toISOString().split('T')[0],
       submittedCount: 0,
       totalCount: course?.studentCount || 0,
       status: 'pending',
-      maxScore: assignmentForm.maxScore,
+      maxScore: form.maxScore,
       attachments: []
     };
-    
+
     setAssignments([newAssignment, ...assignments]);
-    setAssignmentForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
-    setCurrentView('list');
+    setShowCreateModal(false);
   };
 
-  // 提交批改
-  const handleGradeSubmit = () => {
-    if (!selectedSubmission) return;
-    
-    setSubmissions(submissions.map(s => 
-      s.id === selectedSubmission.id 
-        ? { ...s, score: gradeForm.score, comment: gradeForm.comment, status: 'graded' as const }
+  // 单个批改
+  const handleGradeSubmit = (form: GradeForm) => {
+    if (!selectedSubmission || !selectedAssignment) return;
+
+    setSubmissions(submissions.map(s =>
+      s.id === selectedSubmission.id
+        ? { ...s, score: form.score, comment: form.comment, status: 'graded' as const }
         : s
     ));
-    
-    // 更新作业提交统计
-    const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedSubmission.assignmentId);
-    const gradedCount = assignmentSubmissions.filter(s => s.status === 'graded' || (s.id === selectedSubmission.id)).length;
-    
-    setAssignments(assignments.map(a => 
-      a.id === selectedSubmission.assignmentId 
-        ? { ...a, status: gradedCount === a.totalCount ? 'completed' : 'grading' }
+
+    // 更新作业状态
+    const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
+    const newGradedCount = assignmentSubmissions.filter(s => s.status === 'graded' || s.id === selectedSubmission.id).length;
+
+    setAssignments(assignments.map(a =>
+      a.id === selectedAssignment.id
+        ? { ...a, status: newGradedCount === a.totalCount ? 'completed' : 'grading' }
         : a
     ));
-    
+
+    setShowGradeModal(false);
     setSelectedSubmission(null);
-    setGradeForm({ score: 0, comment: '' });
-    setCurrentView('detail');
   };
 
-  // 批量选择提交
-  const toggleSubmissionSelection = (submissionId: string) => {
-    setSelectedSubmissions(prev => 
-      prev.includes(submissionId) 
-        ? prev.filter(id => id !== submissionId)
-        : [...prev, submissionId]
+  // 批量批改
+  const handleBatchGrade = (submissionIds: string[], score: number) => {
+    if (!selectedAssignment) return;
+
+    setSubmissions(submissions.map(s =>
+      submissionIds.includes(s.id)
+        ? { ...s, score, comment: '批量批改', status: 'graded' as const }
+        : s
+    ));
+
+    // 更新作业状态
+    const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
+    const gradedCount = assignmentSubmissions.filter(s => s.status === 'graded').length + submissionIds.length;
+
+    setAssignments(assignments.map(a =>
+      a.id === selectedAssignment.id
+        ? { ...a, status: gradedCount >= a.totalCount ? 'completed' : 'grading' }
+        : a
+    ));
+  };
+
+  // 删除单个作业
+  const handleDeleteAssignment = (assignmentId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (confirm('确定要删除这个作业吗？此操作不可恢复。')) {
+      setAssignments(assignments.filter(a => a.id !== assignmentId));
+      // 同时删除相关提交
+      setSubmissions(submissions.filter(s => s.assignmentId !== assignmentId));
+    }
+  };
+
+  // 批量选择作业
+  const toggleAssignmentSelection = (assignmentId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedAssignments(prev =>
+      prev.includes(assignmentId)
+        ? prev.filter(id => id !== assignmentId)
+        : [...prev, assignmentId]
     );
   };
 
-  // 全选/取消全选
-  const toggleSelectAll = () => {
-    const currentSubs = getCurrentSubmissions();
-    const ungradedSubs = currentSubs.filter(s => s.status !== 'graded');
-    if (selectedSubmissions.length === ungradedSubs.length) {
-      setSelectedSubmissions([]);
-    } else {
-      setSelectedSubmissions(ungradedSubs.map(s => s.id));
+  // 全选作业（功能已集成到UI中）
+  // const toggleSelectAllAssignments = () => {
+  //   if (selectedAssignments.length === filteredAssignments.length) {
+  //     setSelectedAssignments([]);
+  //   } else {
+  //     setSelectedAssignments(filteredAssignments.map(a => a.id));
+  //   }
+  // };
+
+  // 批量删除作业
+  const handleBatchDelete = () => {
+    if (confirm(`确定要删除选中的 ${selectedAssignments.length} 个作业吗？此操作不可恢复。`)) {
+      setAssignments(assignments.filter(a => !selectedAssignments.includes(a.id)));
+      setSubmissions(submissions.filter(s => !selectedAssignments.includes(s.assignmentId)));
+      setSelectedAssignments([]);
+      setShowBatchDelete(false);
     }
   };
 
-  // 批量通过
-  const handleBatchPass = () => {
-    setSubmissions(submissions.map(s => 
-      selectedSubmissions.includes(s.id) 
-        ? { ...s, score: selectedAssignment?.maxScore || 100, comment: '批量通过', status: 'graded' as const }
-        : s
-    ));
-    setSelectedSubmissions([]);
-    setShowBatchAction(false);
+  // 导出成绩为CSV
+  const handleExportGrades = () => {
+    if (!selectedAssignment) return;
+
+    const currentSubs = submissions.filter(s => s.assignmentId === selectedAssignment.id);
+    const csvContent = [
+      ['学生姓名', '提交时间', '分数', '评语', '状态'].join(','),
+      ...currentSubs.map(s => [
+        s.studentName,
+        s.submittedAt,
+        s.score ?? '',
+        `"${(s.comment || '').replace(/"/g, '""')}"`,
+        s.status === 'graded' ? '已批改' : s.status === 'late' ? '迟交' : '待批改'
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${selectedAssignment.title}_成绩表.csv`;
+    link.click();
   };
 
-  // 删除作业
-  const handleDeleteAssignment = (assignmentId: string) => {
-    setAssignments(assignments.filter(a => a.id !== assignmentId));
-    if (selectedAssignment?.id === assignmentId) {
-      setCurrentView('list');
-      setSelectedAssignment(null);
-    }
+  // 打开作业详情
+  const openAssignmentDetail = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setShowDetailModal(true);
+  };
+
+  // 打开批改弹窗
+  const openGradeModal = (submission: StudentSubmission) => {
+    setSelectedSubmission(submission);
+    setShowGradeModal(true);
   };
 
   // ==================== 底部导航 ====================
@@ -355,8 +991,8 @@ const Assignments: React.FC<AssignmentsProps> = ({
     ];
 
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-between items-center h-16 max-w-lg mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-between items-center h-16 max-w-7xl mx-auto">
           {navItems.map((item) => {
             const isActive = item.id === 'assignments';
             const Icon = item.icon;
@@ -364,10 +1000,7 @@ const Assignments: React.FC<AssignmentsProps> = ({
               <button
                 key={item.id}
                 onClick={() => {
-                  if (item.id === 'assignments') {
-                    setCurrentView('list');
-                    setSelectedAssignment(null);
-                  } else if (onNavigate) {
+                  if (item.id !== 'assignments' && onNavigate) {
                     onNavigate(item.page);
                   }
                 }}
@@ -400,625 +1033,260 @@ const Assignments: React.FC<AssignmentsProps> = ({
     );
   };
 
-  // ==================== 作业列表视图 ====================
-  const renderAssignmentList = () => (
-    <div className="space-y-6 pb-24">
-      {/* 头部 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-500 text-sm">{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</p>
-          <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}，{currentUser?.name || '老师'}</h1>
-        </div>
-        <img 
-          src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
-          alt="Avatar" 
-          className="w-10 h-10 rounded-xl object-cover"
-        />
-      </div>
-
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-orange-600">
-            {assignments.filter(a => a.status === 'grading').length}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">待批改</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-blue-600">
-            {assignments.filter(a => a.status === 'pending').length}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">进行中</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-green-600">
-            {assignments.filter(a => a.status === 'completed').length}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">已结束</p>
-        </div>
-      </div>
-
-      {/* 搜索和筛选 */}
-      <div className="space-y-3">
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="搜索作业..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-        
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {[
-            { key: 'all', label: '全部' },
-            { key: 'grading', label: '待批改' },
-            { key: 'pending', label: '进行中' },
-            { key: 'completed', label: '已结束' }
-          ].map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setFilter(item.key as AssignmentFilter)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-                filter === item.key 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white text-gray-600 border border-gray-200'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 布置作业按钮 */}
-      <button
-        onClick={() => setCurrentView('create')}
-        className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl font-medium flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-transform"
-      >
-        <Plus size={20} />
-        布置新作业
-      </button>
-
-      {/* 作业列表 */}
-      <div className="space-y-4">
-        {filteredAssignments.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ClipboardList size=  {32} className="text-gray-400" />
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-5xl mx-auto">
+          {/* 头部 */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="text-gray-500 text-sm">{new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{getGreeting()}，{currentUser?.name || '老师'}</h1>
             </div>
-            <p className="text-gray-500">暂无作业</p>
-          </div>
-        ) : (
-          filteredAssignments.map((assignment) => (
-            <div
-              key={assignment.id}
-              onClick={() => {
-                setSelectedAssignment(assignment);
-                setCurrentView('detail');
-              }}
-              className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 truncate">{assignment.title}</h3>
-                  <p className="text-sm text-gray-500">{assignment.courseName}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                    assignment.status === 'grading' ? 'bg-orange-100 text-orange-600' :
-                    assignment.status === 'pending' ? 'bg-blue-100 text-blue-600' :
-                    'bg-green-100 text-green-600'
-                  }`}>
-                    {assignment.status === 'grading' ? '待批改' : assignment.status === 'pending' ? '进行中' : '已结束'}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteAssignment(assignment.id);
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-              
-              <p className="text-sm text-gray-600 line-clamp-2 mb-3">{assignment.content}</p>
-              
-              <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                <span className="flex items-center gap-1">
-                  <Calendar size={14} className={new Date(assignment.deadline) < new Date() ? 'text-red-500' : ''} />
-                  截止 {assignment.deadline.split(' ')[0]}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Users size={14} />
-                  {assignment.submittedCount}/{assignment.totalCount} 提交
-                </span>
-                <span className="flex items-center gap-1">
-                  <Star size={14} />
-                  满分 {assignment.maxScore}
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      assignment.status === 'completed' ? 'bg-green-500' :
-                      assignment.status === 'grading' ? 'bg-orange-500' : 'bg-blue-500'
-                    }`}
-                    style={{ width: `${(assignment.submittedCount / assignment.totalCount) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs text-gray-500 w-10 text-right">
-                  {Math.round((assignment.submittedCount / assignment.totalCount) * 100)}%
-                </span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  // ==================== 创建作业视图 ====================
-  const renderCreateAssignment = () => (
-    <div className="space-y-6 pb-24">
-      {/* 头部 */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => {
-            setCurrentView('list');
-            setAssignmentForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
-          }}
-          className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 active:scale-90 transition-transform"
-        >
-          <ChevronLeft size={20} className="text-gray-600" />
-        </button>
-        <h1 className="text-xl font-bold text-gray-900">布置作业</h1>
-      </div>
-
-      {/* 表单 */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">作业标题 <span className="text-red-500">*</span></label>
-          <input
-            type="text"
-            placeholder="请输入作业标题"
-            value={assignmentForm.title}
-            onChange={(e) => setAssignmentForm({ ...assignmentForm, title: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">所属课程 <span className="text-red-500">*</span></label>
-          <select
-            value={assignmentForm.courseId}
-            onChange={(e) => setAssignmentForm({ ...assignmentForm, courseId: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
-          >
-            <option value="">请选择课程</option>
-            {courses.map(course => (
-              <option key={course.id} value={course.id}>{course.title} ({course.studentCount}人)</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">作业内容 <span className="text-red-500">*</span></label>
-          <textarea
-            rows={6}
-            placeholder="请输入作业要求、内容说明、评分标准等..."
-            value={assignmentForm.content}
-            onChange={(e) => setAssignmentForm({ ...assignmentForm, content: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">截止日期 <span className="text-red-500">*</span></label>
-            <input
-              type="datetime-local"
-              value={assignmentForm.deadline}
-              onChange={(e) => setAssignmentForm({ ...assignmentForm, deadline: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
+            <img
+              src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'}
+              alt="Avatar"
+              className="w-10 h-10 rounded-xl object-cover"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">满分分数</label>
-            <input
-              type="number"
-              min={1}
-              max={200}
-              value={assignmentForm.maxScore}
-              onChange={(e) => setAssignmentForm({ ...assignmentForm, maxScore: parseInt(e.target.value) || 100 })}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 transition-all"
-            />
-          </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">附件 (可选)</label>
-          <button className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 flex flex-col items-center gap-2 hover:border-blue-300 hover:bg-blue-50/50 transition-colors">
-            <Plus size={24} />
-            <span className="text-sm">点击上传附件或拖拽文件到此处</span>
-          </button>
-        </div>
-
-        <div className="pt-4 space-y-3">
-          <button
-            onClick={handleCreateAssignment}
-            disabled={!assignmentForm.title || !assignmentForm.courseId || !assignmentForm.deadline}
-            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
-          >
-            发布作业
-          </button>
-          <button
-            onClick={() => {
-              setCurrentView('list');
-              setAssignmentForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
-            }}
-            className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-medium active:scale-95 transition-all"
-          >
-            取消
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ==================== 作业详情视图 ====================
-  const renderAssignmentDetail = () => {
-    if (!selectedAssignment) return null;
-    const currentSubs = getCurrentSubmissions();
-    const gradedCount = currentSubs.filter(s => s.status === 'graded').length;
-    const avgScore = currentSubs.filter(s => s.score !== undefined).reduce((sum, s) => sum + (s.score || 0), 0) / gradedCount || 0;
-
-    return (
-      <div className="space-y-6 pb-24">
-        {/* 头部 */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setCurrentView('list');
-              setSelectedAssignment(null);
-              setSelectedSubmissions([]);
-              setShowBatchAction(false);
-            }}
-            className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 active:scale-90 transition-transform"
-          >
-            <ChevronLeft size={20} className="text-gray-600" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-gray-900 truncate">{selectedAssignment.title}</h1>
-            <p className="text-xs text-gray-500">{selectedAssignment.courseName}</p>
-          </div>
-          <button className="p-2 bg-white rounded-xl shadow-sm border border-gray-100">
-            <MoreHorizontal size={20} className="text-gray-600" />
-          </button>
-        </div>
-
-        {/* 统计卡片 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">{selectedAssignment.submittedCount}</p>
-              <p className="text-xs text-gray-500 mt-1">已提交</p>
+          {/* 统计卡片 */}
+          <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 mb-6">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-orange-600">
+                {assignments.filter(a => a.status === 'grading').length}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">待批改</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{gradedCount}</p>
-              <p className="text-xs text-gray-500 mt-1">已批改</p>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-blue-600">
+                {assignments.filter(a => a.status === 'pending').length}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">进行中</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{avgScore > 0 ? avgScore.toFixed(1) : '-'}</p>
-              <p className="text-xs text-gray-500 mt-1">平均分</p>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+              <p className="text-2xl font-bold text-green-600">
+                {assignments.filter(a => a.status === 'completed').length}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">已结束</p>
             </div>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-500 rounded-full transition-all"
-              style={{ width: `${(selectedAssignment.submittedCount / selectedAssignment.totalCount) * 100}%` }}
-            />
-          </div>
-          <p className="text-center text-xs text-gray-500 mt-2">
-            提交率 {Math.round((selectedAssignment.submittedCount / selectedAssignment.totalCount) * 100)}%
-          </p>
-        </div>
 
-        {/* 作业信息 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-3">作业要求</h3>
-          <p className="text-sm text-gray-600 whitespace-pre-line">{selectedAssignment.content}</p>
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
-            <span className="flex items-center gap-1">
-              <Calendar size={14} />
-              截止: {selectedAssignment.deadline}
-            </span>
-            <span className="flex items-center gap-1">
-              <Star size={14} />
-              满分: {selectedAssignment.maxScore}分
-            </span>
-          </div>
-        </div>
-
-        {/* 学生提交列表 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900">学生提交 ({currentSubs.length})</h3>
-            {currentSubs.some(s => s.status !== 'graded') && (
-              <button
-                onClick={() => setShowBatchAction(!showBatchAction)}
-                className="text-sm text-blue-600 font-medium"
+          {/* 搜索和筛选 */}
+          <div className="space-y-3 mb-6">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={searchType === 'title' ? '搜索作业标题...' : '搜索课程名称...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <select
+                value={searchType}
+                onChange={(e) => setSearchType(e.target.value as 'title' | 'course')}
+                className="px-4 py-3 bg-white rounded-2xl border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500"
               >
-                {showBatchAction ? '取消' : '批量操作'}
-              </button>
-            )}
+                <option value="title">按标题</option>
+                <option value="course">按课程</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {[
+                { key: 'all', label: '全部' },
+                { key: 'grading', label: '待批改' },
+                { key: 'pending', label: '进行中' },
+                { key: 'completed', label: '已结束' }
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setFilter(item.key as AssignmentFilter)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                    filter === item.key
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-600 border border-gray-200'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* 批量操作栏 */}
-          {showBatchAction && selectedSubmissions.length > 0 && (
-            <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-xl">
-              <span className="text-sm text-gray-600">已选 {selectedSubmissions.length} 项</span>
-              <button
-                onClick={handleBatchPass}
-                className="ml-auto px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg flex items-center gap-1"
-              >
-                <CheckCircle2 size={14} />
-                批量通过
-              </button>
+          {showBatchDelete && (
+            <div className="flex items-center gap-3 mb-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+              <span className="text-sm text-gray-700">已选 {selectedAssignments.length} 个作业</span>
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowBatchDelete(false);
+                    setSelectedAssignments([]);
+                  }}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-white rounded-xl transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleBatchDelete}
+                  disabled={selectedAssignments.length === 0}
+                  className="px-4 py-2 bg-red-600 text-white text-sm rounded-xl disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Trash2 size={14} />
+                  批量删除
+                </button>
+              </div>
             </div>
           )}
 
-          {/* 全选 */}
-          {showBatchAction && (
-            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
-              <button
-                onClick={toggleSelectAll}
-                className="flex items-center gap-2 text-sm text-gray-600"
-              >
-                {selectedSubmissions.length === currentSubs.filter(s => s.status !== 'graded').length ? (
-                  <CheckSquare size={18} className="text-blue-600" />
-                ) : (
-                  <Square size={18} />
-                )}
-                全选
-              </button>
-            </div>
-          )}
+          {/* 操作按钮 */}
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex-1 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl font-medium flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition-transform"
+            >
+              <Plus size={20} />
+              布置新作业
+            </button>
+            <button
+              onClick={() => {
+                setShowBatchDelete(!showBatchDelete);
+                setSelectedAssignments([]);
+              }}
+              className={`px-4 py-4 rounded-2xl font-medium flex items-center gap-2 transition-colors ${
+                showBatchDelete
+                  ? 'bg-orange-100 text-orange-600'
+                  : 'bg-white text-gray-700 border border-gray-200'
+              }`}
+            >
+              <CheckSquare size={20} />
+              批量管理
+            </button>
+          </div>
 
-          <div className="space-y-3">
-            {currentSubs.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <ClipboardList size={32} className="mx-auto mb-2 opacity-50" />
-                <p className="text-sm">暂无学生提交</p>
+          {/* 作业列表 */}
+          <div className="space-y-4 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0 lg:grid-cols-3">
+            {filteredAssignments.length === 0 ? (
+              <div className="text-center py-12 sm:col-span-2 lg:col-span-3">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <ClipboardList size={32} className="text-gray-400" />
+                </div>
+                <p className="text-gray-500">暂无作业</p>
               </div>
             ) : (
-              currentSubs.map((sub) => (
+              filteredAssignments.map((assignment) => (
                 <div
-                  key={sub.id}
-                  onClick={() => {
-                    if (showBatchAction && sub.status !== 'graded') {
-                      toggleSubmissionSelection(sub.id);
-                    } else {
-                      setSelectedSubmission(sub);
-                      setGradeForm({ score: sub.score || 0, comment: sub.comment || '' });
-                      setCurrentView('grade');
-                    }
-                  }}
-                  className="p-4 bg-gray-50 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors"
+                  key={assignment.id}
+                  onClick={() => openAssignmentDetail(assignment)}
+                  className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform h-full flex flex-col"
                 >
-                  <div className="flex items-center gap-3">
-                    {showBatchAction && sub.status !== 'graded' && (
-                      <div onClick={(e) => { e.stopPropagation(); toggleSubmissionSelection(sub.id); }}>
-                        {selectedSubmissions.includes(sub.id) ? (
+                  <div className="flex items-start justify-between mb-3">
+                    {showBatchDelete ? (
+                      <button
+                        onClick={(e) => toggleAssignmentSelection(assignment.id, e)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        {selectedAssignments.includes(assignment.id) ? (
                           <CheckSquare size={20} className="text-blue-600" />
                         ) : (
                           <Square size={20} className="text-gray-400" />
                         )}
-                      </div>
-                    )}
-                    <img src={sub.studentAvatar} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                      </button>
+                    ) : null}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-gray-900 text-sm">{sub.studentName}</h4>
-                        {sub.status === 'late' && (
-                          <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded">迟交</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">{sub.submittedAt}</p>
+                      <h3 className="font-bold text-gray-900 truncate">{assignment.title}</h3>
+                      <p className="text-sm text-gray-500">{assignment.courseName}</p>
                     </div>
-                    {sub.status === 'graded' ? (
-                      <div className="flex items-center gap-1 text-yellow-500">
-                        <Star size={16} fill="currentColor" />
-                        <span className="font-bold">{sub.score}</span>
-                      </div>
-                    ) : (
-                      <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-lg">待批改</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                        assignment.status === 'grading' ? 'bg-orange-100 text-orange-600' :
+                        assignment.status === 'pending' ? 'bg-blue-100 text-blue-600' :
+                        'bg-green-100 text-green-600'
+                      }`}>
+                        {assignment.status === 'grading' ? '待批改' : assignment.status === 'pending' ? '进行中' : '已结束'}
+                      </span>
+                      {!showBatchDelete && (
+                        <button
+                          onClick={(e) => handleDeleteAssignment(assignment.id, e)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 line-clamp-2 mt-2">{sub.content}</p>
-                  {sub.attachments.length > 0 && (
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {sub.attachments.map((att, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-white rounded-lg text-xs text-gray-500 flex items-center gap-1">
-                          <FileText size={12} /> {att}
-                        </span>
-                      ))}
+
+                  <p className="text-sm text-gray-600 line-clamp-2 mb-3">{assignment.content}</p>
+
+                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-3 flex-wrap">
+                    <span className="flex items-center gap-1">
+                      <Calendar size={14} className={new Date(assignment.deadline) < new Date() ? 'text-red-500' : ''} />
+                      截止 {assignment.deadline.split(' ')[0]}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users size={14} />
+                      {assignment.submittedCount}/{assignment.totalCount} 提交
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Star size={14} />
+                      满分 {assignment.maxScore}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-auto">
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          assignment.status === 'completed' ? 'bg-green-500' :
+                          assignment.status === 'grading' ? 'bg-orange-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${(assignment.submittedCount / assignment.totalCount) * 100}%` }}
+                      />
                     </div>
-                  )}
+                    <span className="text-xs text-gray-500 w-10 text-right">
+                      {Math.round((assignment.submittedCount / assignment.totalCount) * 100)}%
+                    </span>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
-    );
-  };
-
-  // ==================== 批改视图 ====================
-  const renderGradeView = () => {
-    if (!selectedSubmission) return null;
-
-    return (
-      <div className="space-y-6 pb-24">
-        {/* 头部 */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setCurrentView('detail');
-              setSelectedSubmission(null);
-            }}
-            className="p-2 bg-white rounded-xl shadow-sm border border-gray-100 active:scale-90 transition-transform"
-          >
-            <ChevronLeft size={20} className="text-gray-600" />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">批改作业</h1>
-        </div>
-
-        {/* 学生信息 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-4">
-            <img src={selectedSubmission.studentAvatar} alt="" className="w-14 h-14 rounded-full" />
-            <div>
-              <h3 className="font-bold text-gray-900 text-lg">{selectedSubmission.studentName}</h3>
-              <p className="text-sm text-gray-500">提交时间: {selectedSubmission.submittedAt}</p>
-              {selectedSubmission.status === 'late' && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded">迟交</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 作业内容 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-3">提交内容</h3>
-          <p className="text-gray-700 whitespace-pre-line">{selectedSubmission.content}</p>
-          
-          {selectedSubmission.attachments.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-sm text-gray-500 mb-2">附件</p>
-              <div className="flex gap-2 flex-wrap">
-                {selectedSubmission.attachments.map((att, idx) => (
-                  <button
-                    key={idx}
-                    className="px-3 py-2 bg-gray-100 rounded-xl text-sm text-gray-600 flex items-center gap-2 hover:bg-gray-200 transition-colors"
-                  >
-                    <FileText size={16} />
-                    {att}
-                    <Download size={14} className="text-gray-400" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 评分表单 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-5">
-          <h3 className="font-bold text-gray-900">评分与评语</h3>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">评分 (0-{selectedAssignment?.maxScore || 100})</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                min={0}
-                max={selectedAssignment?.maxScore || 100}
-                value={gradeForm.score}
-                onChange={(e) => setGradeForm({ ...gradeForm, score: parseInt(e.target.value) || 0 })}
-                className="w-28 px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 text-center text-2xl font-bold"
-              />
-              <span className="text-gray-500">分</span>
-              {/* 快速评分按钮 */}
-              <div className="flex gap-2 ml-auto">
-                {[60, 80, 90, 100].map(score => (
-                  <button
-                    key={score}
-                    onClick={() => setGradeForm({ ...gradeForm, score })}
-                    className="px-3 py-1.5 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                  >
-                    {score}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">评语</label>
-            <textarea
-              rows={4}
-              placeholder="请输入评语..."
-              value={gradeForm.comment}
-              onChange={(e) => setGradeForm({ ...gradeForm, comment: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
-            />
-            {/* 快捷评语 */}
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {['完成得很好', '内容充实，分析深入', '需要补充更多细节', '继续努力'].map(comment => (
-                <button
-                  key={comment}
-                  onClick={() => setGradeForm({ ...gradeForm, comment })}
-                  className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-colors"
-                >
-                  {comment}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-4 space-y-3">
-            <button
-              onClick={handleGradeSubmit}
-              className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all"
-            >
-              <CheckCircle2 size={18} />
-              提交批改
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView('detail');
-                setSelectedSubmission(null);
-              }}
-              className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-medium active:scale-95 transition-all"
-            >
-              返回
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ==================== 主渲染 ====================
-  const renderContent = () => {
-    switch (currentView) {
-      case 'list':
-        return renderAssignmentList();
-      case 'create':
-        return renderCreateAssignment();
-      case 'detail':
-        return renderAssignmentDetail();
-      case 'grade':
-        return renderGradeView();
-      default:
-        return renderAssignmentList();
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-lg mx-auto min-h-screen bg-gray-50">
-        <div className="p-6">
-          {renderContent()}
-        </div>
-      </div>
       {renderBottomNav()}
+
+      {/* 弹窗组件 */}
+      <AssignmentCreateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreateAssignment}
+        courses={courses}
+      />
+
+      <AssignmentDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        assignment={selectedAssignment}
+        submissions={submissions}
+        onGrade={openGradeModal}
+        onBatchGrade={handleBatchGrade}
+        onExport={handleExportGrades}
+      />
+
+      <GradeModal
+        isOpen={showGradeModal}
+        onClose={() => {
+          setShowGradeModal(false);
+          setSelectedSubmission(null);
+        }}
+        onSubmit={handleGradeSubmit}
+        submission={selectedSubmission}
+        maxScore={selectedAssignment?.maxScore || 100}
+      />
     </div>
   );
 };

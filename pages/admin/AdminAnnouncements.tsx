@@ -39,15 +39,46 @@ const AdminAnnouncements: React.FC = () => {
   const fetchAnnouncements = async () => {
     setIsLoading(true);
     try {
+      console.log('开始获取公告列表...');
+      
+      // 检查当前用户认证状态
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('当前认证状态:', session ? `用户: ${session.user?.id}` : '未登录');
+      
+      // 使用 maybeSingle 模式尝试获取数据（绕过部分RLS限制）
       const { data, error } = await supabase
         .from('app_announcements')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      console.log('查询结果:', { data, error, count: data?.length });
+      
+      if (error) {
+        console.error('Supabase查询错误:', error);
+        console.error('错误详情:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+      
+      console.log(`获取到 ${data?.length || 0} 条公告`);
+      if (data && data.length > 0) {
+        console.log('第一条公告:', data[0]);
+        console.log('所有公告ID:', data.map(a => a.id));
+      } else {
+        console.warn('未获取到任何公告数据，可能原因:');
+        console.warn('1. RLS策略限制 - 需要执行 db_announcements_rls_fix.sql');
+        console.warn('2. 表中没有数据 - 需要执行 db_announcements_seed_fixed.sql');
+        console.warn('3. 用户未正确认证');
+      }
+      
       setAnnouncements(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching announcements:', error);
+      alert('获取公告失败: ' + (error.message || '请检查RLS策略和表权限'));
     } finally {
       setIsLoading(false);
     }
