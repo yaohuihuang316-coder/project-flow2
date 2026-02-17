@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
 import { 
   Users, Search, BookOpen, FileText, 
-  Mail, GraduationCap
+  Mail, GraduationCap, Clock
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
@@ -41,7 +41,6 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      // 获取所有学生（Student 角色）
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('*')
@@ -50,22 +49,18 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
 
       if (error) throw error;
 
-      // 获取每个学生的统计数据
       const studentsWithStats = await Promise.all(
         (profiles || []).map(async (profile) => {
-          // 报名的课程数
           const { count: enrolledCount } = await supabase
             .from('app_course_enrollments')
             .select('*', { count: 'exact', head: true })
             .eq('student_id', profile.id);
 
-          // 完成的作业数
           const { count: completedAssignments } = await supabase
             .from('app_assignment_submissions')
             .select('*', { count: 'exact', head: true })
             .eq('student_id', profile.id);
 
-          // 考勤记录
           const { data: attendance } = await supabase
             .from('app_attendance')
             .select('status')
@@ -98,7 +93,6 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
   };
 
   const fetchStudentDetails = async (studentId: string) => {
-    // 获取学生课程
     const { data: enrollments } = await supabase
       .from('app_course_enrollments')
       .select(`
@@ -109,7 +103,6 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
     
     setStudentCourses(enrollments || []);
 
-    // 获取学生作业
     const { data: submissions } = await supabase
       .from('app_assignment_submissions')
       .select(`
@@ -147,46 +140,48 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <GraduationCap className="text-teal-600" size={28} />
-            学生管理
-          </h1>
-          <p className="text-gray-500 mt-1">查看所有学生数据及学习进度</p>
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+              <GraduationCap className="text-teal-600" size={20} />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">学生管理</h1>
+          </div>
+          <p className="text-gray-500 ml-13">查看所有学生数据及学习进度</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-500">学生总数</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-sm text-gray-500 mt-1">学生总数</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-            <p className="text-sm text-gray-500">本周活跃</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-green-600">{stats.active}</p>
+            <p className="text-sm text-gray-500 mt-1">本周活跃</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-blue-600">{stats.totalEnrollments}</p>
-            <p className="text-sm text-gray-500">总报名数</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-blue-600">{stats.totalEnrollments}</p>
+            <p className="text-sm text-gray-500 mt-1">总报名数</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-purple-600">{stats.avgAttendance}%</p>
-            <p className="text-sm text-gray-500">平均出勤率</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-purple-600">{stats.avgAttendance}%</p>
+            <p className="text-sm text-gray-500 mt-1">平均出勤率</p>
           </div>
         </div>
 
         {/* Search */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-          <div className="relative">
+          <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="搜索学生姓名或邮箱..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
         </div>
@@ -194,75 +189,85 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="p-16 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-teal-500 border-t-transparent mx-auto mb-4"></div>
               <p className="text-gray-500">加载中...</p>
             </div>
           ) : filteredStudents.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <Users size={48} className="mx-auto mb-4 opacity-30" />
-              <p>暂无学生数据</p>
+            <div className="p-16 text-center text-gray-400">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Users size={32} className="text-gray-300" />
+              </div>
+              <p className="text-lg font-medium">暂无学生数据</p>
+              <p className="text-sm mt-1">数据库中没有找到任何学生</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50/80 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">学生信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">报名课程</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">完成作业</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">出勤率</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">注册时间</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">最后活跃</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">学生信息</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">报名课程</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">完成作业</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">出勤率</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">注册时间</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">最后活跃</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={student.id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <img
                             src={student.avatar || `https://i.pravatar.cc/150?u=${student.id}`}
                             alt={student.name}
-                            className="w-10 h-10 rounded-xl object-cover"
+                            className="w-10 h-10 rounded-xl object-cover ring-2 ring-gray-100"
                           />
                           <div>
-                            <p className="font-medium text-gray-900">{student.name}</p>
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                              <Mail size={12} />
+                            <p className="font-semibold text-gray-900">{student.name}</p>
+                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                              <Mail size={11} />
                               {student.email}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-blue-600">{student.enrolled_courses} 门</span>
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600">
+                          <BookOpen size={14} />
+                          {student.enrolled_courses} 门
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-green-600">{student.completed_assignments} 份</span>
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600">
+                          <FileText size={14} />
+                          {student.completed_assignments} 份
+                        </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-2 bg-gray-200 rounded-full">
+                        <div className="flex items-center gap-3">
+                          <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div 
-                              className={`h-full rounded-full ${
+                              className={`h-full rounded-full transition-all ${
                                 student.attendance_rate >= 80 ? 'bg-green-500' :
                                 student.attendance_rate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                               }`}
                               style={{ width: `${student.attendance_rate}%` }}
                             />
                           </div>
-                          <span className="text-sm text-gray-600">{student.attendance_rate}%</span>
+                          <span className="text-sm font-semibold text-gray-700 w-10">{student.attendance_rate}%</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-600">
                           {new Date(student.created_at).toLocaleDateString('zh-CN')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-500">
+                        <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
+                          <Clock size={14} />
                           {student.last_active 
                             ? new Date(student.last_active).toLocaleDateString('zh-CN')
                             : '从未'
@@ -272,7 +277,7 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => handleViewDetail(student)}
-                          className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                          className="px-4 py-2 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                         >
                           查看详情
                         </button>
@@ -287,60 +292,63 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
 
         {/* Detail Modal */}
         {showDetailModal && selectedStudent && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b">
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <div className="flex items-center gap-4">
                   <img
                     src={selectedStudent.avatar || `https://i.pravatar.cc/150?u=${selectedStudent.id}`}
                     alt={selectedStudent.name}
-                    className="w-16 h-16 rounded-2xl object-cover"
+                    className="w-14 h-14 rounded-2xl object-cover ring-2 ring-gray-100"
                   />
                   <div>
-                    <h2 className="text-xl font-bold">{selectedStudent.name}</h2>
-                    <p className="text-sm text-gray-500">{selectedStudent.email}</p>
+                    <h2 className="text-xl font-bold text-gray-900">{selectedStudent.name}</h2>
+                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                      <Mail size={12} />
+                      {selectedStudent.email}
+                    </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowDetailModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl"
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   ✕
                 </button>
               </div>
               
               <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-blue-50 rounded-2xl">
+                <div className="grid grid-cols-3 gap-4 mb-8">
+                  <div className="text-center p-5 bg-blue-50 rounded-2xl">
                     <p className="text-2xl font-bold text-blue-600">{selectedStudent.enrolled_courses}</p>
-                    <p className="text-xs text-gray-500">报名课程</p>
+                    <p className="text-xs text-gray-600 mt-1">报名课程</p>
                   </div>
-                  <div className="text-center p-4 bg-green-50 rounded-2xl">
+                  <div className="text-center p-5 bg-green-50 rounded-2xl">
                     <p className="text-2xl font-bold text-green-600">{selectedStudent.completed_assignments}</p>
-                    <p className="text-xs text-gray-500">完成作业</p>
+                    <p className="text-xs text-gray-600 mt-1">完成作业</p>
                   </div>
-                  <div className="text-center p-4 bg-purple-50 rounded-2xl">
+                  <div className="text-center p-5 bg-purple-50 rounded-2xl">
                     <p className="text-2xl font-bold text-purple-600">{selectedStudent.attendance_rate}%</p>
-                    <p className="text-xs text-gray-500">出勤率</p>
+                    <p className="text-xs text-gray-600 mt-1">出勤率</p>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   {/* 已报名课程 */}
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                       <BookOpen size={18} className="text-blue-600" />
                       已报名课程 ({studentCourses.length})
                     </h3>
                     {studentCourses.length === 0 ? (
-                      <p className="text-gray-400 text-sm">暂无报名课程</p>
+                      <p className="text-gray-400 text-sm py-4">暂无报名课程</p>
                     ) : (
                       <div className="space-y-2">
-                        {studentCourses.map((enrollment: any) => (
-                          <div key={enrollment.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                        {studentCourses.map((enrollment) => (
+                          <div key={enrollment.id} className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-colors">
                             <div>
-                              <p className="font-medium">{enrollment.course?.title}</p>
-                              <p className="text-xs text-gray-500">教师: {enrollment.course?.teacher?.name}</p>
+                              <p className="font-medium text-gray-900">{enrollment.course?.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">教师: {enrollment.course?.teacher?.name}</p>
                             </div>
                             <span className="text-xs text-gray-400">
                               报名: {new Date(enrollment.enrolled_at).toLocaleDateString('zh-CN')}
@@ -353,19 +361,19 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
 
                   {/* 作业提交 */}
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                       <FileText size={18} className="text-green-600" />
                       最近作业提交 ({studentAssignments.length})
                     </h3>
                     {studentAssignments.length === 0 ? (
-                      <p className="text-gray-400 text-sm">暂无作业提交</p>
+                      <p className="text-gray-400 text-sm py-4">暂无作业提交</p>
                     ) : (
                       <div className="space-y-2">
-                        {studentAssignments.slice(0, 5).map((submission: any) => (
-                          <div key={submission.id} className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                        {studentAssignments.slice(0, 5).map((submission) => (
+                          <div key={submission.id} className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-colors">
                             <div>
-                              <p className="font-medium">{submission.assignment?.title}</p>
-                              <p className="text-xs text-gray-500">{submission.assignment?.course?.title}</p>
+                              <p className="font-medium text-gray-900">{submission.assignment?.title}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{submission.assignment?.course?.title}</p>
                             </div>
                             <div className="text-right">
                               <p className={`text-sm font-bold ${submission.score !== null ? 'text-green-600' : 'text-gray-400'}`}>

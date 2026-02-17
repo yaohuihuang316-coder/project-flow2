@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
 import { 
   BookOpen, Search, Edit2, Trash2, 
-  CheckCircle, XCircle
+  CheckCircle, XCircle, User
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
@@ -36,8 +36,6 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
   const [teacherFilter, setTeacherFilter] = useState<string>('all');
   const [teachers, setTeachers] = useState<any[]>([]);
-  // const [showEditModal, setShowEditModal] = useState(false);
-  // const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
   useEffect(() => {
     fetchCourses();
@@ -65,7 +63,6 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
 
       if (error) throw error;
 
-      // 获取每门课的学生数
       const coursesWithStats = await Promise.all(
         (coursesData || []).map(async (course: any) => {
           const { count } = await supabase
@@ -131,11 +128,11 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'published':
-        return <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs flex items-center gap-1"><CheckCircle size={12} /> 已发布</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium"><CheckCircle size={12} /> 已发布</span>;
       case 'draft':
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs flex items-center gap-1"><Edit2 size={12} /> 草稿</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium"><Edit2 size={12} /> 草稿</span>;
       case 'archived':
-        return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs flex items-center gap-1"><XCircle size={12} /> 已归档</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium"><XCircle size={12} /> 已归档</span>;
       default:
         return null;
     }
@@ -155,33 +152,35 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BookOpen className="text-blue-600" size={28} />
-            教师课程管理
-          </h1>
-          <p className="text-gray-500 mt-1">查看和管理所有教师创建的课程</p>
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <BookOpen className="text-blue-600" size={20} />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">教师课程管理</h1>
+          </div>
+          <p className="text-gray-500 ml-13">查看和管理所有教师创建的课程</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-500">课程总数</p>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-sm text-gray-500 mt-1">课程总数</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-green-600">{stats.published}</p>
-            <p className="text-sm text-gray-500">已发布</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-green-600">{stats.published}</p>
+            <p className="text-sm text-gray-500 mt-1">已发布</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-yellow-600">{stats.draft}</p>
-            <p className="text-sm text-gray-500">草稿</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-yellow-600">{stats.draft}</p>
+            <p className="text-sm text-gray-500 mt-1">草稿</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-blue-600">{stats.totalStudents}</p>
-            <p className="text-sm text-gray-500">总学生数</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-blue-600">{stats.totalStudents}</p>
+            <p className="text-sm text-gray-500 mt-1">总学生数</p>
           </div>
         </div>
 
@@ -195,109 +194,111 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
                 placeholder="搜索课程或教师..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
-            <select
-              value={teacherFilter}
-              onChange={(e) => setTeacherFilter(e.target.value)}
-              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">全部教师</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">全部状态</option>
-              <option value="published">已发布</option>
-              <option value="draft">草稿</option>
-              <option value="archived">已归档</option>
-            </select>
+            <div className="flex gap-3">
+              <select
+                value={teacherFilter}
+                onChange={(e) => setTeacherFilter(e.target.value)}
+                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm min-w-[140px]"
+              >
+                <option value="all">全部教师</option>
+                {teachers.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px]"
+              >
+                <option value="all">全部状态</option>
+                <option value="published">已发布</option>
+                <option value="draft">草稿</option>
+                <option value="archived">已归档</option>
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="p-16 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
               <p className="text-gray-500">加载中...</p>
             </div>
           ) : filteredCourses.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <BookOpen size={48} className="mx-auto mb-4 opacity-30" />
-              <p>暂无课程数据</p>
+            <div className="p-16 text-center text-gray-400">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <BookOpen size={32} className="text-gray-300" />
+              </div>
+              <p className="text-lg font-medium">暂无课程数据</p>
+              <p className="text-sm mt-1">数据库中没有找到任何课程</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50/80 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">课程信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">教师</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">分类/等级</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">学生数</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">价格</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">状态</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">创建时间</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">课程信息</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">教师</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">分类</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">学生</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">价格</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredCourses.map((course) => (
-                    <tr key={course.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={course.id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">
                             {course.title.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{course.title}</p>
-                            <p className="text-xs text-gray-500 line-clamp-1">{course.description?.substring(0, 50)}...</p>
+                            <p className="font-semibold text-gray-900">{course.title}</p>
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 max-w-[200px]">{course.description || '暂无描述'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           <img 
                             src={course.teacher_avatar || `https://i.pravatar.cc/150?u=${course.teacher_id}`}
                             alt={course.teacher_name}
-                            className="w-8 h-8 rounded-full"
+                            className="w-8 h-8 rounded-full ring-2 ring-gray-100"
                           />
-                          <span className="text-sm text-gray-700">{course.teacher_name}</span>
+                          <span className="text-sm text-gray-700 font-medium">{course.teacher_name}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm">
-                          <p className="text-gray-700">{course.category || '未分类'}</p>
-                          <p className="text-gray-400 text-xs">{course.level || '全部等级'}</p>
+                          <span className="inline-block px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{course.category || '未分类'}</span>
+                          <p className="text-gray-400 text-xs mt-1">{course.level || '全部等级'}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-gray-900">{course.student_count} 人</span>
+                        <div className="flex items-center gap-1.5">
+                          <User size={14} className="text-gray-400" />
+                          <span className="text-sm font-semibold text-gray-900">{course.student_count}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-semibold text-gray-900">
                           ¥{course.price || 0}
                         </span>
                       </td>
                       <td className="px-6 py-4">{getStatusBadge(course.status)}</td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-500">
-                          {new Date(course.created_at).toLocaleDateString('zh-CN')}
-                        </span>
-                      </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <select
                             value={course.status}
                             onChange={(e) => handleUpdateStatus(course.id, e.target.value)}
-                            className="text-xs px-2 py-1 border border-gray-200 rounded-lg"
+                            className="text-xs px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
                           >
                             <option value="draft">草稿</option>
                             <option value="published">发布</option>
@@ -305,7 +306,7 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
                           </select>
                           <button
                             onClick={() => handleDelete(course.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="删除"
                           >
                             <Trash2 size={16} />

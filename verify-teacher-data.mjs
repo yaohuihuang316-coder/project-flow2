@@ -6,8 +6,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const BASE_URL = 'http://localhost:4173';
-const ADMIN_EMAIL = 'admin@example.com';
-const ADMIN_PASSWORD = 'admin123';
 
 async function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -34,49 +32,51 @@ async function verifyTeacherDataManagement() {
     await delay(2000);
     await takeScreenshot(page, 'verify-01-login-page');
     
-    // 2. 登录
-    console.log('\n2️⃣ 登录管理员账号...');
-    await page.fill('input[type="email"]', ADMIN_EMAIL);
-    await page.fill('input[type="password"]', ADMIN_PASSWORD);
-    await page.click('button[type="submit"]');
-    await delay(3000);
+    // 2. 点击 Admin 演示账号
+    console.log('\n2️⃣ 点击 Admin 演示账号登录...');
+    await page.click('text=Admin');
+    await delay(4000);
     await takeScreenshot(page, 'verify-02-admin-dashboard');
     
-    // 3. 测试教师课程管理
-    console.log('\n3️⃣ 测试教师课程管理...');
-    // 点击教师课程菜单
-    await page.click('text=教师课程');
-    await delay(3000);
+    // 3. 先展开教师数据管理菜单组
+    console.log('\n3️⃣ 展开教师数据管理菜单...');
+    await page.click('text=教师数据管理 (Teacher Data)');
+    await delay(1500);
+    
+    // 4. 测试教师课程管理
+    console.log('\n4️⃣ 测试教师课程管理...');
+    await page.click('button:has-text("教师课程")');
+    await delay(4000);
     await takeScreenshot(page, 'verify-03-teacher-courses');
     console.log('   ✅ 教师课程页面显示正常');
     
-    // 4. 测试教师作业管理
-    console.log('\n4️⃣ 测试教师作业管理...');
-    await page.click('text=教师作业');
-    await delay(3000);
+    // 5. 测试教师作业管理
+    console.log('\n5️⃣ 测试教师作业管理...');
+    await page.click('button:has-text("教师作业")');
+    await delay(4000);
     await takeScreenshot(page, 'verify-04-teacher-assignments');
     console.log('   ✅ 教师作业页面显示正常');
     
-    // 5. 测试课堂考勤管理
-    console.log('\n5️⃣ 测试课堂考勤管理...');
-    await page.click('text=课堂考勤');
-    await delay(3000);
+    // 6. 测试课堂考勤管理
+    console.log('\n6️⃣ 测试课堂考勤管理...');
+    await page.click('button:has-text("课堂考勤")');
+    await delay(4000);
     await takeScreenshot(page, 'verify-05-teacher-sessions');
     console.log('   ✅ 课堂考勤页面显示正常');
     
-    // 6. 测试学生管理
-    console.log('\n6️⃣ 测试学生管理...');
-    await page.click('text=学生管理');
-    await delay(3000);
+    // 7. 测试学生管理
+    console.log('\n7️⃣ 测试学生管理...');
+    await page.click('button:has-text("学生管理")');
+    await delay(4000);
     await takeScreenshot(page, 'verify-06-teacher-students');
     console.log('   ✅ 学生管理页面显示正常');
     
-    // 7. 测试返回用户管理
-    console.log('\n7️⃣ 测试用户管理（原教师管理）...');
-    await page.click('text=用户管理');
-    await delay(3000);
-    await takeScreenshot(page, 'verify-07-user-management');
-    console.log('   ✅ 用户管理页面显示正常');
+    // 8. 测试全站公告
+    console.log('\n8️⃣ 测试全站公告...');
+    await page.click('button:has-text("全站公告")');
+    await delay(4000);
+    await takeScreenshot(page, 'verify-07-announcements');
+    console.log('   ✅ 全站公告页面显示正常');
     
     console.log('\n🎉 所有验证通过！');
     
@@ -89,21 +89,10 @@ async function verifyTeacherDataManagement() {
   }
 }
 
-// 检查服务器是否可用
-async function checkServer() {
-  try {
-    const response = await fetch(BASE_URL);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-// 主函数
+// 检查服务器
 async function main() {
   console.log('检查服务器状态...');
   
-  // 尝试几个端口
   const ports = [4173, 4174, 4175, 4176, 3000, 5000, 8080];
   let serverRunning = false;
   
@@ -119,8 +108,7 @@ async function main() {
   }
   
   if (!serverRunning) {
-    console.log('⚠️  未检测到运行中的服务器，请先运行: npm run preview 或 npx vite preview --port 4173');
-    console.log('然后重新运行此脚本');
+    console.log('⚠️  未检测到运行中的服务器，请先运行: npx vite preview --port 4173');
     process.exit(1);
   }
   

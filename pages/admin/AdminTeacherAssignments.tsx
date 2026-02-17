@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
 import { 
   FileText, Search, Trash2, 
-  Clock, BookOpen
+  Clock, BookOpen, Users
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
@@ -75,7 +75,6 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
 
       if (error) throw error;
 
-      // 获取提交统计
       const assignmentsWithStats = await Promise.all(
         (assignmentsData || []).map(async (assignment: any) => {
           const { count: submittedCount } = await supabase
@@ -169,33 +168,35 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="text-purple-600" size={28} />
-            教师作业管理
-          </h1>
-          <p className="text-gray-500 mt-1">查看和管理所有教师布置的作业</p>
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+              <FileText className="text-purple-600" size={20} />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">教师作业管理</h1>
+          </div>
+          <p className="text-gray-500 ml-13">查看和管理所有教师布置的作业</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-500">作业总数</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-sm text-gray-500 mt-1">作业总数</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-blue-600">{stats.totalSubmissions}</p>
-            <p className="text-sm text-gray-500">总提交数</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-blue-600">{stats.totalSubmissions}</p>
+            <p className="text-sm text-gray-500 mt-1">总提交数</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-green-600">{stats.totalGraded}</p>
-            <p className="text-sm text-gray-500">已批改</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-green-600">{stats.totalGraded}</p>
+            <p className="text-sm text-gray-500 mt-1">已批改</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
-            <p className="text-sm text-gray-500">逾期未交</p>
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <p className="text-3xl font-bold text-red-600">{stats.overdue}</p>
+            <p className="text-sm text-gray-500 mt-1">逾期未交</p>
           </div>
         </div>
 
@@ -209,79 +210,84 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
                 placeholder="搜索作业或课程..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
-            <select
-              value={teacherFilter}
-              onChange={(e) => setTeacherFilter(e.target.value)}
-              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">全部教师</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-            <select
-              value={courseFilter}
-              onChange={(e) => setCourseFilter(e.target.value)}
-              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">全部课程</option>
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>{c.title}</option>
-              ))}
-            </select>
+            <div className="flex gap-3">
+              <select
+                value={teacherFilter}
+                onChange={(e) => setTeacherFilter(e.target.value)}
+                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm min-w-[140px]"
+              >
+                <option value="all">全部教师</option>
+                {teachers.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <select
+                value={courseFilter}
+                onChange={(e) => setCourseFilter(e.target.value)}
+                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm min-w-[140px]"
+              >
+                <option value="all">全部课程</option>
+                {courses.map(c => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="p-16 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-500 border-t-transparent mx-auto mb-4"></div>
               <p className="text-gray-500">加载中...</p>
             </div>
           ) : filteredAssignments.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <FileText size={48} className="mx-auto mb-4 opacity-30" />
-              <p>暂无作业数据</p>
+            <div className="p-16 text-center text-gray-400">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <FileText size={32} className="text-gray-300" />
+              </div>
+              <p className="text-lg font-medium">暂无作业数据</p>
+              <p className="text-sm mt-1">数据库中没有找到任何作业</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
+                <thead className="bg-gray-50/80 border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">作业信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">所属课程</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">教师</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">截止日</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">提交/批改</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">满分</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">操作</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">作业信息</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">所属课程</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">教师</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">截止日</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">提交/批改</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">满分</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={assignment.id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-medium text-gray-900">{assignment.title}</p>
-                          <p className="text-xs text-gray-500 line-clamp-1">{assignment.description?.substring(0, 40)}...</p>
+                          <p className="font-semibold text-gray-900">{assignment.title}</p>
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 max-w-[200px]">{assignment.description || '暂无描述'}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-blue-600 flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1.5 text-sm text-blue-600 font-medium">
                           <BookOpen size={14} />
                           {assignment.course_title}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-700">{assignment.teacher_name}</span>
+                        <span className="text-sm text-gray-700 font-medium">{assignment.teacher_name}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-sm flex items-center gap-1 ${
-                          new Date(assignment.deadline) < new Date() ? 'text-red-600' : 'text-gray-600'
+                        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${
+                          new Date(assignment.deadline) < new Date() ? 'text-red-600' : 'text-gray-700'
                         }`}>
                           <Clock size={14} />
                           {new Date(assignment.deadline).toLocaleDateString('zh-CN')}
@@ -289,33 +295,34 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm">
-                          <span className="font-medium text-blue-600">{assignment.submitted_count}</span>
-                          <span className="text-gray-400"> 提交 / </span>
-                          <span className="font-medium text-green-600">{assignment.graded_count}</span>
-                          <span className="text-gray-400"> 批改</span>
-                        </div>
-                        <div className="w-24 h-1.5 bg-gray-200 rounded-full mt-1">
-                          <div 
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: `${getSubmissionRate(assignment.graded_count, assignment.submitted_count)}%` }}
-                          />
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="font-semibold text-blue-600">{assignment.submitted_count}</span>
+                            <span className="text-gray-400">/</span>
+                            <span className="font-semibold text-green-600">{assignment.graded_count}</span>
+                            <span className="text-gray-500 text-xs">已批改</span>
+                          </div>
+                          <div className="w-28 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all"
+                              style={{ width: `${getSubmissionRate(assignment.graded_count, assignment.submitted_count)}%` }}
+                            />
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-gray-900">{assignment.total_score} 分</span>
+                        <span className="text-sm font-semibold text-gray-900">{assignment.total_score} 分</span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleViewDetail(assignment)}
-                            className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                            className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                           >
                             查看提交
                           </button>
                           <button
                             onClick={() => handleDelete(assignment.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
-                            title="删除"
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -331,35 +338,40 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
 
         {/* Detail Modal */}
         {showDetailModal && selectedAssignment && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b">
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <div>
-                  <h2 className="text-xl font-bold">作业提交详情</h2>
-                  <p className="text-sm text-gray-500">{selectedAssignment.title}</p>
+                  <h2 className="text-xl font-bold text-gray-900">作业提交详情</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{selectedAssignment.title}</p>
                 </div>
                 <button 
                   onClick={() => setShowDetailModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-xl"
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   ✕
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-6">
                 {submissions.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8">暂无提交记录</p>
+                  <div className="text-center text-gray-400 py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Users size={28} className="text-gray-300" />
+                    </div>
+                    <p>暂无提交记录</p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {submissions.map((sub: any) => (
-                      <div key={sub.id} className="p-4 bg-gray-50 rounded-xl flex items-center justify-between">
+                    {submissions.map((sub) => (
+                      <div key={sub.id} className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-colors">
                         <div className="flex items-center gap-3">
                           <img 
                             src={sub.student?.avatar || `https://i.pravatar.cc/150?u=${sub.student_id}`}
                             alt={sub.student?.name}
-                            className="w-10 h-10 rounded-full"
+                            className="w-10 h-10 rounded-full ring-2 ring-white"
                           />
                           <div>
-                            <p className="font-medium">{sub.student?.name || '未知学生'}</p>
+                            <p className="font-medium text-gray-900">{sub.student?.name || '未知学生'}</p>
                             <p className="text-xs text-gray-500">
                               提交时间: {new Date(sub.submitted_at).toLocaleString('zh-CN')}
                             </p>
@@ -370,7 +382,7 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
                             {sub.score !== null ? `${sub.score} 分` : '未批改'}
                           </p>
                           {sub.feedback && (
-                            <p className="text-xs text-gray-500">{sub.feedback}</p>
+                            <p className="text-xs text-gray-500 max-w-[200px] truncate">{sub.feedback}</p>
                           )}
                         </div>
                       </div>

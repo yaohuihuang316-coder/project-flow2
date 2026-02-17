@@ -22,7 +22,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   children, currentPage, onNavigate, currentUser, onLogout, currentTabParam
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(['content', 'community', 'system']);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['content', 'teachers', 'community']);
 
   const role = currentUser?.role || 'Student';
 
