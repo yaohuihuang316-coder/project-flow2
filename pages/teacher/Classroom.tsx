@@ -1,14 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Home, BookOpen, Video, ClipboardList, User,
   Clock, Play, Square, Monitor, Users, CheckCircle2,
   MessageCircle, PenLine, Trash2,
-  ArrowLeft, BarChart3, Plus, X
+  ArrowLeft, BarChart3, Plus, X, QrCode, UserCheck, RefreshCw
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
-// import { supabase } from '../../lib/supabaseClient';
-// import { useAttendanceRealtime, createClassSession } from '../../lib/teacherHooks';
+import { supabase } from '../../lib/supabaseClient';
 
 interface TeacherClassroomProps {
   currentUser?: UserProfile | null;
@@ -75,17 +74,176 @@ interface Poll {
 // 底部导航 Tab 类型
 type TeacherTab = 'home' | 'courses' | 'class' | 'assignments' | 'profile';
 
+// ==================== 自定义 Hooks ====================
+
+// 获取教师的课程列表
+function useTeacherCourses(teacherId?: string) {
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchCourses = useCallback(async () => {
+    if (!teacherId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('app_courses')
+        .select('*')
+        .eq('teacher_id', teacherId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setCourses(data || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  return { courses, loading, error, refetch: fetchCourses };
+}
+
+// 获取课堂会话列表
+function useClassSessions(teacherId?: string) {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSessions = useCallback(async () => {
+    if (!teacherId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('app_class_sessions')
+        .select(`
+          *,
+          course:course_id (title, image)
+        `)
+        .eq('teacher_id', teacherId)
+        .order('scheduled_start', { ascending: false });
+      
+      if (error) throw error;
+      setSessions(data || []);
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
+
+  return { sessions, loading, refetch: fetchSessions };
+}
+
+// 实时订阅签到数据
+function useAttendanceRealtime(sessionId?: string) {
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setAttendance([]);
+      setLoading(false);
+      return;
+    }
+
+    // 初始加载
+    const loadAttendance = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('app_attendance')
+        .select(`
+          *,
+          student:student_id (id, name, avatar)
+        `)
+        .eq('session_id', sessionId);
+      
+      if (!error) {
+        setAttendance(data || []);
+      }
+      setLoading(false);
+    };
+    loadAttendance();
+
+    // 实时订阅
+    const subscription = supabase
+      .channel(`attendance:${sessionId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'app_attendance',
+        filter: `session_id=eq.${sessionId}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setAttendance(prev => [...prev, payload.new]);
+        } else if (payload.eventType === 'UPDATE') {
+          setAttendance(prev => prev.map(a => a.id === payload.new.id ? payload.new : a));
+        } else if (payload.eventType === 'DELETE') {
+          setAttendance(prev => prev.filter(a => a.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [sessionId]);
+
+  return { attendance, loading };
+}
+
+// 创建课堂会话（预留功能 - 将来实现创建新课堂）
+// @ts-expect-error - 预留函数，暂时未使用
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _createClassSession(_sessionData: any) {
+  const { data, error } = await supabase
+    .from('app_class_sessions')
+    .insert(_sessionData)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
+// 更新课堂会话状态
+async function updateClassSession(sessionId: string, updates: any) {
+  const { data, error } = await supabase
+    .from('app_class_sessions')
+    .update(updates)
+    .eq('id', sessionId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+}
+
 const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   currentUser,
   onNavigate,
   onLogout: _onLogout
 }) => {
+  // 使用真实数据 Hooks
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { courses: _courses, loading: coursesLoading } = useTeacherCourses(currentUser?.id);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sessions, loading: _sessionsLoading, refetch: refetchSessions } = useClassSessions(currentUser?.id);
+  
   // 上课状态管理
   const [activeTab, setActiveTab] = useState<TeacherTab>('class');
   const [isClassActive, setIsClassActive] = useState(false);
-  const [activeClassId, setActiveClassId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [classTimer, setClassTimer] = useState(0);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // 白板状态
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -97,65 +255,61 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   // 互动工具状态
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [showPollModal, setShowPollModal] = useState(false);
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [newPollQuestion, setNewPollQuestion] = useState('');
   const [newPollOptions, setNewPollOptions] = useState(['', '']);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
+  
+  // 签到码状态
+  const [checkInCode, setCheckInCode] = useState<string | null>(null);
+  const [checkInCodeExpiry, setCheckInCodeExpiry] = useState<Date | null>(null);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
-  // 模拟课程数据
-  const [courseClasses, setCourseClasses] = useState<CourseClass[]>([
-    { 
-      id: 'c1', 
-      title: '项目管理基础', 
-      time: '09:00', 
-      duration: '45分钟', 
-      classroom: 'A101', 
-      studentCount: 32, 
-      status: ClassStatus.COMPLETED,
-      image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400'
-    },
-    { 
-      id: 'c2', 
-      title: '敏捷开发实践', 
-      time: '14:00', 
-      duration: '45分钟', 
-      classroom: 'B203', 
-      studentCount: 28, 
-      status: ClassStatus.ONGOING,
-      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400'
-    },
-    { 
-      id: 'c3', 
-      title: '风险管理专题', 
-      time: '16:00', 
-      duration: '45分钟', 
-      classroom: 'A105', 
-      studentCount: 30, 
-      status: ClassStatus.UPCOMING,
-      image: 'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=400'
-    },
-    { 
-      id: 'c4', 
-      title: '项目沟通管理', 
-      time: '明天 10:00', 
-      duration: '45分钟', 
-      classroom: 'C301', 
-      studentCount: 25, 
-      status: ClassStatus.UPCOMING,
-      image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400'
-    },
-  ]);
+  // 将会话数据转换为课程列表展示
+  const courseClasses: CourseClass[] = sessions.map(session => {
+    const startTime = new Date(session.scheduled_start);
+    const now = new Date();
+    const isToday = startTime.toDateString() === now.toDateString();
+    
+    let status = ClassStatus.UPCOMING;
+    if (session.status === 'completed' || session.ended_at) {
+      status = ClassStatus.COMPLETED;
+    } else if (session.status === 'in_progress' || session.started_at) {
+      status = ClassStatus.ONGOING;
+    } else if (startTime < now && !session.ended_at) {
+      status = ClassStatus.ONGOING;
+    }
+    
+    const timeStr = isToday 
+      ? startTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      : startTime.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    
+    return {
+      id: session.id,
+      title: session.course?.title || session.title || '未命名课程',
+      time: timeStr,
+      duration: session.duration || '45分钟',
+      classroom: session.classroom || '在线课堂',
+      studentCount: session.max_students || 30,
+      status,
+      image: session.course?.image || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400'
+    };
+  });
 
-  // 模拟学生签到数据
-  const [attendanceList] = useState<AttendanceStudent[]>([
-    { id: 'st1', name: '张明', avatar: 'https://i.pravatar.cc/150?u=1', status: 'present', checkInTime: '13:58' },
-    { id: 'st2', name: '李华', avatar: 'https://i.pravatar.cc/150?u=2', status: 'present', checkInTime: '13:59' },
-    { id: 'st3', name: '王芳', avatar: 'https://i.pravatar.cc/150?u=3', status: 'late', checkInTime: '14:05' },
-    { id: 'st4', name: '陈小明', avatar: 'https://i.pravatar.cc/150?u=4', status: 'present', checkInTime: '13:57' },
-    { id: 'st5', name: '刘小红', avatar: 'https://i.pravatar.cc/150?u=5', status: 'present', checkInTime: '13:55' },
-    { id: 'st6', name: '赵小强', avatar: 'https://i.pravatar.cc/150?u=6', status: 'absent' },
-    { id: 'st7', name: '周小敏', avatar: 'https://i.pravatar.cc/150?u=7', status: 'present', checkInTime: '14:00' },
-    { id: 'st8', name: '吴小波', avatar: 'https://i.pravatar.cc/150?u=8', status: 'present', checkInTime: '13:56' },
-  ]);
+  // 使用真实签到数据
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { attendance: attendanceData, loading: _attendanceLoading } = useAttendanceRealtime(activeSessionId || undefined);
+  
+  // 转换签到数据为展示格式
+  const attendanceList: AttendanceStudent[] = attendanceData.map(record => ({
+    id: record.student?.id || record.id,
+    name: record.student?.name || '未知学生',
+    avatar: record.student?.avatar || `https://i.pravatar.cc/150?u=${record.student_id}`,
+    status: record.status === 'present' ? 'present' : record.status === 'late' ? 'late' : 'absent',
+    checkInTime: record.checked_in_at 
+      ? new Date(record.checked_in_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      : undefined
+  }));
 
   // 模拟提问数据
   const [questions, setQuestions] = useState<Question[]>([
@@ -187,31 +341,57 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   };
 
   // 开始上课
-  const startClass = (classId: string) => {
-    setActiveClassId(classId);
-    setIsClassActive(true);
-    setClassTimer(0);
-    // 更新课程状态
-    setCourseClasses(prev => prev.map(c => 
-      c.id === classId ? { ...c, status: ClassStatus.ONGOING } : c
-    ));
+  const startClass = async (sessionId: string) => {
+    setIsLoading(true);
+    try {
+      // 更新会话状态为进行中
+      await updateClassSession(sessionId, {
+        status: 'in_progress',
+        started_at: new Date().toISOString()
+      });
+      
+      setActiveSessionId(sessionId);
+      setIsClassActive(true);
+      setClassTimer(0);
+      
+      // 刷新会话列表
+      await refetchSessions();
+    } catch (err) {
+      console.error('Failed to start class:', err);
+      alert('开始上课失败，请重试');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 结束上课
-  const endClass = () => {
-    if (confirm('确定要结束本节课堂吗？')) {
+  const endClass = async () => {
+    if (!confirm('确定要结束本节课堂吗？')) return;
+    
+    setIsLoading(true);
+    try {
+      // 更新会话状态为已完成
+      if (activeSessionId) {
+        await updateClassSession(activeSessionId, {
+          status: 'completed',
+          ended_at: new Date().toISOString()
+        });
+      }
+      
       setIsClassActive(false);
-      setActiveClassId(null);
+      setActiveSessionId(null);
       setClassTimer(0);
       setIsScreenSharing(false);
       setStrokes([]);
       setActivePoll(null);
-      // 更新课程状态
-      if (activeClassId) {
-        setCourseClasses(prev => prev.map(c => 
-          c.id === activeClassId ? { ...c, status: ClassStatus.COMPLETED } : c
-        ));
-      }
+      
+      // 刷新会话列表
+      await refetchSessions();
+    } catch (err) {
+      console.error('Failed to end class:', err);
+      alert('结束上课失败，请重试');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -290,7 +470,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
 
   // 获取当前课程
   const getCurrentClass = () => {
-    return courseClasses.find(c => c.id === activeClassId);
+    return courseClasses.find(c => c.id === activeSessionId);
   };
 
   // 统计签到数据
@@ -299,6 +479,64 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     const late = attendanceList.filter(s => s.status === 'late').length;
     const absent = attendanceList.filter(s => s.status === 'absent').length;
     return { present, late, absent, total: attendanceList.length };
+  };
+
+  // 生成签到码
+  const generateCheckInCode = async () => {
+    if (!activeSessionId) return;
+    
+    setIsGeneratingCode(true);
+    try {
+      // 生成 6 位随机码
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 分钟后过期
+      
+      // 更新会话的签到码
+      await supabase
+        .from('app_class_sessions')
+        .update({
+          check_in_code: code,
+          check_in_code_expires_at: expiresAt.toISOString()
+        })
+        .eq('id', activeSessionId);
+      
+      setCheckInCode(code);
+      setCheckInCodeExpiry(expiresAt);
+    } catch (err) {
+      console.error('Failed to generate check-in code:', err);
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  };
+
+  // 刷新签到码
+  const refreshCheckInCode = async () => {
+    setCheckInCode(null);
+    setCheckInCodeExpiry(null);
+    await generateCheckInCode();
+  };
+
+  // 手动为学生签到
+  const manualCheckIn = async (studentId: string, status: 'present' | 'late') => {
+    if (!activeSessionId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('app_attendance')
+        .upsert({
+          session_id: activeSessionId,
+          student_id: studentId,
+          status: status,
+          checked_in_at: new Date().toISOString(),
+          check_in_method: 'manual'
+        }, {
+          onConflict: 'session_id,student_id'
+        });
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error('Failed to check in student:', err);
+    }
   };
 
   // ==================== 侧边栏导航（桌面端） ====================
@@ -330,7 +568,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
                       }
                       // 结束课堂状态
                       setIsClassActive(false);
-                      setActiveClassId(null);
+                      setActiveSessionId(null);
                       setClassTimer(0);
                     }
                     
@@ -383,7 +621,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
                     }
                     // 结束课堂状态
                     setIsClassActive(false);
-                    setActiveClassId(null);
+                    setActiveSessionId(null);
                     setClassTimer(0);
                   }
                   
@@ -441,7 +679,12 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
           <span className="text-sm text-gray-500">{upcomingClasses.length} 节</span>
         </div>
         
-        {upcomingClasses.length === 0 ? (
+        {(coursesLoading || sessions.length === 0 && _sessionsLoading) ? (
+              <div className="text-center py-8 text-gray-400">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                <p>加载课程中...</p>
+              </div>
+            ) : upcomingClasses.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             <BookOpen size={48} className="mx-auto mb-2 opacity-50" />
             <p>暂无待开始的课程</p>
@@ -478,16 +721,18 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
                 {cls.status === ClassStatus.ONGOING ? (
                   <button 
                     onClick={() => startClass(cls.id)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center gap-1 animate-pulse"
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center gap-1 animate-pulse disabled:opacity-50"
                   >
-                    <Play size={14} fill="currentColor" /> 继续
+                    <Play size={14} fill="currentColor" /> {isLoading ? '加载中...' : '继续'}
                   </button>
                 ) : (
                   <button 
                     onClick={() => startClass(cls.id)}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-medium flex items-center gap-1"
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-medium flex items-center gap-1 disabled:opacity-50"
                   >
-                    <Play size={14} fill="currentColor" /> 开始
+                    <Play size={14} fill="currentColor" /> {isLoading ? '加载中...' : '开始'}
                   </button>
                 )}
               </div>
@@ -680,37 +925,81 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
+          {/* 签到码区域 */}
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+            {!checkInCode ? (
+              <button
+                onClick={generateCheckInCode}
+                disabled={isGeneratingCode}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                <QrCode size={20} />
+                {isGeneratingCode ? '生成中...' : '生成签到码'}
+              </button>
+            ) : (
+              <div className="text-center">
+                <div className="text-4xl font-bold text-blue-600 tracking-widest mb-2">
+                  {checkInCode}
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  学生输入此码签到 · {checkInCodeExpiry && `过期时间: ${checkInCodeExpiry.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`}
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={refreshCheckInCode}
+                    className="px-3 py-1.5 bg-white text-blue-600 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-blue-50 transition-colors"
+                  >
+                    <RefreshCw size={14} /> 刷新
+                  </button>
+                  <button
+                    onClick={() => setShowAttendanceModal(true)}
+                    className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-gray-50 transition-colors"
+                  >
+                    <UserCheck size={14} /> 手动签到
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
           {/* 签到进度条 */}
           <div className="mb-4">
             <div className="flex justify-between text-xs text-gray-500 mb-1">
               <span>签到率</span>
-              <span>{Math.round(((stats.present + stats.late) / stats.total) * 100)}%</span>
+              <span>{stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0}%</span>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
-                style={{ width: `${((stats.present + stats.late) / stats.total) * 100}%` }} 
+                style={{ width: `${stats.total > 0 ? ((stats.present + stats.late) / stats.total) * 100 : 0}%` }} 
               />
             </div>
           </div>
           
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {attendanceList.map((student) => (
-              <div key={student.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors">
-                <img src={student.avatar} alt="" className="w-10 h-10 rounded-full" />
-                <span className="flex-1 font-medium text-gray-900">{student.name}</span>
-                <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                  student.status === 'present' ? 'bg-green-100 text-green-700' :
-                  student.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
-                  {student.status === 'present' ? '已签到' : student.status === 'late' ? '迟到' : '缺勤'}
-                </span>
-                {student.checkInTime && (
-                  <span className="text-xs text-gray-400">{student.checkInTime}</span>
-                )}
+            {attendanceList.length === 0 ? (
+              <div className="text-center py-4 text-gray-400 text-sm">
+                <p>暂无学生签到数据</p>
+                <p className="text-xs mt-1">生成签到码后学生可扫码或输入签到</p>
               </div>
-            ))}
+            ) : (
+              attendanceList.map((student) => (
+                <div key={student.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors">
+                  <img src={student.avatar} alt="" className="w-10 h-10 rounded-full" />
+                  <span className="flex-1 font-medium text-gray-900">{student.name}</span>
+                  <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
+                    student.status === 'present' ? 'bg-green-100 text-green-700' :
+                    student.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>
+                    {student.status === 'present' ? '已签到' : student.status === 'late' ? '迟到' : '缺勤'}
+                  </span>
+                  {student.checkInTime && (
+                    <span className="text-xs text-gray-400">{student.checkInTime}</span>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -925,6 +1214,87 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     );
   };
 
+  // ==================== 手动签到弹窗 ====================
+  const renderAttendanceModal = () => {
+    if (!showAttendanceModal) return null;
+
+    // 模拟学生列表（实际应从选课数据获取）
+    const mockStudents = [
+      { id: 'st1', name: '张明', avatar: 'https://i.pravatar.cc/150?u=1' },
+      { id: 'st2', name: '李华', avatar: 'https://i.pravatar.cc/150?u=2' },
+      { id: 'st3', name: '王芳', avatar: 'https://i.pravatar.cc/150?u=3' },
+      { id: 'st4', name: '陈小明', avatar: 'https://i.pravatar.cc/150?u=4' },
+      { id: 'st5', name: '刘小红', avatar: 'https://i.pravatar.cc/150?u=5' },
+      { id: 'st6', name: '赵小强', avatar: 'https://i.pravatar.cc/150?u=6' },
+    ];
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+        <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col">
+          {/* 头部 */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900">手动签到</h3>
+            <button 
+              onClick={() => setShowAttendanceModal(false)}
+              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+          </div>
+
+          {/* 学生列表 */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-2">
+              {mockStudents.map((student) => {
+                const existingRecord = attendanceList.find(a => a.id === student.id);
+                const isPresent = existingRecord?.status === 'present';
+                const isLate = existingRecord?.status === 'late';
+                
+                return (
+                  <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <img src={student.avatar} alt="" className="w-10 h-10 rounded-full" />
+                    <span className="flex-1 font-medium text-gray-900">{student.name}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => manualCheckIn(student.id, 'present')}
+                        disabled={isPresent}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          isPresent 
+                            ? 'bg-green-100 text-green-700 cursor-default' 
+                            : 'bg-white border border-gray-200 text-gray-700 hover:bg-green-50 hover:border-green-200'
+                        }`}
+                      >
+                        {isPresent ? '已签到' : '签到'}
+                      </button>
+                      <button
+                        onClick={() => manualCheckIn(student.id, 'late')}
+                        disabled={isLate}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          isLate 
+                            ? 'bg-yellow-100 text-yellow-700 cursor-default' 
+                            : 'bg-white border border-gray-200 text-gray-700 hover:bg-yellow-50 hover:border-yellow-200'
+                        }`}
+                      >
+                        {isLate ? '已迟到' : '迟到'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 底部提示 */}
+          <div className="p-4 border-t border-gray-100">
+            <p className="text-xs text-gray-500 text-center">
+              点击按钮为学生标记出勤状态，已签到的学生会显示为已签到
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ==================== 主渲染 ====================
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1003,6 +1373,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       <div className="lg:hidden">{renderBottomNav()}</div>
       {renderQuestionModal()}
       {renderPollModal()}
+      {renderAttendanceModal()}
     </div>
   );
 };
