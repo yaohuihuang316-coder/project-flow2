@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Home, BookOpen, Video, ClipboardList, User,
+  Home, BookOpen, Video, ClipboardList, User, LogOut,
   Clock, Calendar, Bell, ChevronRight, Play, Square,
   Monitor, Users, CheckCircle2, MessageCircle,
   Send, Plus, FileText, Star, MoreHorizontal, Filter,
@@ -209,7 +209,59 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     return '晚上好';
   };
 
-  // ==================== 底部导航 ====================
+  // ==================== 侧边栏导航（桌面端） ====================
+  const renderSidebar = () => {
+    const navItems = [
+      { id: 'home' as const, icon: Home, label: '首页' },
+      { id: 'courses' as const, icon: BookOpen, label: '课程' },
+      { id: 'class' as const, icon: Video, label: '上课' },
+      { id: 'assignments' as const, icon: ClipboardList, label: '作业' },
+      { id: 'profile' as const, icon: User, label: '我的' },
+    ];
+
+    return (
+      <aside className="hidden lg:flex w-64 bg-white h-screen sticky top-0 border-r border-gray-200 flex-col">
+        <div className="p-6 flex-1">
+          <h1 className="text-2xl font-bold text-gray-900 mb-8">教师端</h1>
+          <nav className="space-y-2">
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    isActive 
+                      ? 'bg-blue-50 text-blue-600 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon size={20} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+        
+        {/* Desktop Logout */}
+        {onLogout && (
+          <div className="p-4 border-t border-gray-100">
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all"
+            >
+              <LogOut size={20} />
+              <span>退出登录</span>
+            </button>
+          </div>
+        )}
+      </aside>
+    );
+  };
+
+  // ==================== 底部导航（移动端） ====================
   const renderBottomNav = () => {
     const navItems = [
       { id: 'home', icon: Home, label: '首页' },
@@ -220,7 +272,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     ];
 
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <div className="flex justify-between items-center h-16 max-w-lg mx-auto">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -260,7 +312,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // ==================== 首页 ====================
   const renderHome = () => (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6">
       {/* 头部问候 */}
       <div className="flex items-center justify-between">
         <div>
@@ -280,125 +332,139 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
       </div>
 
-      {/* 今日课程时间表 */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Calendar size={20} className="text-blue-500" />
-            今日课程
-          </h3>
-          <button className="text-sm text-blue-600 font-medium">查看全部</button>
-        </div>
-        <div className="space-y-3">
-          {todayClasses.map((cls) => (
-            <div 
-              key={cls.id} 
-              className={`flex items-center gap-4 p-4 rounded-2xl transition-colors ${
-                cls.status === 'ongoing' ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'
-              }`}
-            >
-              <div className={`text-center min-w-[60px] ${cls.status === 'ongoing' ? 'text-blue-600' : 'text-gray-500'}`}>
-                <div className="text-lg font-bold">{cls.time}</div>
-                <div className="text-xs">{cls.duration}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-gray-900 truncate">{cls.title}</h4>
-                <p className="text-sm text-gray-500">{cls.classroom} · {cls.studentCount}人</p>
-              </div>
-              {cls.status === 'ongoing' ? (
-                <button 
-                  onClick={() => startClass(cls.id)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center gap-1"
+      {/* Desktop: Two column layout */}
+      <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+        {/* Left column (2/3) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* 今日课程时间表 */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Calendar size={20} className="text-blue-500" />
+                今日课程
+              </h3>
+              <button className="text-sm text-blue-600 font-medium">查看全部</button>
+            </div>
+            <div className="space-y-3">
+              {todayClasses.map((cls) => (
+                <div 
+                  key={cls.id} 
+                  className={`flex items-center gap-4 p-4 rounded-2xl transition-colors ${
+                    cls.status === 'ongoing' ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'
+                  }`}
                 >
-                  <Play size={14} fill="currentColor" /> 进入
-                </button>
-              ) : cls.status === 'completed' ? (
-                <span className="text-xs text-gray-400">已完成</span>
-              ) : (
-                <span className="text-xs text-gray-400">待开始</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 待办事项 */}
-      <div className="grid grid-cols-3 gap-3">
-        {todos.map((todo) => (
-          <button 
-            key={todo.id} 
-            onClick={() => {
-              if (todo.type === 'homework') setActiveTab('assignments');
-            }}
-            className={`p-4 rounded-2xl text-left transition-all active:scale-95 ${
-              todo.urgent ? 'bg-red-50 border border-red-100' : 'bg-white border border-gray-100 shadow-sm'
-            }`}
-          >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-              todo.type === 'homework' ? 'bg-orange-100 text-orange-600' :
-              todo.type === 'question' ? 'bg-blue-100 text-blue-600' :
-              'bg-purple-100 text-purple-600'
-            }`}>
-              {todo.type === 'homework' ? <ClipboardList size={20} /> :
-               todo.type === 'question' ? <MessageCircle size={20} /> :
-               <Bell size={20} />}
-            </div>
-            <p className={`text-2xl font-bold ${todo.urgent ? 'text-red-600' : 'text-gray-900'}`}>{todo.count}</p>
-            <p className="text-xs text-gray-500 mt-1">{todo.title}</p>
-          </button>
-        ))}
-      </div>
-
-      {/* 快速操作 */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white">
-        <h3 className="text-lg font-bold mb-2">快速开始</h3>
-        <p className="text-blue-100 text-sm mb-4">准备好开始今天的教学了吗？</p>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setActiveTab('class')}
-            className="flex-1 py-3 bg-white text-blue-600 rounded-xl font-medium flex items-center justify-center gap-2"
-          >
-            <Video size={18} /> 开始上课
-          </button>
-          <button 
-            onClick={() => setActiveTab('assignments')}
-            className="flex-1 py-3 bg-blue-400/50 text-white rounded-xl font-medium flex items-center justify-center gap-2"
-          >
-            <ClipboardList size={18} /> 布置作业
-          </button>
-        </div>
-      </div>
-
-      {/* 最近学生提问 */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">学生提问</h3>
-          <button 
-            onClick={() => setActiveTab('courses')}
-            className="text-sm text-blue-600 font-medium flex items-center gap-1"
-          >
-            查看全部 <ChevronRight size={16} />
-          </button>
-        </div>
-        <div className="space-y-3">
-          {questions.slice(0, 3).map((q) => (
-            <div 
-              key={q.id} 
-              onClick={() => { setSelectedQuestion(q); setShowQuestionDetail(true); }}
-              className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors"
-            >
-              <img src={q.studentAvatar} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 text-sm">{q.studentName}</span>
-                  <span className="text-xs text-gray-400">{q.timestamp}</span>
-                  {q.status === 'unanswered' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
+                  <div className={`text-center min-w-[60px] ${cls.status === 'ongoing' ? 'text-blue-600' : 'text-gray-500'}`}>
+                    <div className="text-lg font-bold">{cls.time}</div>
+                    <div className="text-xs">{cls.duration}</div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-gray-900 truncate">{cls.title}</h4>
+                    <p className="text-sm text-gray-500">{cls.classroom} · {cls.studentCount}人</p>
+                  </div>
+                  {cls.status === 'ongoing' ? (
+                    <button 
+                      onClick={() => startClass(cls.id)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center gap-1"
+                    >
+                      <Play size={14} fill="currentColor" /> 进入
+                    </button>
+                  ) : cls.status === 'completed' ? (
+                    <span className="text-xs text-gray-400">已完成</span>
+                  ) : (
+                    <span className="text-xs text-gray-400">待开始</span>
+                  )}
                 </div>
-                <p className="text-sm text-gray-600 truncate">{q.content}</p>
-                <p className="text-xs text-gray-400 mt-1">{q.courseName}</p>
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* 最近学生提问 */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">学生提问</h3>
+              <button 
+                onClick={() => setActiveTab('courses')}
+                className="text-sm text-blue-600 font-medium flex items-center gap-1"
+              >
+                查看全部 <ChevronRight size={16} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {questions.slice(0, 3).map((q) => (
+                <div 
+                  key={q.id} 
+                  onClick={() => { setSelectedQuestion(q); setShowQuestionDetail(true); }}
+                  className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors"
+                >
+                  <img src={q.studentAvatar} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 text-sm">{q.studentName}</span>
+                      <span className="text-xs text-gray-400">{q.timestamp}</span>
+                      {q.status === 'unanswered' && <span className="w-2 h-2 bg-red-500 rounded-full"></span>}
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">{q.content}</p>
+                    <p className="text-xs text-gray-400 mt-1">{q.courseName}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column (1/3) */}
+        <div className="space-y-6 mt-6 lg:mt-0">
+          {/* 快速操作 */}
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white">
+            <h3 className="text-lg font-bold mb-2">快速开始</h3>
+            <p className="text-blue-100 text-sm mb-4">准备好开始今天的教学了吗？</p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => setActiveTab('class')}
+                className="py-3 bg-white text-blue-600 rounded-xl font-medium flex items-center justify-center gap-2"
+              >
+                <Video size={18} /> 开始上课
+              </button>
+              <button 
+                onClick={() => setActiveTab('assignments')}
+                className="py-3 bg-blue-400/50 text-white rounded-xl font-medium flex items-center justify-center gap-2"
+              >
+                <ClipboardList size={18} /> 布置作业
+              </button>
+            </div>
+          </div>
+
+          {/* 待办事项 */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">待办事项</h3>
+            <div className="space-y-3">
+              {todos.map((todo) => (
+                <button 
+                  key={todo.id} 
+                  onClick={() => {
+                    if (todo.type === 'homework') setActiveTab('assignments');
+                  }}
+                  className={`w-full p-4 rounded-2xl text-left transition-all active:scale-95 flex items-center gap-3 ${
+                    todo.urgent ? 'bg-red-50 border border-red-100' : 'bg-gray-50 border border-gray-100'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    todo.type === 'homework' ? 'bg-orange-100 text-orange-600' :
+                    todo.type === 'question' ? 'bg-blue-100 text-blue-600' :
+                    'bg-purple-100 text-purple-600'
+                  }`}>
+                    {todo.type === 'homework' ? <ClipboardList size={20} /> :
+                     todo.type === 'question' ? <MessageCircle size={20} /> :
+                     <Bell size={20} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-lg font-bold ${todo.urgent ? 'text-red-600' : 'text-gray-900'}`}>{todo.count}</p>
+                    <p className="text-xs text-gray-500 truncate">{todo.title}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -406,7 +472,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // ==================== 我的课程 ====================
   const renderCourses = () => (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">我的课程</h1>
         <button className="p-2 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -415,7 +481,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       </div>
 
       {/* 课程统计 */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 lg:grid-cols-3 lg:max-w-2xl">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
           <p className="text-2xl font-bold text-blue-600">{myCourses.length}</p>
           <p className="text-xs text-gray-500 mt-1">授课中</p>
@@ -430,21 +496,21 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
       </div>
 
-      {/* 课程列表 */}
-      <div className="space-y-4">
+      {/* 课程列表 - Desktop: Grid, Mobile: Stack */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {myCourses.map((course) => (
-          <div key={course.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
-            <div className="relative h-32">
+          <div key={course.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 flex flex-col">
+            <div className="relative h-40 lg:h-48">
               <img src={course.image} alt={course.title} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
               <div className="absolute bottom-4 left-4 right-4">
                 <span className="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs text-white">
                   {course.category}
                 </span>
-                <h3 className="text-white font-bold mt-1">{course.title}</h3>
+                <h3 className="text-white font-bold mt-1 text-lg">{course.title}</h3>
               </div>
             </div>
-            <div className="p-4">
+            <div className="p-4 flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Users size={16} />
@@ -458,7 +524,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
                 <span className="text-xs text-gray-500 w-10 text-right">{course.progress}%</span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-auto">
                 <button 
                   onClick={() => startClass(course.id)}
                   className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2"
@@ -858,19 +924,20 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     }
 
     return (
-      <div className="space-y-6 pb-24">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">作业管理</h1>
           <button 
             onClick={() => setShowCreateAssignment(true)}
-            className="p-2 bg-blue-600 rounded-xl text-white"
+            className="px-4 py-2 bg-blue-600 rounded-xl text-white flex items-center gap-2"
           >
-            <Plus size={24} />
+            <Plus size={20} />
+            <span className="hidden sm:inline">布置作业</span>
           </button>
         </div>
 
         {/* 作业状态筛选 */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 lg:flex-wrap lg:overflow-visible">
           {['全部', '批改中', '待开始', '已完成'].map((filter, idx) => (
             <button 
               key={filter}
@@ -883,13 +950,13 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           ))}
         </div>
 
-        {/* 作业列表 */}
-        <div className="space-y-4">
+        {/* 作业列表 - Desktop: Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {assignments.map((assignment) => (
             <div 
               key={assignment.id} 
               onClick={() => { setSelectedAssignment(assignment); setShowAssignmentDetail(true); }}
-              className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"
+              className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform hover:shadow-md"
             >
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -929,78 +996,87 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // ==================== 个人中心 ====================
   const renderProfile = () => (
-    <div className="space-y-6 pb-24">
-      {/* 用户信息卡片 */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white">
-        <div className="flex items-center gap-4">
-          <img 
-            src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
-            alt="Avatar" 
-            className="w-20 h-20 rounded-2xl object-cover border-4 border-white/30"
-          />
-          <div>
-            <h2 className="text-xl font-bold">{currentUser?.name || '教师'}</h2>
-            <p className="text-blue-100 text-sm">{currentUser?.email}</p>
-            <div className="flex gap-2 mt-2">
-              <span className="px-2 py-1 bg-white/20 rounded-lg text-xs">高级教师</span>
-              <span className="px-2 py-1 bg-white/20 rounded-lg text-xs">5年教龄</span>
+    <div className="space-y-6">
+      {/* Desktop: Two column layout */}
+      <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+        {/* Left: User info */}
+        <div className="lg:col-span-1">
+          {/* 用户信息卡片 */}
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white lg:sticky lg:top-8">
+            <div className="flex items-center gap-4">
+              <img 
+                src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
+                alt="Avatar" 
+                className="w-20 h-20 rounded-2xl object-cover border-4 border-white/30"
+              />
+              <div>
+                <h2 className="text-xl font-bold">{currentUser?.name || '教师'}</h2>
+                <p className="text-blue-100 text-sm">{currentUser?.email}</p>
+                <div className="flex gap-2 mt-2">
+                  <span className="px-2 py-1 bg-white/20 rounded-lg text-xs">高级教师</span>
+                  <span className="px-2 py-1 bg-white/20 rounded-lg text-xs">5年教龄</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 教学统计 */}
+          <div className="grid grid-cols-2 gap-3 mt-6">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <p className="text-3xl font-bold text-gray-900">128</p>
+              <p className="text-sm text-gray-500">累计授课</p>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <p className="text-3xl font-bold text-gray-900">4.9</p>
+              <p className="text-sm text-gray-500">学生评分</p>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <p className="text-3xl font-bold text-gray-900">856</p>
+              <p className="text-sm text-gray-500">学生总数</p>
+            </div>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <p className="text-3xl font-bold text-gray-900">92%</p>
+              <p className="text-sm text-gray-500">课程好评率</p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 教学统计 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <p className="text-3xl font-bold text-gray-900">128</p>
-          <p className="text-sm text-gray-500">累计授课</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <p className="text-3xl font-bold text-gray-900">4.9</p>
-          <p className="text-sm text-gray-500">学生评分</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <p className="text-3xl font-bold text-gray-900">856</p>
-          <p className="text-sm text-gray-500">学生总数</p>
-        </div>
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <p className="text-3xl font-bold text-gray-900">92%</p>
-          <p className="text-sm text-gray-500">课程好评率</p>
-        </div>
-      </div>
+        {/* Right: Menu and logout */}
+        <div className="lg:col-span-2 mt-6 lg:mt-0 space-y-6">
+          {/* 功能菜单 */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            {[
+              { icon: BookOpen, label: '我的课程', value: '4门' },
+              { icon: FileText, label: '教学资源', value: '32个' },
+              { icon: Clock, label: '授课记录', value: '' },
+              { icon: Download, label: '资料下载', value: '' },
+              { icon: MessageCircle, label: '帮助与反馈', value: '' },
+            ].map((item, idx) => (
+              <button 
+                key={item.label}
+                className={`w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 ${
+                  idx !== 4 ? 'border-b border-gray-100' : ''
+                }`}
+              >
+                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <item.icon size={20} className="text-gray-600" />
+                </div>
+                <span className="flex-1 text-left font-medium text-gray-900">{item.label}</span>
+                <span className="text-sm text-gray-400">{item.value}</span>
+                <ChevronRight size={16} className="text-gray-400" />
+              </button>
+            ))}
+          </div>
 
-      {/* 功能菜单 */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        {[
-          { icon: BookOpen, label: '我的课程', value: '4门' },
-          { icon: FileText, label: '教学资源', value: '32个' },
-          { icon: Clock, label: '授课记录', value: '' },
-          { icon: Download, label: '资料下载', value: '' },
-          { icon: MessageCircle, label: '帮助与反馈', value: '' },
-        ].map((item, idx) => (
+          {/* 退出登录 - Mobile only */}
           <button 
-            key={item.label}
-            className={`w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-50 ${
-              idx !== 4 ? 'border-b border-gray-100' : ''
-            }`}
+            onClick={onLogout}
+            className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium lg:hidden"
           >
-            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-              <item.icon size={20} className="text-gray-600" />
-            </div>
-            <span className="flex-1 text-left font-medium text-gray-900">{item.label}</span>
-            <span className="text-sm text-gray-400">{item.value}</span>
-            <ChevronRight size={16} className="text-gray-400" />
+            退出登录
           </button>
-        ))}
+        </div>
       </div>
-
-      {/* 退出登录 */}
-      <button 
-        onClick={onLogout}
-        className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium"
-      >
-        退出登录
-      </button>
     </div>
   );
 
@@ -1081,12 +1157,21 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-lg mx-auto min-h-screen bg-gray-50">
-        <div className="p-6">
-          {renderContent()}
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Desktop Sidebar */}
+      {renderSidebar()}
+      
+      {/* Main Content */}
+      <main className="flex-1 min-h-screen">
+        {/* Mobile: max-w-lg constraint, Desktop: full width */}
+        <div className="lg:max-w-none max-w-lg mx-auto min-h-screen">
+          <div className="p-4 lg:p-8 pb-24 lg:pb-8">
+            {renderContent()}
+          </div>
         </div>
-      </div>
+      </main>
+      
+      {/* Mobile Bottom Navigation */}
       {renderBottomNav()}
       {renderQuestionDetail()}
     </div>
