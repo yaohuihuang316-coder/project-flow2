@@ -942,20 +942,20 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
-          {/* 签到码区域 - 重新添加确保提交 */}
+          {/* 签到码区域 V2 */}
           <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
             {!checkInCode ? (
               <button
                 onClick={generateCheckInCode}
-                disabled={isGeneratingCode}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={isGeneratingCode || !activeSessionId}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <QrCode size={20} />
                 {isGeneratingCode ? '生成中...' : '生成签到码'}
               </button>
             ) : (
               <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600 tracking-widest mb-2">
+                <div className="text-4xl font-bold text-blue-600 tracking-widest mb-2" data-testid="checkin-code">
                   {checkInCode}
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
