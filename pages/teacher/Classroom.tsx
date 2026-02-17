@@ -481,7 +481,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     return { present, late, absent, total: attendanceList.length };
   };
 
-  // 生成签到码
+  // 生成签到码（仅前端存储，不依赖数据库字段）
   const generateCheckInCode = async () => {
     if (!activeSessionId) return;
     
@@ -491,14 +491,11 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 分钟后过期
       
-      // 更新会话的签到码
-      await supabase
-        .from('app_class_sessions')
-        .update({
-          check_in_code: code,
-          check_in_code_expires_at: expiresAt.toISOString()
-        })
-        .eq('id', activeSessionId);
+      // 存储到 localStorage（演示版本）
+      localStorage.setItem(`checkin_code_${activeSessionId}`, JSON.stringify({
+        code,
+        expiresAt: expiresAt.toISOString()
+      }));
       
       setCheckInCode(code);
       setCheckInCodeExpiry(expiresAt);
@@ -508,6 +505,26 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       setIsGeneratingCode(false);
     }
   };
+  
+  // 加载已保存的签到码
+  useEffect(() => {
+    if (activeSessionId) {
+      const saved = localStorage.getItem(`checkin_code_${activeSessionId}`);
+      if (saved) {
+        try {
+          const { code, expiresAt } = JSON.parse(saved);
+          if (new Date(expiresAt) > new Date()) {
+            setCheckInCode(code);
+            setCheckInCodeExpiry(new Date(expiresAt));
+          } else {
+            localStorage.removeItem(`checkin_code_${activeSessionId}`);
+          }
+        } catch (e) {
+          console.error('Failed to load check-in code:', e);
+        }
+      }
+    }
+  }, [activeSessionId]);
 
   // 刷新签到码
   const refreshCheckInCode = async () => {
