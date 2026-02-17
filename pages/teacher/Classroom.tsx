@@ -942,7 +942,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
-          {/* 签到码区域 */}
+          {/* 签到码区域 - 重新添加确保提交 */}
           <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
             {!checkInCode ? (
               <button
