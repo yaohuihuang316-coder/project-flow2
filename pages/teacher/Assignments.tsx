@@ -5,13 +5,15 @@ import {
   Home, BookOpen, Video, ClipboardList, User,
   Users, Plus, FileText,
   Star, Search,
-  CheckCircle2, Trash2, Download,
+  CheckCircle2, Trash2,
   CheckSquare, Square, Calendar, X,
   FileSpreadsheet, Loader2
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import * as assignmentService from '../../lib/assignmentService';
 import * as courseService from '../../lib/courseService';
+import GradingModal from '../../components/teacher/GradingModal';
+import GradeStats from '../../components/teacher/GradeStats';
 
 // import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
 
@@ -229,177 +231,6 @@ const AssignmentCreateModal: React.FC<AssignmentCreateModalProps> = ({
   );
 };
 
-// ==================== GradeModal 组件 ====================
-interface GradeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (form: GradeForm) => void;
-  submission: StudentSubmission | null;
-  maxScore: number;
-}
-
-const GradeModal: React.FC<GradeModalProps> = ({
-  isOpen,
-  onClose,
-  onSubmit,
-  submission,
-  maxScore
-}) => {
-  const [form, setForm] = useState<GradeForm>({ score: 0, comment: '' });
-
-  // 当提交对象变化时，重置表单
-  React.useEffect(() => {
-    if (submission) {
-      setForm({
-        score: submission.score || 0,
-        comment: submission.comment || ''
-      });
-    }
-  }, [submission]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(form);
-  };
-
-  const quickScores = [60, 80, 90, 100];
-  const quickComments = ['完成得很好', '内容充实，分析深入', '需要补充更多细节', '继续努力', '优秀！'];
-
-  if (!isOpen || !submission) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        {/* 头部 */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">批改作业</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-          >
-            <X size={20} className="text-gray-500" />
-          </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* 学生信息 */}
-          <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl">
-            <img src={submission.studentAvatar} alt="" className="w-12 h-12 rounded-full" />
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900">{submission.studentName}</h3>
-              <p className="text-sm text-gray-500">提交时间: {submission.submittedAt}</p>
-              {submission.status === 'late' && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded">迟交</span>
-              )}
-            </div>
-          </div>
-
-          {/* 提交内容 */}
-          <div>
-            <h3 className="font-bold text-gray-900 mb-3">提交内容</h3>
-            <div className="p-4 bg-gray-50 rounded-2xl">
-              <p className="text-gray-700 whitespace-pre-line text-sm">{submission.content}</p>
-            </div>
-            {submission.attachments.length > 0 && (
-              <div className="flex gap-2 mt-3 flex-wrap">
-                {submission.attachments.map((att, idx) => (
-                  <button
-                    key={idx}
-                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm flex items-center gap-2 hover:bg-blue-100 transition-colors"
-                  >
-                    <FileText size={16} />
-                    {att}
-                    <Download size={14} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 评分表单 */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                评分 (0-{maxScore})
-              </label>
-              <div className="flex items-center gap-3 flex-wrap">
-                <input
-                  type="number"
-                  min={0}
-                  max={maxScore}
-                  value={form.score}
-                  onChange={(e) => setForm({ ...form, score: parseInt(e.target.value) || 0 })}
-                  className="w-24 px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 text-center text-xl font-bold"
-                />
-                <span className="text-gray-500">分</span>
-                {/* 快速评分按钮 */}
-                <div className="flex gap-2 ml-auto">
-                  {quickScores.map(score => (
-                    <button
-                      key={score}
-                      onClick={() => setForm({ ...form, score })}
-                      className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${form.score === score
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
-                        }`}
-                    >
-                      {score}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">评语</label>
-              <textarea
-                rows={3}
-                placeholder="请输入评语..."
-                value={form.comment}
-                onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
-              />
-              {/* 快捷评语 */}
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {quickComments.map(comment => (
-                  <button
-                    key={comment}
-                    onClick={() => setForm({ ...form, comment })}
-                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${form.comment === comment
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
-                      }`}
-                  >
-                    {comment}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 底部按钮 */}
-        <div className="p-5 border-t border-gray-100 space-y-3">
-          <button
-            onClick={handleSubmit}
-            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition-all"
-          >
-            <CheckCircle2 size={18} />
-            提交批改
-          </button>
-          <button
-            onClick={onClose}
-            className="w-full py-3.5 bg-gray-100 text-gray-700 rounded-xl font-medium active:scale-95 transition-all"
-          >
-            取消
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ==================== AssignmentDetailModal 组件 ====================
 interface AssignmentDetailModalProps {
   isOpen: boolean;
@@ -507,6 +338,12 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
                 <p className="text-xs text-gray-500 mt-1">提交率</p>
               </div>
             </div>
+
+            {/* 成绩统计图表 */}
+            <GradeStats 
+              submissions={currentSubs} 
+              maxScore={assignment.maxScore} 
+            />
 
             {/* 作业要求 */}
             <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
@@ -1299,15 +1136,17 @@ const Assignments: React.FC<AssignmentsProps> = ({
         onExport={handleExportGrades}
       />
 
-      <GradeModal
+      <GradingModal
         isOpen={showGradeModal}
         onClose={() => {
           setShowGradeModal(false);
           setSelectedSubmission(null);
         }}
-        onSubmit={handleGradeSubmit}
         submission={selectedSubmission}
         maxScore={selectedAssignment?.maxScore || 100}
+        onSave={(score, comment) => {
+          handleGradeSubmit({ score, comment });
+        }}
       />
     </div>
   );
