@@ -24,16 +24,15 @@
 - [x] 本地 Commit: `e75f74c`
 
 #### 1.3 学生端签到功能
-- [ ] 学生端输入签到码界面（在 Classroom.tsx 添加）
-- [ ] 验证签到码有效性
-- [ ] 创建签到记录到 `app_attendance`
-- [ ] 本地 Commit
+- [x] 学生端输入签到码界面（在 Classroom.tsx 添加签到卡片）
+- [x] 验证签到码有效性（查询 whiteboard_data 字段）
+- [x] 创建签到记录到 `app_attendance`
+- [x] 本地 Commit: `30c6ccd`
 
 #### 1.4 实时签到监听
-- [ ] 优化 `useAttendanceRealtime` Hook
-- [ ] 实时显示学生签到状态
-- [ ] 签到统计更新
-- [ ] 本地 Commit
+- [x] 优化 `useAttendanceRealtime` Hook（检查现有实现）
+- [x] 实时显示学生签到状态（已使用 supabase realtime）
+- [x] 签到统计更新
 
 #### 1.5 阶段完成检查（部署后验证）
 - [ ] 教师点击"生成签到码"显示6位数字
