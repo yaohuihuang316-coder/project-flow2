@@ -1,15 +1,18 @@
 
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Home, BookOpen, Video, ClipboardList, User,
   Users, Plus, FileText,
   Star, Search,
   CheckCircle2, Trash2, Download,
   CheckSquare, Square, Calendar, X,
-  FileSpreadsheet
+  FileSpreadsheet, Loader2
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
-// import { supabase } from '../../lib/supabaseClient';
+import * as assignmentService from '../../lib/assignmentService';
+import * as courseService from '../../lib/courseService';
+
 // import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
 
 interface AssignmentsProps {
@@ -336,11 +339,10 @@ const GradeModal: React.FC<GradeModalProps> = ({
                     <button
                       key={score}
                       onClick={() => setForm({ ...form, score })}
-                      className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                        form.score === score
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
-                      }`}
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${form.score === score
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                        }`}
                     >
                       {score}
                     </button>
@@ -364,11 +366,10 @@ const GradeModal: React.FC<GradeModalProps> = ({
                   <button
                     key={comment}
                     onClick={() => setForm({ ...form, comment })}
-                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                      form.comment === comment
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
-                    }`}
+                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${form.comment === comment
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                      }`}
                   >
                     {comment}
                   </button>
@@ -531,9 +532,8 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
               {currentSubs.some(s => s.status !== 'graded') && (
                 <button
                   onClick={() => setShowBatchAction(!showBatchAction)}
-                  className={`text-sm font-medium transition-colors ${
-                    showBatchAction ? 'text-red-500' : 'text-blue-600'
-                  }`}
+                  className={`text-sm font-medium transition-colors ${showBatchAction ? 'text-red-500' : 'text-blue-600'
+                    }`}
                 >
                   {showBatchAction ? '取消' : '批量操作'}
                 </button>
@@ -596,9 +596,8 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
                         onGrade(sub);
                       }
                     }}
-                    className={`p-4 rounded-2xl cursor-pointer transition-colors ${
-                      showBatchAction && sub.status !== 'graded' ? 'bg-gray-50 hover:bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
-                    }`}
+                    className={`p-4 rounded-2xl cursor-pointer transition-colors ${showBatchAction && sub.status !== 'graded' ? 'bg-gray-50 hover:bg-blue-50' : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       {showBatchAction && sub.status !== 'graded' && (
@@ -671,154 +670,67 @@ const Assignments: React.FC<AssignmentsProps> = ({
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<StudentSubmission | null>(null);
 
-  // 批量选择状态（作业列表用）
+  // 批量选择状态(作业列表用)
   const [selectedAssignments, setSelectedAssignments] = useState<string[]>([]);
   const [showBatchDelete, setShowBatchDelete] = useState(false);
 
-  // 模拟课程数据
-  const [courses] = useState<Course[]>([
-    { id: 'course1', title: '项目管理基础', studentCount: 32 },
-    { id: 'course2', title: '敏捷开发实践', studentCount: 28 },
-    { id: 'course3', title: '风险管理专题', studentCount: 30 },
-    { id: 'course4', title: '项目沟通管理', studentCount: 25 },
-  ]);
+  // 数据加载状态
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 模拟作业数据
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    {
-      id: 'a1',
-      title: '项目计划书撰写',
-      courseId: 'course1',
-      courseName: '项目管理基础',
-      content: '请根据所学知识，撰写一份完整的项目计划书，包含项目背景、目标、范围、WBS分解、甘特图、风险评估等内容。字数要求：3000字以上。',
-      deadline: '2026-02-16 23:59',
-      createdAt: '2026-02-10',
-      submittedCount: 28,
-      totalCount: 32,
-      status: 'grading',
-      maxScore: 100,
-      attachments: ['项目计划书模板.docx']
-    },
-    {
-      id: 'a2',
-      title: '敏捷看板设计',
-      courseId: 'course2',
-      courseName: '敏捷开发实践',
-      content: '设计一个敏捷开发团队的看板，包含待办、进行中、已完成等列，并说明每个列的WIP限制。',
-      deadline: '2026-02-18 23:59',
-      createdAt: '2026-02-11',
-      submittedCount: 15,
-      totalCount: 28,
-      status: 'pending',
-      maxScore: 100,
-      attachments: []
-    },
-    {
-      id: 'a3',
-      title: '风险评估报告',
-      courseId: 'course3',
-      courseName: '风险管理专题',
-      content: '选择一个实际项目案例，进行风险识别、定性和定量分析，并制定应对策略。',
-      deadline: '2026-02-15 23:59',
-      createdAt: '2026-02-08',
-      submittedCount: 30,
-      totalCount: 30,
-      status: 'completed',
-      maxScore: 100,
-      attachments: ['风险评估模板.xlsx']
-    },
-    {
-      id: 'a4',
-      title: '沟通计划制定',
-      courseId: 'course4',
-      courseName: '项目沟通管理',
-      content: '为虚拟项目制定详细的沟通管理计划，包括干系人分析、沟通渠道、会议安排等。',
-      deadline: '2026-02-20 23:59',
-      createdAt: '2026-02-12',
-      submittedCount: 8,
-      totalCount: 25,
-      status: 'pending',
-      maxScore: 100,
-      attachments: []
-    },
-    {
-      id: 'a5',
-      title: 'WBS分解练习',
-      courseId: 'course1',
-      courseName: '项目管理基础',
-      content: '对一个软件项目进行WBS分解，要求分解到工作包级别，至少包含三级分解。',
-      deadline: '2026-02-14 23:59',
-      createdAt: '2026-02-07',
-      submittedCount: 32,
-      totalCount: 32,
-      status: 'completed',
-      maxScore: 50,
-      attachments: ['WBS示例.pdf']
-    }
-  ]);
+  // 课程数据
+  const [courses, setCourses] = useState<Course[]>([]);
 
-  // 模拟学生提交数据
-  const [submissions, setSubmissions] = useState<StudentSubmission[]>([
-    {
-      id: 's1',
-      studentId: 'st1',
-      studentName: '张明',
-      studentAvatar: 'https://i.pravatar.cc/150?u=1',
-      assignmentId: 'a1',
-      submittedAt: '2026-02-14 20:30',
-      content: '已完成项目计划书，包含WBS分解和甘特图。项目背景部分详细分析了市场需求，目标设定符合SMART原则。',
-      attachments: ['项目计划书.pdf', '甘特图.xlsx'],
-      status: 'submitted'
-    },
-    {
-      id: 's2',
-      studentId: 'st2',
-      studentName: '李华',
-      studentAvatar: 'https://i.pravatar.cc/150?u=2',
-      assignmentId: 'a1',
-      submittedAt: '2026-02-14 19:15',
-      content: '项目计划书已提交，请老师批阅。本次作业主要聚焦在软件开发项目的管理上。',
-      attachments: ['计划书.docx'],
-      score: 85,
-      comment: '整体结构清晰，但风险评估部分需要补充。建议在项目执行阶段加强监控。',
-      status: 'graded'
-    },
-    {
-      id: 's3',
-      studentId: 'st3',
-      studentName: '王芳',
-      studentAvatar: 'https://i.pravatar.cc/150?u=3',
-      assignmentId: 'a1',
-      submittedAt: '2026-02-14 21:00',
-      content: '这是我的项目计划书，包含了详细的时间安排和资源分配计划。',
-      attachments: ['计划书.pdf'],
-      status: 'submitted'
-    },
-    {
-      id: 's4',
-      studentId: 'st4',
-      studentName: '陈小明',
-      studentAvatar: 'https://i.pravatar.cc/150?u=4',
-      assignmentId: 'a1',
-      submittedAt: '2026-02-15 00:30',
-      content: '因为网络原因延迟提交，作业内容已完成。',
-      attachments: ['项目计划书.pdf'],
-      status: 'late'
-    },
-    {
-      id: 's5',
-      studentId: 'st5',
-      studentName: '刘小红',
-      studentAvatar: 'https://i.pravatar.cc/150?u=5',
-      assignmentId: 'a1',
-      submittedAt: '2026-02-14 18:00',
-      content: '项目计划书提交，包含了完整的项目管理流程。',
-      attachments: ['计划书.docx'],
-      score: 92,
-      comment: '优秀！内容全面，分析深入，尤其是风险应对策略部分很有见地。',
-      status: 'graded'
+  // 作业数据
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  // 学生提交数据
+  const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
+
+  // 加载数据
+  useEffect(() => {
+    loadData();
+  }, [currentUser]);
+
+  const loadData = async () => {
+    if (!currentUser?.id) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      // 加载课程数据
+      const coursesData = await courseService.getTeacherCourses(currentUser.id);
+      const formattedCourses: Course[] = coursesData.map(course => ({
+        id: course.id,
+        title: course.title,
+        studentCount: course.student_count
+      }));
+      setCourses(formattedCourses);
+
+      // 加载作业数据
+      const assignmentsData = await assignmentService.getTeacherAssignments(currentUser.id);
+      const formattedAssignments: Assignment[] = assignmentsData.map(assignment => ({
+        id: assignment.id,
+        title: assignment.title,
+        courseId: assignment.course_id,
+        courseName: formattedCourses.find(c => c.id === assignment.course_id)?.title || '',
+        content: assignment.content,
+        deadline: assignment.deadline,
+        createdAt: assignment.created_at,
+        submittedCount: assignment.submitted_count || 0,
+        totalCount: assignment.total_count || 0,
+        status: assignment.status,
+        maxScore: assignment.max_score,
+        attachments: assignment.attachments || []
+      }));
+      setAssignments(formattedAssignments);
+    } catch (err: any) {
+      console.error('加载数据失败:', err);
+      setError(err.message || '加载数据失败');
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
   // 获取问候语
   const getGreeting = () => {
@@ -846,79 +758,116 @@ const Assignments: React.FC<AssignmentsProps> = ({
   }, [assignments, filter, searchQuery, searchType]);
 
   // 创建作业
-  const handleCreateAssignment = (form: AssignmentForm) => {
-    const course = courses.find(c => c.id === form.courseId);
-    const newAssignment: Assignment = {
-      id: `a${Date.now()}`,
-      title: form.title,
-      courseId: form.courseId,
-      courseName: course?.title || '',
-      content: form.content,
-      deadline: form.deadline.replace('T', ' '),
-      createdAt: new Date().toISOString().split('T')[0],
-      submittedCount: 0,
-      totalCount: course?.studentCount || 0,
-      status: 'pending',
-      maxScore: form.maxScore,
-      attachments: []
-    };
+  const handleCreateAssignment = async (form: AssignmentForm) => {
+    try {
+      const newAssignment = await assignmentService.createAssignment({
+        title: form.title,
+        course_id: form.courseId,
+        content: form.content,
+        deadline: form.deadline.replace('T', ' '),
+        max_score: form.maxScore
+      });
 
-    setAssignments([newAssignment, ...assignments]);
-    setShowCreateModal(false);
+      const course = courses.find(c => c.id === form.courseId);
+      const formattedAssignment: Assignment = {
+        id: newAssignment.id,
+        title: newAssignment.title,
+        courseId: newAssignment.course_id,
+        courseName: course?.title || '',
+        content: newAssignment.content,
+        deadline: newAssignment.deadline,
+        createdAt: newAssignment.created_at,
+        submittedCount: 0,
+        totalCount: course?.studentCount || 0,
+        status: newAssignment.status,
+        maxScore: newAssignment.max_score,
+        attachments: newAssignment.attachments || []
+      };
+
+      setAssignments([formattedAssignment, ...assignments]);
+      setShowCreateModal(false);
+    } catch (err: any) {
+      console.error('创建作业失败:', err);
+      alert('创建作业失败: ' + (err.message || '未知错误'));
+    }
   };
 
   // 单个批改
-  const handleGradeSubmit = (form: GradeForm) => {
+  const handleGradeSubmit = async (form: GradeForm) => {
     if (!selectedSubmission || !selectedAssignment) return;
 
-    setSubmissions(submissions.map(s =>
-      s.id === selectedSubmission.id
-        ? { ...s, score: form.score, comment: form.comment, status: 'graded' as const }
-        : s
-    ));
+    try {
+      await assignmentService.gradeSubmission(
+        selectedSubmission.id,
+        form.score,
+        form.comment
+      );
 
-    // 更新作业状态
-    const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
-    const newGradedCount = assignmentSubmissions.filter(s => s.status === 'graded' || s.id === selectedSubmission.id).length;
+      setSubmissions(submissions.map(s =>
+        s.id === selectedSubmission.id
+          ? { ...s, score: form.score, comment: form.comment, status: 'graded' as const }
+          : s
+      ));
 
-    setAssignments(assignments.map(a =>
-      a.id === selectedAssignment.id
-        ? { ...a, status: newGradedCount === a.totalCount ? 'completed' : 'grading' }
-        : a
-    ));
+      // 更新作业状态
+      const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
+      const newGradedCount = assignmentSubmissions.filter(s => s.status === 'graded' || s.id === selectedSubmission.id).length;
 
-    setShowGradeModal(false);
-    setSelectedSubmission(null);
+      setAssignments(assignments.map(a =>
+        a.id === selectedAssignment.id
+          ? { ...a, status: newGradedCount === a.totalCount ? 'completed' : 'grading' }
+          : a
+      ));
+
+      setShowGradeModal(false);
+      setSelectedSubmission(null);
+    } catch (err: any) {
+      console.error('批改作业失败:', err);
+      alert('批改作业失败: ' + (err.message || '未知错误'));
+    }
   };
 
   // 批量批改
-  const handleBatchGrade = (submissionIds: string[], score: number) => {
+  const handleBatchGrade = async (submissionIds: string[], score: number) => {
     if (!selectedAssignment) return;
 
-    setSubmissions(submissions.map(s =>
-      submissionIds.includes(s.id)
-        ? { ...s, score, comment: '批量批改', status: 'graded' as const }
-        : s
-    ));
+    try {
+      await assignmentService.batchGradeSubmissions(submissionIds, score, '批量批改');
 
-    // 更新作业状态
-    const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
-    const gradedCount = assignmentSubmissions.filter(s => s.status === 'graded').length + submissionIds.length;
+      setSubmissions(submissions.map(s =>
+        submissionIds.includes(s.id)
+          ? { ...s, score, comment: '批量批改', status: 'graded' as const }
+          : s
+      ));
 
-    setAssignments(assignments.map(a =>
-      a.id === selectedAssignment.id
-        ? { ...a, status: gradedCount >= a.totalCount ? 'completed' : 'grading' }
-        : a
-    ));
+      // 更新作业状态
+      const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
+      const gradedCount = assignmentSubmissions.filter(s => s.status === 'graded').length + submissionIds.length;
+
+      setAssignments(assignments.map(a =>
+        a.id === selectedAssignment.id
+          ? { ...a, status: gradedCount >= a.totalCount ? 'completed' : 'grading' }
+          : a
+      ));
+    } catch (err: any) {
+      console.error('批量批改失败:', err);
+      alert('批量批改失败: ' + (err.message || '未知错误'));
+    }
   };
 
   // 删除单个作业
-  const handleDeleteAssignment = (assignmentId: string, e?: React.MouseEvent) => {
+  const handleDeleteAssignment = async (assignmentId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (confirm('确定要删除这个作业吗？此操作不可恢复。')) {
+    if (!confirm('确定要删除这个作业吗?此操作不可恢复。')) return;
+
+    try {
+      await assignmentService.deleteAssignment(assignmentId);
       setAssignments(assignments.filter(a => a.id !== assignmentId));
       // 同时删除相关提交
       setSubmissions(submissions.filter(s => s.assignmentId !== assignmentId));
+    } catch (err: any) {
+      console.error('删除作业失败:', err);
+      alert('删除作业失败: ' + (err.message || '未知错误'));
     }
   };
 
@@ -1021,14 +970,12 @@ const Assignments: React.FC<AssignmentsProps> = ({
               <button
                 key={item.id}
                 onClick={() => handleTabChange(item.id as TeacherTab)}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${
-                  item.highlight ? '-mt-4' : ''
-                }`}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${item.highlight ? '-mt-4' : ''
+                  }`}
               >
                 {item.highlight ? (
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
-                    isActive ? 'bg-blue-600 shadow-blue-500/30' : 'bg-gray-100'
-                  }`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${isActive ? 'bg-blue-600 shadow-blue-500/30' : 'bg-gray-100'
+                    }`}>
                     <Icon size={28} className={isActive ? 'text-white' : 'text-gray-500'} />
                   </div>
                 ) : (
@@ -1036,9 +983,8 @@ const Assignments: React.FC<AssignmentsProps> = ({
                     <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
                   </div>
                 )}
-                <span className={`text-[10px] font-medium transition-colors ${
-                  item.highlight ? 'text-gray-600' : isActive ? 'text-blue-600' : 'text-gray-400'
-                }`}>
+                <span className={`text-[10px] font-medium transition-colors ${item.highlight ? 'text-gray-600' : isActive ? 'text-blue-600' : 'text-gray-400'
+                  }`}>
                   {item.label}
                 </span>
               </button>
@@ -1121,11 +1067,10 @@ const Assignments: React.FC<AssignmentsProps> = ({
             <button
               key={item.key}
               onClick={() => setFilter(item.key as AssignmentFilter)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-                filter === item.key
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${filter === item.key
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 border border-gray-200'
+                }`}
             >
               {item.label}
             </button>
@@ -1173,11 +1118,10 @@ const Assignments: React.FC<AssignmentsProps> = ({
             setShowBatchDelete(!showBatchDelete);
             setSelectedAssignments([]);
           }}
-          className={`px-4 py-4 rounded-2xl font-medium flex items-center gap-2 transition-colors ${
-            showBatchDelete
-              ? 'bg-orange-100 text-orange-600'
-              : 'bg-white text-gray-700 border border-gray-200'
-          }`}
+          className={`px-4 py-4 rounded-2xl font-medium flex items-center gap-2 transition-colors ${showBatchDelete
+            ? 'bg-orange-100 text-orange-600'
+            : 'bg-white text-gray-700 border border-gray-200'
+            }`}
         >
           <CheckSquare size={20} />
           批量管理
@@ -1218,11 +1162,10 @@ const Assignments: React.FC<AssignmentsProps> = ({
                   <p className="text-sm text-gray-500">{assignment.courseName}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                    assignment.status === 'grading' ? 'bg-orange-100 text-orange-600' :
+                  <span className={`px-2 py-1 rounded-lg text-xs font-medium ${assignment.status === 'grading' ? 'bg-orange-100 text-orange-600' :
                     assignment.status === 'pending' ? 'bg-blue-100 text-blue-600' :
-                    'bg-green-100 text-green-600'
-                  }`}>
+                      'bg-green-100 text-green-600'
+                    }`}>
                     {assignment.status === 'grading' ? '待批改' : assignment.status === 'pending' ? '进行中' : '已结束'}
                   </span>
                   {!showBatchDelete && (
@@ -1256,10 +1199,9 @@ const Assignments: React.FC<AssignmentsProps> = ({
               <div className="flex items-center gap-3 mt-auto">
                 <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      assignment.status === 'completed' ? 'bg-green-500' :
+                    className={`h-full rounded-full transition-all ${assignment.status === 'completed' ? 'bg-green-500' :
                       assignment.status === 'grading' ? 'bg-orange-500' : 'bg-blue-500'
-                    }`}
+                      }`}
                     style={{ width: `${(assignment.submittedCount / assignment.totalCount) * 100}%` }}
                   />
                 </div>
@@ -1299,11 +1241,10 @@ const Assignments: React.FC<AssignmentsProps> = ({
                       setActiveTab(item.id as TeacherTab);
                       if (item.id !== 'assignments') onNavigate?.(item.page);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                      isActive
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : 'text-gray-600 hover:bg-gray-100'
+                      }`}
                   >
                     <Icon size={20} />
                     <span className="font-medium">{item.label}</span>
@@ -1317,7 +1258,20 @@ const Assignments: React.FC<AssignmentsProps> = ({
         {/* 主内容区域 */}
         <main className="flex-1 min-h-screen">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {renderMainContent()}
+            {isLoading ? (
+              <div className="flex justify-center items-center h-96">
+                <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+              </div>
+            ) : error ? (
+              <div className="text-center py-16 text-red-500">
+                <p>{error}</p>
+                <button onClick={loadData} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg">
+                  重试
+                </button>
+              </div>
+            ) : (
+              renderMainContent()
+            )}
           </div>
         </main>
       </div>
