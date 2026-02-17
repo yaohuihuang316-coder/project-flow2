@@ -197,8 +197,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
               {/* Dynamic Title based on selection */}
               {currentPage === Page.ADMIN_CONTENT && currentTabParam === 'courses' ? '体系课程管理' :
                 currentPage === Page.ADMIN_CONTENT && currentTabParam === 'projects' ? '实战项目剧本' :
-                    currentPage === Page.ADMIN_CONTENT && currentTabParam === 'graph' ? '知识图谱构建' :
-                      '控制台'}
+                currentPage === Page.ADMIN_CONTENT && currentTabParam === 'graph' ? '知识图谱构建' :
+                currentPage === Page.ADMIN_TEACHER_COURSES ? '教师课程管理' :
+                currentPage === Page.ADMIN_TEACHER_ASSIGNMENTS ? '教师作业管理' :
+                currentPage === Page.ADMIN_TEACHER_SESSIONS ? '课堂考勤管理' :
+                currentPage === Page.ADMIN_TEACHER_STUDENTS ? '学生管理' :
+                currentPage === Page.ADMIN_USERS ? '教师管理' :
+                currentPage === Page.ADMIN_ANNOUNCEMENTS ? '全站公告' :
+                '控制台'}
             </h2>
           </div>
           <div className="flex items-center gap-4">
