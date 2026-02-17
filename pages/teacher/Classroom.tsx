@@ -481,9 +481,12 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     return { present, late, absent, total: attendanceList.length };
   };
 
-  // 生成签到码（仅前端存储，不依赖数据库字段）
+  // 生成签到码 - 使用 whiteboard_data 字段存储
   const generateCheckInCode = async () => {
-    if (!activeSessionId) return;
+    if (!activeSessionId) {
+      alert('请先开始课堂');
+      return;
+    }
     
     setIsGeneratingCode(true);
     try {
@@ -491,39 +494,66 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 分钟后过期
       
-      // 存储到 localStorage（演示版本）
-      localStorage.setItem(`checkin_code_${activeSessionId}`, JSON.stringify({
-        code,
-        expiresAt: expiresAt.toISOString()
-      }));
+      // 存储到 whiteboard_data 字段（JSONB）
+      const { error } = await supabase
+        .from('app_class_sessions')
+        .update({
+          whiteboard_data: {
+            check_in_code: code,
+            check_in_expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        })
+        .eq('id', activeSessionId);
+      
+      if (error) throw error;
       
       setCheckInCode(code);
       setCheckInCodeExpiry(expiresAt);
+      console.log('签到码生成成功:', code);
     } catch (err) {
-      console.error('Failed to generate check-in code:', err);
+      console.error('生成签到码失败:', err);
+      alert('生成签到码失败，请重试');
     } finally {
       setIsGeneratingCode(false);
     }
   };
   
-  // 加载已保存的签到码
+  // 加载已保存的签到码 - 从 whiteboard_data 读取
   useEffect(() => {
-    if (activeSessionId) {
-      const saved = localStorage.getItem(`checkin_code_${activeSessionId}`);
-      if (saved) {
-        try {
-          const { code, expiresAt } = JSON.parse(saved);
-          if (new Date(expiresAt) > new Date()) {
-            setCheckInCode(code);
-            setCheckInCodeExpiry(new Date(expiresAt));
-          } else {
-            localStorage.removeItem(`checkin_code_${activeSessionId}`);
-          }
-        } catch (e) {
-          console.error('Failed to load check-in code:', e);
-        }
+    const loadCheckInCode = async () => {
+      if (!activeSessionId) {
+        setCheckInCode(null);
+        setCheckInCodeExpiry(null);
+        return;
       }
-    }
+      
+      try {
+        const { data, error } = await supabase
+          .from('app_class_sessions')
+          .select('whiteboard_data')
+          .eq('id', activeSessionId)
+          .single();
+        
+        if (error) throw error;
+        
+        if (data?.whiteboard_data?.check_in_code) {
+          const { check_in_code, check_in_expires_at } = data.whiteboard_data;
+          if (new Date(check_in_expires_at) > new Date()) {
+            setCheckInCode(check_in_code);
+            setCheckInCodeExpiry(new Date(check_in_expires_at));
+          } else {
+            // 过期了，清除
+            setCheckInCode(null);
+            setCheckInCodeExpiry(null);
+          }
+        }
+      } catch (e) {
+        console.error('加载签到码失败:', e);
+      }
+    };
+    
+    loadCheckInCode();
   }, [activeSessionId]);
 
   // 刷新签到码
