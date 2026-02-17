@@ -7,6 +7,8 @@ import {
   ArrowLeft, BarChart3, Plus, X
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
+import { supabase } from '../../lib/supabaseClient';
+import { useAttendanceRealtime, createClassSession } from '../../lib/teacherHooks';
 
 interface TeacherClassroomProps {
   currentUser?: UserProfile | null;
@@ -299,7 +301,62 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     return { present, late, absent, total: attendanceList.length };
   };
 
-  // ==================== 底部导航 ====================
+  // ==================== 侧边栏导航（桌面端） ====================
+  const renderSidebar = () => {
+    const navItems = [
+      { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
+      { id: 'courses', icon: BookOpen, label: '课程', page: Page.TEACHER_COURSES },
+      { id: 'class', icon: Video, label: '上课', page: null },
+      { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
+      { id: 'profile', icon: User, label: '我的', page: Page.TEACHER_PROFILE },
+    ];
+
+    return (
+      <aside className="hidden lg:block w-64 bg-white h-screen sticky top-0 border-r border-gray-200">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-8">教师端</h1>
+          <nav className="space-y-2">
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    // 如果正在上课，提示确认
+                    if (isClassActive && item.id !== 'class') {
+                      if (!confirm('课堂正在进行中，确定要离开吗？')) {
+                        return;
+                      }
+                      // 结束课堂状态
+                      setIsClassActive(false);
+                      setActiveClassId(null);
+                      setClassTimer(0);
+                    }
+                    
+                    setActiveTab(item.id as TeacherTab);
+                    if (item.id !== 'class' && item.page && onNavigate) {
+                      onNavigate(item.page);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    isActive 
+                      ? 'bg-blue-50 text-blue-600 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon size={20} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+    );
+  };
+
+  // ==================== 底部导航（移动端） ====================
   const renderBottomNav = () => {
     const navItems = [
       { id: 'home', icon: Home, label: '首页' },
@@ -871,72 +928,79 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   // ==================== 主渲染 ====================
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-lg mx-auto min-h-screen bg-gray-50">
-        <div className="p-6">
-          {/* 页面标题 */}
-          {!isClassActive && (
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">上课</h1>
-                <p className="text-sm text-gray-500 mt-1">管理和进行您的课堂教学</p>
+      <div className="flex">
+        {/* 桌面端侧边栏 */}
+        {renderSidebar()}
+        
+        {/* 主内容 */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+          <div className="max-w-lg lg:max-w-none mx-auto">
+            {/* 页面标题 */}
+            {!isClassActive && (
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">上课</h1>
+                  <p className="text-sm text-gray-500 mt-1">管理和进行您的课堂教学</p>
+                </div>
+                <img 
+                  src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
+                  alt="Avatar" 
+                  className="w-12 h-12 rounded-2xl object-cover"
+                />
               </div>
-              <img 
-                src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'} 
-                alt="Avatar" 
-                className="w-12 h-12 rounded-2xl object-cover"
-              />
-            </div>
-          )}
+            )}
 
-          {/* 主内容区 */}
-          {isClassActive ? renderActiveClass() : (
-            <div className="space-y-6 pb-24">
-              {renderUpcomingClasses()}
-              
-              {/* 快捷入口 */}
-              <div className="grid grid-cols-2 gap-4">
-                <button className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 text-center hover:border-blue-200 transition-colors">
-                  <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                    <Clock size={28} className="text-purple-600" />
-                  </div>
-                  <h4 className="font-medium text-gray-900">课程回放</h4>
-                  <p className="text-xs text-gray-500 mt-1">查看历史课程录像</p>
-                </button>
-                <button className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 text-center hover:border-green-200 transition-colors">
-                  <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                    <BarChart3 size={28} className="text-green-600" />
-                  </div>
-                  <h4 className="font-medium text-gray-900">课堂统计</h4>
-                  <p className="text-xs text-gray-500 mt-1">查看课堂数据分析</p>
-                </button>
-              </div>
+            {/* 主内容区 */}
+            {isClassActive ? renderActiveClass() : (
+              <div className="space-y-6 pb-24 lg:pb-0">
+                {renderUpcomingClasses()}
+                
+                {/* 快捷入口 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <button className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 text-center hover:border-blue-200 transition-colors">
+                    <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <Clock size={28} className="text-purple-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900">课程回放</h4>
+                    <p className="text-xs text-gray-500 mt-1">查看历史课程录像</p>
+                  </button>
+                  <button className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 text-center hover:border-green-200 transition-colors">
+                    <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <BarChart3 size={28} className="text-green-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900">课堂统计</h4>
+                    <p className="text-xs text-gray-500 mt-1">查看课堂数据分析</p>
+                  </button>
+                </div>
 
-              {/* 最近完成 */}
-              <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">最近完成</h3>
-                {courseClasses.filter(c => c.status === ClassStatus.COMPLETED).length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">暂无已完成的课程</p>
-                ) : (
-                  <div className="space-y-3">
-                    {courseClasses.filter(c => c.status === ClassStatus.COMPLETED).map(cls => (
-                      <div key={cls.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                        <img src={cls.image} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 text-sm">{cls.title}</h4>
-                          <p className="text-xs text-gray-500">{cls.time}</p>
+                {/* 最近完成 */}
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">最近完成</h3>
+                  {courseClasses.filter(c => c.status === ClassStatus.COMPLETED).length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">暂无已完成的课程</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {courseClasses.filter(c => c.status === ClassStatus.COMPLETED).map(cls => (
+                        <div key={cls.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                          <img src={cls.image} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 text-sm">{cls.title}</h4>
+                            <p className="text-xs text-gray-500">{cls.time}</p>
+                          </div>
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-lg">已完成</span>
                         </div>
-                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-lg">已完成</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </main>
       </div>
       
-      {renderBottomNav()}
+      {/* 移动端底部导航 */}
+      <div className="lg:hidden">{renderBottomNav()}</div>
       {renderQuestionModal()}
       {renderPollModal()}
     </div>

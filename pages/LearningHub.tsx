@@ -2720,63 +2720,159 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
 
     const handleDownloadReport = () => {
         try {
-            const doc = new jsPDF();
-            let yPos = 20;
-
-            // 封面
-            doc.setFontSize(20);
-            doc.text('项目管理实战模拟报告', 105, yPos, { align: 'center' });
-            yPos += 15;
-
-            doc.setFontSize(12);
-            doc.text(`案例: ${caseData.title}`, 20, yPos);
-            yPos += 6;
-            doc.text(`完成时间: ${new Date().toLocaleString('zh-CN')}`, 20, yPos);
-            yPos += 6;
-            doc.text(`最终得分: ${score}/100`, 20, yPos);
-            yPos += 15;
-
-            // 测验总览
-            doc.setFontSize(14);
-            doc.text('测验总览', 20, yPos);
-            yPos += 8;
-
             const correctCount = Math.floor(score / 20);
             const wrongCount = questions.length - correctCount;
             const percentage = Math.round((score / 100) * 100);
-
-            doc.setFontSize(10);
-            doc.text(`总题数: ${questions.length}题`, 25, yPos);
-            yPos += 5;
-            doc.text(`正确数: ${correctCount}题`, 25, yPos);
-            yPos += 5;
-            doc.text(`错误数: ${wrongCount}题`, 25, yPos);
-            yPos += 5;
-
             const grading = percentage >= 80 ? '优秀' : percentage >= 60 ? '良好' : '需改进';
-            doc.text(`评级: ${grading}`, 25, yPos);
-            yPos += 15;
-
-            // 逐题分析
-            doc.setFontSize(14);
-            doc.text('逐题分析', 20, yPos);
-            yPos += 10;
-
-            questions.forEach((q, idx) => {
-                if (yPos > 250) {
-                    doc.addPage();
-                    yPos = 20;
-                }
-
-                doc.setFontSize(11);
-                doc.setFont(undefined, 'bold');
-                doc.text(`第${idx + 1}题`, 20, yPos);
-                yPos += 6;
-
-                doc.setFont(undefined, 'normal');
-                doc.setFontSize(9);
-                const questionLines = doc.splitTextToSize(q.question_text, 170);
-                questionLines.forEach((line: string) => {
+            
+            // 生成HTML报告
+            const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>项目管理实战模拟报告</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background: #f3f4f6;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        .header { 
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 24px;
+            padding: 48px;
+            color: white;
+            margin-bottom: 32px;
+        }
+        .header h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+        .score-section { display: flex; align-items: center; gap: 48px; margin-top: 32px; }
+        .score-circle { 
+            width: 140px; height: 140px; border-radius: 50%; 
+            background: rgba(255,255,255,0.2);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 4px solid rgba(255,255,255,0.3);
+        }
+        .score-value { font-size: 48px; font-weight: 700; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+        .info-item { background: rgba(255,255,255,0.15); padding: 12px 20px; border-radius: 12px; }
+        .info-label { font-size: 12px; opacity: 0.8; }
+        .info-value { font-size: 18px; font-weight: 600; margin-top: 4px; }
+        .card { background: white; border-radius: 20px; padding: 32px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .card h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #111; }
+        .question-item { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+        .question-item:last-child { border-bottom: none; }
+        .question-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .question-num { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; }
+        .question-result { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .result-correct { background: #d1fae5; color: #065f46; }
+        .result-wrong { background: #fee2e2; color: #991b1b; }
+        .question-text { font-size: 16px; color: #374151; margin-bottom: 12px; }
+        .answer-section { background: #f9fafb; padding: 16px; border-radius: 12px; }
+        .answer-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .answer-label { font-weight: 500; color: #6b7280; min-width: 80px; }
+        .answer-value { color: #111; }
+        .explanation { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e5e7eb; color: #059669; font-size: 14px; }
+        .footer { text-align: center; color: #9ca3af; font-size: 14px; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>项目管理实战模拟报告</h1>
+            <p>案例: ${caseData.title}</p>
+            <div class="score-section">
+                <div class="score-circle">
+                    <div class="score-value">${score}</div>
+                    <div style="font-size: 14px; opacity: 0.9;">总分 100</div>
+                </div>
+                <div style="flex: 1;">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">评级</div>
+                            <div class="info-value">${grading}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">正确率</div>
+                            <div class="info-value">${percentage}%</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">正确题数</div>
+                            <div class="info-value">${correctCount}题</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">错误题数</div>
+                            <div class="info-value">${wrongCount}题</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>逐题分析</h2>
+            ${questions.map((q, idx) => {
+                const userAnswer = answers[q.id];
+                const isCorrect = userAnswer === q.correct_option;
+                return `
+                <div class="question-item">
+                    <div class="question-header">
+                        <span class="question-num">第${idx + 1}题</span>
+                        <span class="question-result ${isCorrect ? 'result-correct' : 'result-wrong'}">
+                            ${isCorrect ? '✓ 正确' : '✗ 错误'}
+                        </span>
+                    </div>
+                    <div class="question-text">${q.question_text}</div>
+                    <div class="answer-section">
+                        <div class="answer-row">
+                            <span class="answer-label">您的答案:</span>
+                            <span class="answer-value" style="color: ${isCorrect ? '#059669' : '#dc2626'}">
+                                ${userAnswer ? q[`option_${userAnswer.toLowerCase()}`] : '未作答'}
+                            </span>
+                        </div>
+                        <div class="answer-row">
+                            <span class="answer-label">正确答案:</span>
+                            <span class="answer-value" style="color: #059669;">
+                                ${q[`option_${q.correct_option.toLowerCase()}`]}
+                            </span>
+                        </div>
+                        <div class="explanation">
+                            <strong>解析:</strong> ${q.explanation || '暂无解析'}
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+        
+        <div class="footer">
+            <p>ProjectFlow 项目管理学习平台</p>
+            <p>生成时间: ${new Date().toLocaleString('zh-CN')}</p>
+        </div>
+    </div>
+</body>
+</html>`;
+            
+            // 下载HTML文件
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `模拟报告_${caseData.title}_${new Date().toISOString().split('T')[0]}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showToast?.('success', '报告下载成功');
+        } catch (error) {
+            console.error('下载报告失败:', error);
+            showToast?.('error', '报告下载失败');
+        }
+    };
                     doc.text(line, 25, yPos);
                     yPos += 5;
                 });
@@ -2971,8 +3067,8 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
                             <div className="w-28 h-28 bg-yellow-400 rounded-full flex items-center justify-center mb-8 shadow-2xl text-white animate-bounce-in">
                                 <Award size={56} />
                             </div>
-                            <h2 className="text-4xl font-black text-gray-900 mb-2">Simulation Complete</h2>
-                            <p className="text-gray-500 mb-8">You have completed the scenario analysis.</p>
+                            <h2 className="text-4xl font-black text-gray-900 mb-2">模拟完成</h2>
+                            <p className="text-gray-500 mb-8">您已完成场景分析</p>
 
                             <div className="text-7xl font-black mb-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
                                 {score} <span className="text-2xl text-gray-400 font-bold">/ 100</span>
@@ -2980,10 +3076,10 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
 
                             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                                 <button onClick={handleDownloadReport} className="flex-1 py-4 bg-gray-100 text-gray-900 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors">
-                                    <FileDown size={20} /> Download Report
+                                    <FileDown size={20} /> 下载报告
                                 </button>
                                 <button onClick={onClose} className="flex-1 py-4 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors">
-                                    Return to Hub
+                                    返回中心
                                 </button>
                             </div>
                         </div>

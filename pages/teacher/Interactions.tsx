@@ -9,9 +9,10 @@ import {
   Trash2, Edit3, Pin, Lock, Eye,
   Users, FileText, Star, Bookmark, Flag, User,
   MoreVertical, Settings, Check, ChevronDown,
-  AlertCircle
+  AlertCircle, LayoutDashboard, LogOut
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
+import { supabase } from '../../lib/supabaseClient';
 
 interface InteractionsProps {
   currentUser?: UserProfile | null;
@@ -738,7 +739,91 @@ const Interactions: React.FC<InteractionsProps> = ({
     } : null);
   };
 
-  // ==================== 底部导航 ====================
+  // ==================== 侧边栏导航（桌面端）====================
+  const renderSidebar = () => {
+    const navItems = [
+      { id: 'questions', icon: MessageCircle, label: '学生提问' },
+      { id: 'discussions', icon: Users, label: '讨论区' },
+      { id: 'notifications', icon: Bell, label: '通知' },
+      { id: 'profile', icon: User, label: '个人中心' },
+    ];
+
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unansweredCount = questions.filter(q => q.status === 'unanswered').length;
+
+    return (
+      <div className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 h-screen sticky top-0">
+        {/* Logo/标题 */}
+        <div className="p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <LayoutDashboard className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-gray-900">互动管理</h1>
+              <p className="text-xs text-gray-500">教师端</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 导航菜单 */}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as InteractionTab)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive 
+                    ? 'bg-blue-50 text-blue-600' 
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="font-medium flex-1 text-left">{item.label}</span>
+                {item.id === 'notifications' && unreadCount > 0 && (
+                  <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+                {item.id === 'questions' && unansweredCount > 0 && (
+                  <span className="px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                    {unansweredCount > 99 ? '99+' : unansweredCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* 用户信息 */}
+        <div className="p-4 border-t border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <img
+              src={currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher'}
+              alt="Avatar"
+              className="w-10 h-10 rounded-xl object-cover"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 truncate">{currentUser?.name || '教师'}</p>
+              <p className="text-xs text-gray-500 truncate">{currentUser?.email || 'teacher@example.com'}</p>
+            </div>
+          </div>
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+          >
+            <LogOut size={18} />
+            <span className="font-medium">退出登录</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== 底部导航（移动端）====================
   const renderBottomNav = () => {
     const navItems = [
       { id: 'questions', icon: MessageCircle, label: '提问' },
@@ -783,7 +868,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
   // ==================== 提问列表 ====================
   const renderQuestions = () => (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 lg:pb-6">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">学生提问</h1>
@@ -850,7 +935,7 @@ const Interactions: React.FC<InteractionsProps> = ({
       </div>
 
       {/* 提问列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {filteredQuestions.map((question) => (
           <div
             key={question.id}
@@ -931,7 +1016,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
     return (
       <div className="fixed inset-0 z-50 bg-gray-50">
-        <div className="h-full flex flex-col max-w-lg mx-auto">
+        <div className="h-full flex flex-col max-w-3xl mx-auto lg:mx-0 lg:max-w-none">
           {/* 头部 */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -1098,7 +1183,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
   // ==================== 讨论区 ====================
   const renderDiscussions = () => (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 lg:pb-6">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">讨论区</h1>
@@ -1160,7 +1245,7 @@ const Interactions: React.FC<InteractionsProps> = ({
       </div>
 
       {/* 主题列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {filteredTopics.map((topic) => (
           <div
             key={topic.id}
@@ -1234,7 +1319,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
     return (
       <div className="fixed inset-0 z-50 bg-gray-50">
-        <div className="h-full flex flex-col max-w-lg mx-auto">
+        <div className="h-full flex flex-col max-w-3xl mx-auto lg:mx-0 lg:max-w-none">
           {/* 头部 */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -1392,7 +1477,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
     return (
       <div className="fixed inset-0 z-50 bg-gray-50">
-        <div className="h-full flex flex-col max-w-lg mx-auto">
+        <div className="h-full flex flex-col max-w-3xl mx-auto lg:mx-0 lg:max-w-none">
           {/* 头部 */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -1455,7 +1540,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
   // ==================== 通知列表 ====================
   const renderNotifications = () => (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 lg:pb-6">
       {/* 头部 */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">通知</h1>
@@ -1514,7 +1599,7 @@ const Interactions: React.FC<InteractionsProps> = ({
       </div>
 
       {/* 通知列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {filteredNotifications.map((notification) => {
           const Icon = getNotificationIcon(notification.type);
           return (
@@ -1598,7 +1683,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
     return (
       <div className="fixed inset-0 z-50 bg-gray-50">
-        <div className="h-full flex flex-col max-w-lg mx-auto">
+        <div className="h-full flex flex-col max-w-3xl mx-auto lg:mx-0 lg:max-w-none">
           {/* 头部 */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -1723,7 +1808,7 @@ const Interactions: React.FC<InteractionsProps> = ({
 
   // ==================== 个人中心 ====================
   const renderProfile = () => (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-24 lg:pb-6">
       {/* 用户信息卡片 */}
       <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-3xl p-6 text-white">
         <div className="flex items-center gap-4">
@@ -1788,10 +1873,10 @@ const Interactions: React.FC<InteractionsProps> = ({
         ))}
       </div>
 
-      {/* 退出登录 */}
+      {/* 退出登录 - 仅在移动端显示，桌面端在侧边栏 */}
       <button
         onClick={onLogout}
-        className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium"
+        className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium lg:hidden"
       >
         退出登录
       </button>
@@ -1810,11 +1895,21 @@ const Interactions: React.FC<InteractionsProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6">
-        {renderContent()}
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* 侧边栏导航 - 桌面端 */}
+      {renderSidebar()}
+      
+      {/* 主内容区域 */}
+      <div className="flex-1 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {renderContent()}
+        </div>
       </div>
+      
+      {/* 底部导航 - 移动端 */}
       {renderBottomNav()}
+      
+      {/* 弹窗/详情页 */}
       {renderQuestionDetail()}
       {renderTopicDetail()}
       {renderCreateTopic()}

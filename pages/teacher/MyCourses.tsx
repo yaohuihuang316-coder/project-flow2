@@ -1083,9 +1083,52 @@ const MyCourses: React.FC<MyCoursesProps> = ({
   }, [showMoreMenu]);
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] px-4 py-6">
-      {/* 主内容 */}
-      {showCourseDetail ? renderCourseDetail() : renderMainContent()}
+    <div className="min-h-screen bg-[#F5F5F7]">
+      {/* 桌面端侧边栏 + 移动端底部导航 */}
+      <div className="flex">
+        {/* 桌面端侧边栏 */}
+        <aside className="hidden lg:block w-64 bg-white h-screen sticky top-0 border-r border-gray-200">
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-8">教师中心</h2>
+            <nav className="space-y-2">
+              {[
+                { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
+                { id: 'courses', icon: BookOpen, label: '我的课程', page: Page.TEACHER_COURSES },
+                { id: 'class', icon: Video, label: '上课', page: Page.TEACHER_CLASSROOM },
+                { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
+                { id: 'profile', icon: User, label: '个人中心', page: Page.TEACHER_PROFILE },
+              ].map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id as TeacherTab);
+                      if (item.id !== 'courses') onNavigate?.(item.page);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
+        {/* 主内容区域 */}
+        <main className="flex-1 min-h-screen">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {showCourseDetail ? renderCourseDetail() : renderMainContent()}
+          </div>
+        </main>
+      </div>
 
       {/* 创建课程模态框 */}
       {renderCourseFormModal(
@@ -1103,8 +1146,10 @@ const MyCourses: React.FC<MyCoursesProps> = ({
         handleEditCourse
       )}
 
-      {/* 底部导航 */}
-      {renderBottomNav()}
+      {/* 移动端底部导航 */}
+      <div className="lg:hidden">
+        {renderBottomNav()}
+      </div>
     </div>
   );
 };

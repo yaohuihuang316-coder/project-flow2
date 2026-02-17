@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS app_questions (
     student_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     student_name VARCHAR(255) NOT NULL,
     student_avatar TEXT,
-    course_id UUID REFERENCES app_courses(id) ON DELETE SET NULL,
+    course_id TEXT REFERENCES app_courses(id) ON DELETE SET NULL,
     course_name VARCHAR(255),
     title VARCHAR(500) NOT NULL,
     content TEXT NOT NULL,

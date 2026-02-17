@@ -68,7 +68,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     rating: 0
   });
 
-  // 编辑表单数据
+  // 编辑表单数据 - 使用真实数据初始化
   const [editForm, setEditForm] = useState<EditFormData>({
     name: '',
     job_title: '',
@@ -92,17 +92,17 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     showOnlineStatus: true
   });
 
-  // 从currentUser初始化教师信息
+  // 从currentUser初始化教师信息 - 使用真实数据，无硬编码
   const teacherInfo = {
     name: currentUser?.name || '教师用户',
     title: currentUser?.job_title || '讲师',
     school: currentUser?.institution_name || '暂未设置机构',
-    department: currentUser?.department || '项目管理学院',
+    department: currentUser?.department || '暂未设置院系',
     email: currentUser?.email || '',
-    phone: editForm.phone || '138****8888',
-    location: editForm.location || '北京市',
+    phone: editForm.phone || '暂未设置',
+    location: editForm.location || '暂未设置',
     avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=teacher',
-    bio: editForm.bio || '专注项目管理教育，PMP认证讲师。'
+    bio: editForm.bio || '暂无个人简介'
   };
 
   // 认证状态 - 根据用户认证状态动态显示
@@ -173,19 +173,19 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
       }
 
       setStats({
-        teachingHours: teachingHours || Math.floor(Math.random() * 500) + 100, // 如果无数据，使用模拟数据
-        studentCount: studentCount || Math.floor(Math.random() * 200) + 50,
+        teachingHours: teachingHours || 0,
+        studentCount: studentCount || 0,
         courseCount: courseCount || 0,
-        rating: rating || 4.8
+        rating: rating || 0
       });
     } catch (error) {
       console.error('获取教师统计数据失败:', error);
       // 使用默认数据
       setStats({
-        teachingHours: 1280,
-        studentCount: 856,
-        courseCount: 12,
-        rating: 4.9
+        teachingHours: 0,
+        studentCount: 0,
+        courseCount: 0,
+        rating: 0
       });
     }
   };
@@ -197,7 +197,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     }
   }, [currentUser]);
 
-  // 初始化编辑表单
+  // 初始化编辑表单 - 使用 currentUser 的真实数据
   useEffect(() => {
     if (currentUser) {
       setEditForm({
@@ -205,9 +205,9 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
         job_title: currentUser.job_title || '',
         institution_name: currentUser.institution_name || '',
         department: currentUser.department || '',
-        bio: '专注项目管理教育，PMP认证讲师。',
-        phone: '138****8888',
-        location: '北京市'
+        bio: currentUser.bio || '',
+        phone: currentUser.phone || '',
+        location: currentUser.location || ''
       });
     }
   }, [currentUser]);
@@ -225,6 +225,9 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
           job_title: editForm.job_title,
           institution_name: editForm.institution_name,
           department: editForm.department,
+          bio: editForm.bio,
+          phone: editForm.phone,
+          location: editForm.location,
           updated_at: new Date().toISOString()
         })
         .eq('id', currentUser.id);
@@ -286,66 +289,138 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     }
   };
 
-  // ==================== 底部导航 ====================
-  const renderBottomNav = () => {
-    const navItems = [
-      { id: 'home', icon: Home, label: '首页' },
-      { id: 'courses', icon: BookOpen, label: '课程' },
-      { id: 'class', icon: Video, label: '上课', highlight: true },
-      { id: 'assignments', icon: ClipboardList, label: '作业' },
-      { id: 'profile', icon: User, label: '我的' },
-    ];
+  // 导航项配置
+  const navItems = [
+    { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
+    { id: 'courses', icon: BookOpen, label: '课程', page: Page.TEACHER_COURSES },
+    { id: 'class', icon: Video, label: '上课', page: Page.TEACHER_CLASSROOM, highlight: true },
+    { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
+    { id: 'profile', icon: User, label: '我的', page: Page.TEACHER_PROFILE },
+  ];
 
-    return (
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] lg:hidden">
-        <div className="flex justify-between items-center h-16 max-w-lg mx-auto">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id as TeacherTab);
-                  if (onNavigate && item.id !== 'profile') {
-                    const pageMap: Record<string, Page> = {
-                      'home': Page.TEACHER_DASHBOARD,
-                      'courses': Page.TEACHER_COURSES,
-                      'class': Page.TEACHER_CLASSROOM,
-                      'assignments': Page.TEACHER_ASSIGNMENTS,
-                      'profile': Page.TEACHER_PROFILE
-                    };
-                    onNavigate(pageMap[item.id]);
-                  }
-                }}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${
-                  item.highlight ? '-mt-4' : ''
-                }`}
-              >
-                {item.highlight ? (
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
-                    isActive ? 'bg-blue-600 shadow-blue-500/30' : 'bg-gray-100'
-                  }`}>
-                    <Icon size={28} className={isActive ? 'text-white' : 'text-gray-500'} />
-                  </div>
-                ) : (
-                  <div className={`p-2 rounded-xl transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
-                    <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                  </div>
-                )}
-                <span className={`text-[10px] font-medium transition-colors ${
-                  item.highlight ? 'text-gray-600' : isActive ? 'text-blue-600' : 'text-gray-400'
-                }`}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
+  // ==================== 桌面端侧边栏导航 ====================
+  const renderSidebar = () => (
+    <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed left-0 top-0 bottom-0 z-40">
+      {/* Logo区域 */}
+      <div className="p-6 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+            <School size={24} className="text-white" />
+          </div>
+          <span className="text-lg font-bold text-gray-900">教师中心</span>
         </div>
-        <div className="h-2 w-full"></div>
       </div>
-    );
-  };
+
+      {/* 导航菜单 */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id as TeacherTab);
+                if (onNavigate) {
+                  onNavigate(item.page);
+                }
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                isActive 
+                  ? 'bg-blue-50 text-blue-600' 
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+              <span className={`font-medium ${isActive ? 'text-blue-600' : ''}`}>
+                {item.label}
+              </span>
+              {isActive && (
+                <div className="ml-auto w-1.5 h-1.5 bg-blue-600 rounded-full" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* 底部操作区 */}
+      <div className="p-4 border-t border-gray-100 space-y-2">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all"
+        >
+          <Settings size={22} />
+          <span className="font-medium">设置</span>
+        </button>
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all"
+        >
+          <LogOut size={22} />
+          <span className="font-medium">退出登录</span>
+        </button>
+      </div>
+
+      {/* 用户信息 */}
+      <div className="p-4 border-t border-gray-100">
+        <div className="flex items-center gap-3">
+          <img
+            src={teacherInfo.avatar}
+            alt="Avatar"
+            className="w-10 h-10 rounded-xl object-cover"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">{teacherInfo.name}</p>
+            <p className="text-xs text-gray-500 truncate">{teacherInfo.title}</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+
+  // ==================== 底部导航（移动端） ====================
+  const renderBottomNav = () => (
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] lg:hidden">
+      <div className="flex justify-between items-center h-16 max-w-lg mx-auto">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id as TeacherTab);
+                if (onNavigate && item.id !== 'profile') {
+                  onNavigate(item.page);
+                }
+              }}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${
+                item.highlight ? '-mt-4' : ''
+              }`}
+            >
+              {item.highlight ? (
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
+                  isActive ? 'bg-blue-600 shadow-blue-500/30' : 'bg-gray-100'
+                }`}>
+                  <Icon size={28} className={isActive ? 'text-white' : 'text-gray-500'} />
+                </div>
+              ) : (
+                <div className={`p-2 rounded-xl transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+                  <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                </div>
+              )}
+              <span className={`text-[10px] font-medium transition-colors ${
+                item.highlight ? 'text-gray-600' : isActive ? 'text-blue-600' : 'text-gray-400'
+              }`}>
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="h-2 w-full"></div>
+    </div>
+  );
 
   // ==================== 教师信息卡片 ====================
   const renderTeacherCard = () => (
@@ -435,7 +510,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
           </div>
           <span className="text-xs text-gray-500">学生评分</span>
         </div>
-        <p className="text-2xl font-bold text-gray-900">{stats.rating}</p>
+        <p className="text-2xl font-bold text-gray-900">{stats.rating || '-'}</p>
         <p className="text-xs text-gray-400 mt-1">分</p>
       </div>
     </div>
@@ -450,7 +525,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
           认证状态
         </h3>
         <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-lg">
-          全部通过
+          {verifications.every(v => v.isVerified) ? '全部通过' : '进行中'}
         </span>
       </div>
       <div className="flex gap-3">
@@ -547,11 +622,11 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     </div>
   );
 
-  // ==================== 退出登录 ====================
+  // ==================== 退出登录（仅移动端显示） ====================
   const renderLogoutButton = () => (
     <button 
       onClick={onLogout}
-      className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium flex items-center justify-center gap-2 hover:bg-red-100 active:scale-95 transition-all"
+      className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-medium flex items-center justify-center gap-2 hover:bg-red-100 active:scale-95 transition-all lg:hidden"
     >
       <LogOut size={18} />
       退出登录
@@ -903,40 +978,66 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
   // ==================== 主内容 ====================
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6">
-        <div className="space-y-6 pb-28">
-          {/* 页面标题 */}
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">个人中心</h1>
-            <button 
-              className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
-              onClick={() => setShowSettings(true)}
-            >
-              <Settings size={20} className="text-gray-600" />
-            </button>
+      {/* 桌面端侧边栏导航 */}
+      {renderSidebar()}
+
+      {/* 主内容区域 - 响应式布局 */}
+      <main className="lg:ml-64 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="space-y-6 pb-28 lg:pb-6">
+            {/* 页面标题 - 移动端显示 */}
+            <div className="flex items-center justify-between lg:hidden">
+              <h1 className="text-2xl font-bold text-gray-900">个人中心</h1>
+              <button 
+                className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
+                onClick={() => setShowSettings(true)}
+              >
+                <Settings size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* 桌面端页面标题 */}
+            <div className="hidden lg:flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">个人中心</h1>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>最后更新:</span>
+                <span>{new Date().toLocaleDateString('zh-CN')}</span>
+              </div>
+            </div>
+
+            {/* 教师信息卡片 */}
+            {renderTeacherCard()}
+
+            {/* 教学统计 */}
+            {renderTeachingStats()}
+
+            {/* 两列布局 - 桌面端 */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* 认证状态 */}
+              {renderVerificationStatus()}
+
+              {/* 联系信息 */}
+              {renderContactInfo()}
+            </div>
+
+            {/* 功能菜单 */}
+            <div className="lg:hidden">
+              {renderMenuList()}
+            </div>
+
+            {/* 退出登录 - 仅移动端 */}
+            {renderLogoutButton()}
           </div>
-
-          {/* 教师信息卡片 */}
-          {renderTeacherCard()}
-
-          {/* 教学统计 */}
-          {renderTeachingStats()}
-
-          {/* 认证状态 */}
-          {renderVerificationStatus()}
-
-          {/* 联系信息 */}
-          {renderContactInfo()}
-
-          {/* 功能菜单 */}
-          {renderMenuList()}
-
-          {/* 退出登录 */}
-          {renderLogoutButton()}
         </div>
-      </div>
+      </main>
+
+      {/* 底部导航 - 仅移动端显示 */}
       {renderBottomNav()}
+
+      {/* 编辑资料弹窗 */}
       {renderEditModal()}
+
+      {/* 设置页面 */}
       {renderSettings()}
     </div>
   );
