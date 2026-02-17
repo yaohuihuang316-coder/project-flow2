@@ -27,7 +27,7 @@ import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import UserTable from './pages/admin/UserTable';
+import AdminTeachers from './pages/admin/AdminTeachers';
 import AdminProgress from './pages/admin/AdminProgress';
 import AdminContent from './pages/admin/AdminContent';
 import AdminCommunity from './pages/admin/AdminCommunity';
@@ -104,7 +104,13 @@ const App: React.FC = () => {
         >
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
           {currentPage === Page.ADMIN_ANALYTICS && <AdminAnalytics />}
-          {currentPage === Page.ADMIN_USERS && <UserTable currentRole={currentUser?.role || 'SuperAdmin'} />}
+          {currentPage === Page.ADMIN_USERS && (
+            <AdminTeachers 
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
           {currentPage === Page.ADMIN_PROGRESS && <AdminProgress />}
           {/* AdminContent now receives the param to switch tabs internally */}
           {currentPage === Page.ADMIN_CONTENT && <AdminContent initialTab={currentParam !== 'default' ? currentParam : 'courses'} />}

@@ -49,22 +49,32 @@ async function testTeacherCheckInCode() {
         await setTimeout(3000);
         await captureScreenshot(page, '02-teacher-classroom');
         
-        // Check if "Generate Check-in Code" button exists (try more menu first)
+        // Check if "Generate Check-in Code" button exists
         let generateButton = await page.$('button:has-text("生成签到码")');
+        
+        // Try to find in the attendance card
         if (!generateButton) {
-            console.log('Button not found, trying "更多" menu...');
-            await page.click('button:has-text("更多")');
+            console.log('Button not found directly, checking attendance card...');
+            // Click on "更多" to see if check-in is there
+            const moreButton = await page.$('button:has-text("更多")');
+            if (moreButton) {
+                await moreButton.click();
+                await setTimeout(1000);
+                await captureScreenshot(page, '03-more-menu-opened');
+                generateButton = await page.$('button:has-text("生成签到码")');
+            }
+        }
+        
+        if (!generateButton) {
+            console.log('Button not found, scrolling down to check...');
+            await page.evaluate(() => window.scrollTo(0, 300));
             await setTimeout(1000);
+            await captureScreenshot(page, '03-scrolled');
             generateButton = await page.$('button:has-text("生成签到码")');
         }
+        
         if (!generateButton) {
-            console.log('Button not found in menu, scrolling down...');
-            await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-            await setTimeout(1000);
-            generateButton = await page.$('button:has-text("生成签到码")');
-        }
-        if (!generateButton) {
-            throw new Error('❌ Generate check-in code button not found - deployment may still be in progress');
+            throw new Error('❌ Generate check-in code button not found - code may not be deployed yet');
         }
         console.log('✅ Found "Generate Check-in Code" button');
         
