@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
 import { 
   Users, Search, CheckCircle, XCircle, 
-  Clock, ChevronDown, ChevronUp, GraduationCap,
-  Star, Eye, Plus, Edit2, Trash2, Mail, Phone
+  ChevronDown, ChevronUp, GraduationCap,
+  Star, Plus, Edit2, Trash2, Mail
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
 import { 
   BookOpen, Search, Edit2, Trash2, 
-  CheckCircle, XCircle, User, Plus, Eye
+  CheckCircle, XCircle, User, Plus
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';

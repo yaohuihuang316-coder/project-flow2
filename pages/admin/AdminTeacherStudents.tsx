@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
 import { 
   Users, Search, BookOpen, FileText, 
-  Mail, GraduationCap, Clock, Plus, Edit2, Trash2
+  Mail, GraduationCap, Plus, Edit2, Trash2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
