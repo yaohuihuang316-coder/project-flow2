@@ -71,6 +71,10 @@ export interface UserProfile {
   job_title?: string;
   teacher_verified_at?: string;
   teacher_license_url?: string;
+  // 个人资料扩展字段
+  bio?: string;
+  phone?: string;
+  location?: string;
 }
 
 // 会员权限要求配置

@@ -9,8 +9,8 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
-import { supabase } from '../../lib/supabaseClient';
-import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
+// import { supabase } from '../../lib/supabaseClient';
+// import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
 
 interface AssignmentsProps {
   currentUser?: UserProfile | null;

@@ -12,7 +12,7 @@ import {
   AlertCircle, LayoutDashboard, LogOut
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
-import { supabase } from '../../lib/supabaseClient';
+// import { supabase } from '../../lib/supabaseClient';
 
 interface InteractionsProps {
   currentUser?: UserProfile | null;

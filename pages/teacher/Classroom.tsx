@@ -7,8 +7,8 @@ import {
   ArrowLeft, BarChart3, Plus, X
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
-import { supabase } from '../../lib/supabaseClient';
-import { useAttendanceRealtime, createClassSession } from '../../lib/teacherHooks';
+// import { supabase } from '../../lib/supabaseClient';
+// import { useAttendanceRealtime, createClassSession } from '../../lib/teacherHooks';
 
 interface TeacherClassroomProps {
   currentUser?: UserProfile | null;

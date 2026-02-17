@@ -2725,7 +2725,7 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             const percentage = Math.round((score / 100) * 100);
             const grading = percentage >= 80 ? '优秀' : percentage >= 60 ? '良好' : '需改进';
             
-            // 生成HTML报告
+            // 生成HTML报告（简化版，只包含基本信息）
             const htmlContent = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -2763,19 +2763,6 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
         .info-value { font-size: 18px; font-weight: 600; margin-top: 4px; }
         .card { background: white; border-radius: 20px; padding: 32px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .card h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #111; }
-        .question-item { padding: 20px; border-bottom: 1px solid #e5e7eb; }
-        .question-item:last-child { border-bottom: none; }
-        .question-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .question-num { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; }
-        .question-result { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
-        .result-correct { background: #d1fae5; color: #065f46; }
-        .result-wrong { background: #fee2e2; color: #991b1b; }
-        .question-text { font-size: 16px; color: #374151; margin-bottom: 12px; }
-        .answer-section { background: #f9fafb; padding: 16px; border-radius: 12px; }
-        .answer-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        .answer-label { font-weight: 500; color: #6b7280; min-width: 80px; }
-        .answer-value { color: #111; }
-        .explanation { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e5e7eb; color: #059669; font-size: 14px; }
         .footer { text-align: center; color: #9ca3af; font-size: 14px; margin-top: 40px; }
     </style>
 </head>
@@ -2813,39 +2800,8 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
         </div>
         
         <div class="card">
-            <h2>逐题分析</h2>
-            ${questions.map((q, idx) => {
-                const userAnswer = answers[q.id];
-                const isCorrect = userAnswer === q.correct_option;
-                return `
-                <div class="question-item">
-                    <div class="question-header">
-                        <span class="question-num">第${idx + 1}题</span>
-                        <span class="question-result ${isCorrect ? 'result-correct' : 'result-wrong'}">
-                            ${isCorrect ? '✓ 正确' : '✗ 错误'}
-                        </span>
-                    </div>
-                    <div class="question-text">${q.question_text}</div>
-                    <div class="answer-section">
-                        <div class="answer-row">
-                            <span class="answer-label">您的答案:</span>
-                            <span class="answer-value" style="color: ${isCorrect ? '#059669' : '#dc2626'}">
-                                ${userAnswer ? q[`option_${userAnswer.toLowerCase()}`] : '未作答'}
-                            </span>
-                        </div>
-                        <div class="answer-row">
-                            <span class="answer-label">正确答案:</span>
-                            <span class="answer-value" style="color: #059669;">
-                                ${q[`option_${q.correct_option.toLowerCase()}`]}
-                            </span>
-                        </div>
-                        <div class="explanation">
-                            <strong>解析:</strong> ${q.explanation || '暂无解析'}
-                        </div>
-                    </div>
-                </div>
-                `;
-            }).join('')}
+            <h2>答题详情</h2>
+            <p style="color: #6b7280; margin-bottom: 16px;">本次模拟共 ${questions.length} 道题，您的得分为 ${score} 分。</p>
         </div>
         
         <div class="footer">
@@ -2866,105 +2822,9 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            
-            showToast?.('success', '报告下载成功');
         } catch (error) {
             console.error('下载报告失败:', error);
-            showToast?.('error', '报告下载失败');
         }
-    };
-                    doc.text(line, 25, yPos);
-                    yPos += 5;
-                });
-                yPos += 2;
-
-                doc.setFontSize(9);
-                doc.text(`正确答案: ${q.correct_answer}`, 25, yPos);
-                yPos += 6;
-
-                doc.setFontSize(8);
-                const explanationLines = doc.splitTextToSize(`解析: ${q.explanation}`, 170);
-                explanationLines.forEach((line: string) => {
-                    doc.text(line, 25, yPos);
-                    yPos += 4;
-                });
-                yPos += 8;
-            });
-
-            // 综合分析
-            if (yPos > 220) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            doc.setFontSize(14);
-            doc.text('综合分析', 20, yPos);
-            yPos += 10;
-
-            doc.setFontSize(10);
-            if (score >= 80) {
-                doc.text('知识强项:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('- 项目管理核心知识掌握扎实', 30, yPos);
-                yPos += 5;
-                doc.text('- 能够正确识别管理情景并应对', 30, yPos);
-                yPos += 8;
-
-                doc.setFontSize(10);
-                doc.text('建议:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('- 深入学习高级项目管理技术', 30, yPos);
-                yPos += 5;
-                doc.text('- 准备PMP/PRINCE2认证考试', 30, yPos);
-            } else if (score >= 60) {
-                doc.text('知识强项:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('- 基础项目管理概念理解正确', 30, yPos);
-                yPos += 8;
-
-                doc.setFontSize(10);
-                doc.text('需要加强:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('- 风险管理与应对策略', 30, yPos);
-                yPos += 5;
-                doc.text('- 相关方管理与沟通', 30, yPos);
-                yPos += 8;
-
-                doc.setFontSize(10);
-                doc.text('建议:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('- 系统学习PMBOK指南', 30, yPos);
-                yPos += 5;
-                doc.text('- 多做实战案例练习', 30, yPos);
-            } else {
-                doc.text('需要加强:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('- 项目管理基础知识', 30, yPos);
-                yPos += 5;
-                doc.text('- 流程与方法论理解', 30, yPos);
-                yPos += 5;
-                doc.text('- 实践经验积累', 30, yPos);
-                yPos += 8;
-
-                doc.setFontSize(10);
-                doc.text('建议学习路径:', 25, yPos);
-                yPos += 5;
-                doc.setFontSize(9);
-                doc.text('1. PMBOK指南第6版/第7版基础', 30, yPos);
-                yPos += 5;
-                doc.text('2. 项目管理入门课程', 30, yPos);
-                yPos += 5;
-                doc.text('3. 实战案例分析与模拟', 30, yPos);
-            }
-
-            doc.save(`Simulation_Report_${caseData.id}_${new Date().toISOString().split('T')[0]}.pdf`);
-        } catch (e) { console.error(e); }
     };
 
     return (
