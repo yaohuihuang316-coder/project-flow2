@@ -36,6 +36,10 @@ import AdminMembership from './pages/admin/AdminMembership'; // 会员管理
 import AdminSimulation from './pages/admin/AdminSimulation'; // 实战项目管理
 // Removed: AdminEvents, AdminSystem - not needed for current frontend
 import AdminAnalytics from './pages/admin/AdminAnalytics';
+import AdminTeacherCourses from './pages/admin/AdminTeacherCourses';
+import AdminTeacherAssignments from './pages/admin/AdminTeacherAssignments';
+import AdminTeacherSessions from './pages/admin/AdminTeacherSessions';
+import AdminTeacherStudents from './pages/admin/AdminTeacherStudents';
 // 已删除: AdminSettings, AdminMonitor
 import { Page, UserProfile } from './types';
 
@@ -118,6 +122,34 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_ANNOUNCEMENTS && <AdminAnnouncements />}
           {currentPage === Page.ADMIN_MEMBERSHIP && <AdminMembership />}
           {currentPage === Page.ADMIN_SIMULATION && <AdminSimulation />}
+          {currentPage === Page.ADMIN_TEACHER_COURSES && (
+            <AdminTeacherCourses 
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
+          {currentPage === Page.ADMIN_TEACHER_ASSIGNMENTS && (
+            <AdminTeacherAssignments 
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
+          {currentPage === Page.ADMIN_TEACHER_SESSIONS && (
+            <AdminTeacherSessions 
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
+          {currentPage === Page.ADMIN_TEACHER_STUDENTS && (
+            <AdminTeacherStudents 
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
         </AdminLayout>
       );
     }

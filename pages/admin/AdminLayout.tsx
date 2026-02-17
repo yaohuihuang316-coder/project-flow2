@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Crown,
   LogOut, Bell, Menu, X, MessageSquare,
   ChevronDown, BookOpen, Clock, Network, Megaphone, TrendingUp, BarChart3,
-  Home
+  Home, FileText, GraduationCap
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -43,6 +43,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         { label: '体系课程', page: Page.ADMIN_CONTENT, param: 'courses', icon: BookOpen, roles: ['SuperAdmin', 'Manager', 'Editor'] },
         { label: '实战项目', page: Page.ADMIN_CONTENT, param: 'projects', icon: Clock, roles: ['SuperAdmin', 'Manager', 'Editor'] },
         { label: '知识图谱', page: Page.ADMIN_CONTENT, param: 'graph', icon: Network, roles: ['SuperAdmin', 'Manager', 'Editor'] },
+      ]
+    },
+    {
+      id: 'teachers',
+      label: '教师数据管理 (Teacher Data)',
+      items: [
+        { label: '教师课程', page: Page.ADMIN_TEACHER_COURSES, icon: BookOpen, roles: ['SuperAdmin', 'Manager'] },
+        { label: '教师作业', page: Page.ADMIN_TEACHER_ASSIGNMENTS, icon: FileText, roles: ['SuperAdmin', 'Manager'] },
+        { label: '课堂考勤', page: Page.ADMIN_TEACHER_SESSIONS, icon: Clock, roles: ['SuperAdmin', 'Manager'] },
+        { label: '学生管理', page: Page.ADMIN_TEACHER_STUDENTS, icon: GraduationCap, roles: ['SuperAdmin', 'Manager'] },
       ]
     },
     {

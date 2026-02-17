@@ -3,10 +3,11 @@ import { Page, UserProfile } from '../../types';
 import { 
   Users, Search, CheckCircle, XCircle, 
   Clock, ChevronDown, ChevronUp, GraduationCap,
-  Star, X
+  Star, Eye
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
+import AdminTeacherDetail from './AdminTeacherDetail';
 
 interface AdminTeachersProps {
   onNavigate: (page: Page, param?: string) => void;
@@ -318,9 +319,10 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
                               setSelectedTeacher(teacher);
                               setShowDetailModal(true);
                             }}
-                            className="px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
-                            详情
+                            <Eye size={14} />
+                            数据
                           </button>
                           {teacher.status === 'active' ? (
                             <button
@@ -347,69 +349,12 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
           )}
         </div>
 
-        {/* Detail Modal */}
+        {/* Teacher Detail Modal */}
         {showDetailModal && selectedTeacher && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">教师详情</h2>
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                  >
-                    <X size={20} className="text-gray-500" />
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <img
-                    src={selectedTeacher.avatar || `https://i.pravatar.cc/150?u=${selectedTeacher.id}`}
-                    alt={selectedTeacher.name}
-                    className="w-20 h-20 rounded-2xl object-cover"
-                  />
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{selectedTeacher.name}</h3>
-                    <p className="text-gray-500">{selectedTeacher.email}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      {getStatusBadge(selectedTeacher.status)}
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                        {selectedTeacher.title || '普通教师'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-2xl font-bold text-blue-600">{selectedTeacher.total_courses}</p>
-                    <p className="text-xs text-gray-500 mt-1">课程数</p>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-2xl font-bold text-green-600">{selectedTeacher.total_students}</p>
-                    <p className="text-xs text-gray-500 mt-1">学生数</p>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-2xl font-bold text-yellow-600">{selectedTeacher.rating.toFixed(1)}</p>
-                    <p className="text-xs text-gray-500 mt-1">评分</p>
-                  </div>
-                </div>
-
-                {selectedTeacher.bio && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">个人简介</h4>
-                    <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl">{selectedTeacher.bio}</p>
-                  </div>
-                )}
-
-                <div className="text-sm text-gray-500">
-                  <p>加入时间：{new Date(selectedTeacher.created_at).toLocaleString('zh-CN')}</p>
-                  {selectedTeacher.phone && <p>联系电话：{selectedTeacher.phone}</p>}
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdminTeacherDetail
+            teacherId={selectedTeacher.id}
+            onClose={() => setShowDetailModal(false)}
+          />
         )}
       </div>
     </AdminLayout>
