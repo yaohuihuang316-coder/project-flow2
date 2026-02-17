@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft, ExternalLink, Bot, X, Search
+  Play, Minimize2, Maximize2, FileText, Download, Send, Loader2, AlertCircle, Save, Check, ChevronLeft, ExternalLink, Bot, X, Search, QrCode
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, ChatMessage } from '../types';
@@ -42,6 +42,13 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Check-in State
+  const [checkInCode, setCheckInCode] = useState('');
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [checkInStatus, setCheckInStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [checkInMessage, setCheckInMessage] = useState('');
+  const [hasCheckedIn, setHasCheckedIn] = useState(false);
 
   // Helper for Safe Env Access
   const getApiKey = () => {
@@ -332,6 +339,129 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       }
   };
 
+  // Handle Check-in
+  const handleCheckIn = async () => {
+    if (!checkInCode || checkInCode.length !== 6) {
+      setCheckInStatus('error');
+      setCheckInMessage('请输入6位数字签到码');
+      return;
+    }
+
+    if (!currentUser?.id) {
+      setCheckInStatus('error');
+      setCheckInMessage('请先登录');
+      return;
+    }
+
+    setIsCheckingIn(true);
+    setCheckInStatus('idle');
+    setCheckInMessage('');
+
+    try {
+      // Find active class session with matching check-in code
+      const { data: sessions, error: sessionError } = await supabase
+        .from('app_class_sessions')
+        .select('*')
+        .contains('whiteboard_data', { check_in_code: checkInCode })
+        .gt('end_time', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (sessionError || !sessions || sessions.length === 0) {
+        setCheckInStatus('error');
+        setCheckInMessage('签到码无效或已过期');
+        setIsCheckingIn(false);
+        return;
+      }
+
+      const session = sessions[0];
+
+      // Check if code is expired
+      const expiresAt = session.whiteboard_data?.check_in_expires_at;
+      if (expiresAt && new Date(expiresAt) < new Date()) {
+        setCheckInStatus('error');
+        setCheckInMessage('签到码已过期');
+        setIsCheckingIn(false);
+        return;
+      }
+
+      // Check if already checked in
+      const { data: existing } = await supabase
+        .from('app_attendance')
+        .select('*')
+        .eq('session_id', session.id)
+        .eq('student_id', currentUser.id)
+        .single();
+
+      if (existing) {
+        setCheckInStatus('success');
+        setCheckInMessage('您已签到成功');
+        setHasCheckedIn(true);
+        setIsCheckingIn(false);
+        return;
+      }
+
+      // Create attendance record
+      const { error: insertError } = await supabase
+        .from('app_attendance')
+        .insert({
+          session_id: session.id,
+          student_id: currentUser.id,
+          status: 'present',
+          check_in_time: new Date().toISOString()
+        });
+
+      if (insertError) {
+        setCheckInStatus('error');
+        setCheckInMessage('签到失败，请重试');
+        setIsCheckingIn(false);
+        return;
+      }
+
+      setCheckInStatus('success');
+      setCheckInMessage('签到成功！');
+      setHasCheckedIn(true);
+      setCheckInCode('');
+
+    } catch (err) {
+      setCheckInStatus('error');
+      setCheckInMessage('签到出错，请重试');
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  // Check if user already checked in on mount
+  useEffect(() => {
+    const checkExistingAttendance = async () => {
+      if (!currentUser?.id || !courseId) return;
+      
+      // Find active session for this course
+      const { data: sessions } = await supabase
+        .from('app_class_sessions')
+        .select('id')
+        .eq('course_id', courseId)
+        .gt('end_time', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (sessions && sessions.length > 0) {
+        const { data: attendance } = await supabase
+          .from('app_attendance')
+          .select('*')
+          .eq('session_id', sessions[0].id)
+          .eq('student_id', currentUser.id)
+          .single();
+
+        if (attendance) {
+          setHasCheckedIn(true);
+        }
+      }
+    };
+
+    checkExistingAttendance();
+  }, [currentUser, courseId]);
+
   if (isLoading) {
       return (
           <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F5F7]">
@@ -434,6 +564,55 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                         {tab === 'catalog' ? '目录' : tab === 'notes' ? '笔记' : '资源'}
                     </button>
                 ))}
+            </div>
+
+            {/* Check-in Card */}
+            <div className="px-4 mb-3">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white">
+                            <QrCode size={14} />
+                        </div>
+                        <span className="text-xs font-bold text-gray-800">课堂签到</span>
+                    </div>
+                    
+                    {hasCheckedIn ? (
+                        <div className="flex items-center gap-2 text-green-600 bg-green-50 rounded-lg p-2">
+                            <Check size={14} />
+                            <span className="text-xs font-medium">今日已签到</span>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <input
+                                type="text"
+                                placeholder="输入6位签到码"
+                                value={checkInCode}
+                                onChange={(e) => setCheckInCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-center tracking-widest font-mono font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                disabled={isCheckingIn}
+                            />
+                            <button
+                                onClick={handleCheckIn}
+                                disabled={isCheckingIn || checkInCode.length !== 6}
+                                className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {isCheckingIn ? (
+                                    <span className="flex items-center justify-center gap-1">
+                                        <Loader2 size={12} className="animate-spin" />
+                                        签到中...
+                                    </span>
+                                ) : '确认签到'}
+                            </button>
+                            {checkInStatus !== 'idle' && (
+                                <div className={`text-xs text-center py-1 rounded ${
+                                    checkInStatus === 'success' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
+                                }`}>
+                                    {checkInMessage}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Search Bar - Only for Catalog and Resources */}
