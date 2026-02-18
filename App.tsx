@@ -27,7 +27,9 @@ import MembershipGuard from './components/MembershipGuard';
 // Admin Imports
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminTeachers from './pages/admin/AdminTeachers';
+// AdminTeachers 保留但暂未使用 - 教师列表可通过用户管理筛选查看
+// import AdminTeachers from './pages/admin/AdminTeachers';
+import AdminUsers from './pages/admin/AdminUsers';
 import AdminProgress from './pages/admin/AdminProgress';
 import AdminContent from './pages/admin/AdminContent';
 import AdminCommunity from './pages/admin/AdminCommunity';
@@ -109,7 +111,7 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
           {currentPage === Page.ADMIN_ANALYTICS && <AdminAnalytics />}
           {currentPage === Page.ADMIN_USERS && (
-            <AdminTeachers 
+            <AdminUsers 
               onNavigate={navigateTo}
               currentUser={currentUser}
               onLogout={handleLogout}

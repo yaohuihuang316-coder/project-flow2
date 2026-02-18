@@ -207,34 +207,64 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
       onLogout={onLogout}
     >
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-              <Clock className="text-orange-600" size={20} />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">课堂考勤管理</h1>
+        {/* Header - 统一风格 */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                <Clock className="text-white" size={20} />
+              </div>
+              课堂考勤管理
+            </h1>
+            <p className="text-gray-500 mt-1 ml-13">查看和管理所有教师的课堂安排及考勤记录</p>
           </div>
-          <p className="text-gray-500 ml-13">查看和管理所有教师的课堂安排及考勤记录</p>
         </div>
 
-        {/* Stats */}
+        {/* Stats - 统一为渐变背景卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-500 mt-1">课堂总数</p>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                <Calendar className="text-blue-600" size={24} />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-sm text-gray-600">课堂总数</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="text-3xl font-bold text-blue-600">{stats.scheduled}</p>
-            <p className="text-sm text-gray-500 mt-1">待开始</p>
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                <Play className="text-blue-600" size={24} />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-blue-600">{stats.scheduled}</p>
+                <p className="text-sm text-gray-600">待开始</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="text-3xl font-bold text-green-600">{stats.inProgress}</p>
-            <p className="text-sm text-gray-500 mt-1">进行中</p>
+          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-100">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                <CheckCircle className="text-emerald-600" size={24} />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-emerald-600">{stats.inProgress}</p>
+                <p className="text-sm text-gray-600">进行中</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <p className="text-3xl font-bold text-gray-600">{stats.completed}</p>
-            <p className="text-sm text-gray-500 mt-1">已完成</p>
+          <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-5 border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                <CheckCircle className="text-gray-600" size={24} />
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-gray-600">{stats.completed}</p>
+                <p className="text-sm text-gray-600">已完成</p>
+              </div>
+            </div>
           </div>
         </div>
 
