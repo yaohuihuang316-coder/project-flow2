@@ -41,6 +41,7 @@ export interface AssignmentFormData {
     content: string;
     deadline: string;
     max_score: number;
+    attachments?: string[];
 }
 
 /**
@@ -93,7 +94,7 @@ export async function createAssignment(assignmentData: AssignmentFormData): Prom
         content: assignmentData.content,
         deadline: assignmentData.deadline,
         max_score: assignmentData.max_score,
-        attachments: [],
+        attachments: assignmentData.attachments || [],
         status: 'pending' as const,
     };
 

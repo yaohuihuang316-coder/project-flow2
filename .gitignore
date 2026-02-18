@@ -1,4 +1,26 @@
-# Logs
+# 依赖
+node_modules
+.pnp
+.pnp.js
+
+# 构建输出
+dist
+dist-ssr
+*.local
+.build
+.next
+.nuxt
+.output
+
+# 环境变量（敏感信息）
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# 日志
 logs
 *.log
 npm-debug.log*
@@ -7,12 +29,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# 编辑器
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,4 +39,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 测试
+coverage
+*.lcov
+.nyc_output
+
+# 缓存
+.cache
+.temp
+.tmp
+*.tsbuildinfo
+
+# Vercel
 .vercel
+
+# 本地配置
+*.local

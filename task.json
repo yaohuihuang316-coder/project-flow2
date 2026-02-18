@@ -2,13 +2,18 @@
   "project": "项目名称",
   "description": "项目描述",
   "version": "1.0.0",
+  "deploy": {
+    "platform": "vercel",
+    "autoDeploy": false,
+    "waitForUserConfirm": true
+  },
   "techStack": {
     "frontend": "React + TypeScript + Vite",
     "styling": "Tailwind CSS",
     "stateManagement": "Zustand",
-    "backend": "Node.js + Express",
-    "database": "PostgreSQL + Prisma",
-    "api": "REST API"
+    "routing": "React Router v6",
+    "httpClient": "axios",
+    "deploy": "Vercel"
   },
   "tasks": [
     {
@@ -17,98 +22,97 @@
       "description": "搭建项目基础架构，配置开发环境",
       "priority": "high",
       "steps": [
-        "初始化前端项目（Vite + React + TS）",
-        "初始化后端项目（Express + TS）",
-        "配置统一的 ESLint 和 Prettier",
-        "配置路径别名（@/components, @/lib 等）",
-        "配置 Tailwind CSS",
+        "使用 Vite 创建项目: npm create vite@latest . -- --template react-ts",
+        "安装依赖: npm install",
+        "安装 Tailwind CSS 并配置",
+        "安装 Zustand 状态管理",
+        "安装 React Router v6",
+        "安装 axios",
+        "配置 ESLint 和 Prettier",
+        "配置路径别名 (@/components, @/lib 等)",
         "创建基础目录结构",
-        "配置环境变量模板（.env.example）",
-        "配置开发脚本（含自动重启）"
+        "创建 .env.example 模板"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 2,
-      "title": "数据库设计与配置",
-      "description": "设计数据模型，配置数据库连接",
+      "title": "Vercel 部署配置",
+      "description": "配置 Vercel 部署所需文件和设置",
       "priority": "high",
       "steps": [
-        "安装并配置 Prisma",
-        "设计数据库 Schema",
-        "创建基础表（用户、配置等）",
-        "配置数据库连接",
-        "创建初始迁移",
-        "生成 Prisma Client",
-        "创建数据库工具函数"
+        "创建 vercel.json 配置文件",
+        "配置构建命令和输出目录",
+        "配置路由重写（SPA）",
+        "创建 .vercelignore 文件",
+        "初始化 Git 仓库",
+        "配置 .gitignore",
+        "提交初始代码到 GitHub"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 3,
+      "title": "【验证部署】首次部署测试",
+      "description": "部署初始项目到 Vercel，验证部署流程",
+      "priority": "high",
+      "steps": [
+        "运行本地构建测试: npm run build",
+        "提交代码: git add . && git commit -m 'Initial' && git push",
+        "使用 Vercel MCP 部署",
+        "获取预览链接",
+        "用户验证页面是否正常显示",
+        "确认部署流程可用"
+      ],
+      "passes": false,
+      "notes": "",
+      "deploy": true
+    },
+    {
+      "id": 4,
       "title": "类型定义与接口规范",
       "description": "定义全局 TypeScript 类型和 API 接口",
       "priority": "high",
       "steps": [
-        "创建共享类型定义（shared/types）",
+        "创建 src/types/index.ts",
         "定义实体类型（User, Project 等）",
         "定义 API 请求/响应类型",
-        "定义通用工具类型",
+        "定义常用工具类型",
         "创建类型导出入口"
       ],
       "passes": false,
       "notes": ""
     },
     {
-      "id": 4,
-      "title": "后端基础架构",
-      "description": "搭建 Express 后端框架",
-      "priority": "high",
-      "steps": [
-        "创建 Express 应用实例",
-        "配置中间件（cors, helmet, morgan）",
-        "配置错误处理中间件",
-        "创建路由目录结构",
-        "配置环境变量读取",
-        "创建健康检查接口",
-        "配置开发模式自动重启"
-      ],
-      "passes": false,
-      "notes": ""
-    },
-    {
       "id": 5,
-      "title": "前端基础架构",
-      "description": "搭建 React 前端框架",
+      "title": "全局样式和布局",
+      "description": "配置全局样式和基础布局组件",
       "priority": "high",
       "steps": [
-        "配置 React Router",
-        "创建布局组件（Layout, Header, Footer）",
-        "配置全局状态管理（Zustand）",
-        "创建 API 客户端（axios 封装）",
-        "配置开发代理（解决跨域）",
-        "创建错误边界组件",
-        "配置全局样式"
+        "配置 Tailwind 主题色",
+        "创建全局 CSS 变量",
+        "创建 Layout 组件",
+        "创建 Header 组件",
+        "创建 Footer 组件",
+        "设置页面背景色和文字颜色"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 6,
-      "title": "用户认证系统",
-      "description": "实现用户注册、登录、认证功能",
+      "title": "路由配置",
+      "description": "配置 React Router 和页面路由",
       "priority": "high",
       "steps": [
-        "设计用户表结构",
-        "实现注册接口（含密码加密）",
-        "实现登录接口（JWT Token）",
-        "实现认证中间件",
-        "创建前端登录页面",
-        "创建前端注册页面",
-        "实现前端登录状态管理",
-        "配置路由守卫"
+        "创建 router 配置文件",
+        "创建基础页面组件",
+        "配置路由表和嵌套路由",
+        "创建 404 页面",
+        "创建路由守卫组件",
+        "在 Header 中添加导航链接"
       ],
       "passes": false,
       "notes": ""
@@ -119,148 +123,179 @@
       "description": "创建可复用的基础 UI 组件",
       "priority": "medium",
       "steps": [
-        "创建 Button 组件（支持 variants）",
-        "创建 Input 组件（支持 validation）",
+        "创建 Button 组件",
+        "创建 Input 组件",
         "创建 Card 组件",
         "创建 Modal/Dialog 组件",
         "创建 Toast 通知组件",
-        "创建 Loading/Spinner 组件",
-        "创建 EmptyState 组件",
-        "创建 ErrorState 组件"
+        "创建 Loading/Spinner 组件"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 8,
-      "title": "核心业务功能 - 模块1",
-      "description": "实现项目的第一个核心功能模块",
-      "priority": "high",
+      "title": "【验证部署】UI 组件展示页",
+      "description": "创建组件展示页面并部署验证",
+      "priority": "medium",
       "steps": [
-        "设计相关数据表",
-        "实现后端 CRUD 接口",
-        "实现前端列表页面",
-        "实现前端详情页面",
-        "实现前端创建/编辑表单",
-        "添加表单验证",
-        "实现删除功能（含确认）"
+        "创建组件展示页面",
+        "展示所有基础组件",
+        "本地构建测试",
+        "部署到 Vercel",
+        "用户验证组件显示效果",
+        "收集反馈并修复问题"
       ],
       "passes": false,
-      "notes": ""
+      "notes": "",
+      "deploy": true
     },
     {
       "id": 9,
-      "title": "核心业务功能 - 模块2",
-      "description": "实现项目的第二个核心功能模块",
+      "title": "用户认证系统 - 前端",
+      "description": "实现登录/注册页面和状态管理",
       "priority": "high",
       "steps": [
-        "设计相关数据表",
-        "实现后端接口",
-        "实现前端页面和组件",
-        "联调测试"
+        "创建登录表单组件",
+        "创建注册表单组件",
+        "添加表单验证",
+        "实现认证状态管理",
+        "创建登录状态持久化",
+        "配置路由守卫"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 10,
-      "title": "错误处理与日志",
-      "description": "完善错误处理和日志记录",
-      "priority": "medium",
+      "title": "【验证部署】认证流程测试",
+      "description": "部署并验证登录/注册功能",
+      "priority": "high",
       "steps": [
-        "配置全局错误捕获",
-        "实现统一错误响应格式",
-        "前端错误提示组件",
-        "配置日志记录（开发/生产）",
-        "添加请求错误重试机制",
-        "实现错误上报（可选）"
+        "本地测试认证流程",
+        "部署到 Vercel",
+        "用户测试登录功能",
+        "用户测试注册功能",
+        "验证路由守卫",
+        "收集反馈并修复"
       ],
       "passes": false,
-      "notes": ""
+      "notes": "",
+      "deploy": true
     },
     {
       "id": 11,
-      "title": "加载状态优化",
-      "description": "优化用户体验，添加加载状态",
-      "priority": "medium",
+      "title": "核心业务功能 - 模块1",
+      "description": "实现项目的第一个核心功能模块",
+      "priority": "high",
       "steps": [
-        "创建 Skeleton 组件",
-        "为列表添加骨架屏",
-        "为表单添加提交 loading",
-        "为按钮添加 loading 状态",
-        "实现路由切换 loading",
-        "优化首屏加载（代码分割）"
+        "设计数据类型",
+        "实现列表页面",
+        "实现详情页面",
+        "实现创建/编辑表单",
+        "添加表单验证",
+        "实现删除功能"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 12,
-      "title": "响应式适配",
+      "title": "【验证部署】核心功能测试",
+      "description": "部署并验证核心功能模块",
+      "priority": "high",
+      "steps": [
+        "本地测试 CRUD 功能",
+        "部署到 Vercel",
+        "用户验证列表页面",
+        "用户测试创建功能",
+        "用户测试编辑功能",
+        "用户测试删除功能",
+        "收集反馈并修复"
+      ],
+      "passes": false,
+      "notes": "",
+      "deploy": true
+    },
+    {
+      "id": 13,
+      "title": "响应式适配优化",
       "description": "适配移动端和不同屏幕尺寸",
       "priority": "medium",
       "steps": [
         "检查移动端布局",
-        "优化小屏幕导航（汉堡菜单）",
-        "调整表单在移动端的显示",
-        "优化表格/列表移动端显示",
-        "测试平板设备布局",
-        "修复响应式样式问题"
-      ],
-      "passes": false,
-      "notes": ""
-    },
-    {
-      "id": 13,
-      "title": "测试覆盖",
-      "description": "添加单元测试和集成测试",
-      "priority": "low",
-      "steps": [
-        "配置测试框架（Vitest + React Testing Library）",
-        "编写工具函数单元测试",
-        "编写组件测试",
-        "编写 API 接口测试",
-        "配置测试覆盖率报告",
-        "添加 CI 测试脚本"
+        "优化小屏幕导航",
+        "调整表单移动端显示",
+        "优化表格/列表移动端显示"
       ],
       "passes": false,
       "notes": ""
     },
     {
       "id": 14,
-      "title": "生产环境配置",
-      "description": "配置生产构建和部署",
-      "priority": "high",
+      "title": "【验证部署】响应式测试",
+      "description": "部署并验证响应式效果",
+      "priority": "medium",
       "steps": [
-        "配置生产环境变量",
-        "优化构建配置",
-        "配置静态资源 CDN（可选）",
-        "编写 Dockerfile",
-        "编写 docker-compose.yml",
-        "编写部署文档"
+        "部署到 Vercel",
+        "用户手机端访问测试",
+        "用户平板端访问测试",
+        "收集响应式问题",
+        "修复并重新部署"
+      ],
+      "passes": false,
+      "notes": "",
+      "deploy": true
+    },
+    {
+      "id": 15,
+      "title": "错误处理和加载状态",
+      "description": "完善错误处理和加载体验",
+      "priority": "medium",
+      "steps": [
+        "创建错误边界组件",
+        "创建加载状态组件",
+        "添加全局错误提示",
+        "为异步操作添加 loading"
       ],
       "passes": false,
       "notes": ""
     },
     {
-      "id": 15,
-      "title": "最终验收与优化",
-      "description": "完整测试、性能优化、文档完善",
+      "id": 16,
+      "title": "【最终验证】完整流程测试",
+      "description": "最终部署并测试完整用户流程",
       "priority": "high",
       "steps": [
         "运行完整功能测试",
         "修复发现的 bug",
-        "性能检查与优化",
-        "检查并移除 console.log",
-        "完善 README 文档",
-        "编写 API 文档",
-        "最终构建验证"
+        "性能检查",
+        "最终部署到 Vercel",
+        "用户完整流程测试",
+        "确认所有功能正常"
       ],
       "passes": false,
-      "notes": ""
+      "notes": "",
+      "deploy": true
+    },
+    {
+      "id": 17,
+      "title": "生产环境配置",
+      "description": "配置生产环境和域名",
+      "priority": "high",
+      "steps": [
+        "配置生产环境变量",
+        "绑定自定义域名（如有）",
+        "配置 HTTPS",
+        "配置 CDN 缓存",
+        "最终生产部署"
+      ],
+      "passes": false,
+      "notes": "",
+      "deploy": true
     }
   ],
   "currentTask": null,
   "completedCount": 0,
-  "totalCount": 15
+  "totalCount": 17
 }

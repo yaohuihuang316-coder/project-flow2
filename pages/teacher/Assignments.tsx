@@ -7,13 +7,16 @@ import {
   Star, Search,
   CheckCircle2, Trash2,
   CheckSquare, Square, Calendar, X,
-  FileSpreadsheet, Loader2
+  FileSpreadsheet, Loader2,
+  Paperclip
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import * as assignmentService from '../../lib/assignmentService';
 import * as courseService from '../../lib/courseService';
 import GradingModal from '../../components/teacher/GradingModal';
 import GradeStats from '../../components/teacher/GradeStats';
+import RichTextEditor from '../../components/RichTextEditor';
+import FileUpload, { UploadFile } from '../../components/FileUpload';
 
 // import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
 
@@ -68,6 +71,7 @@ interface AssignmentForm {
   content: string;
   deadline: string;
   maxScore: number;
+  attachments: UploadFile[];
 }
 
 interface GradeForm {
@@ -99,18 +103,19 @@ const AssignmentCreateModal: React.FC<AssignmentCreateModalProps> = ({
     courseId: '',
     content: '',
     deadline: '',
-    maxScore: 100
+    maxScore: 100,
+    attachments: []
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.courseId || !form.deadline) return;
     onSubmit(form);
-    setForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
+    setForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100, attachments: [] });
   };
 
   const handleClose = () => {
-    setForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
+    setForm({ title: '', courseId: '', content: '', deadline: '', maxScore: 100, attachments: [] });
     onClose();
   };
 
@@ -118,7 +123,7 @@ const AssignmentCreateModal: React.FC<AssignmentCreateModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 头部 */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">布置新作业</h2>
@@ -167,12 +172,12 @@ const AssignmentCreateModal: React.FC<AssignmentCreateModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               作业内容 <span className="text-red-500">*</span>
             </label>
-            <textarea
-              rows={5}
+            <RichTextEditor
+              content={form.content}
+              onChange={(content) => setForm({ ...form, content })}
               placeholder="请输入作业要求、内容说明、评分标准等..."
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 resize-none transition-all"
+              minHeight="180px"
+              maxHeight="300px"
             />
           </div>
 
@@ -202,11 +207,16 @@ const AssignmentCreateModal: React.FC<AssignmentCreateModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">附件 (可选)</label>
-            <button className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 flex flex-col items-center gap-2 hover:border-blue-300 hover:bg-blue-50/50 transition-colors">
-              <Plus size={24} />
-              <span className="text-sm">点击上传附件或拖拽文件到此处</span>
-            </button>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Paperclip size={16} className="inline mr-1" />
+              附件 (可选)
+            </label>
+            <FileUpload
+              files={form.attachments}
+              onFilesChange={(attachments) => setForm({ ...form, attachments })}
+              maxFiles={5}
+              maxSize={10 * 1024 * 1024}
+            />
           </div>
         </div>
 
@@ -348,7 +358,37 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
             {/* 作业要求 */}
             <div className="mt-4 p-4 bg-gray-50 rounded-2xl">
               <h3 className="font-bold text-gray-900 mb-2 text-sm">作业要求</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-line line-clamp-3">{assignment.content}</p>
+              <div 
+                className="text-sm text-gray-600 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ 
+                  __html: assignment.content || '<p class="text-gray-400 italic">暂无内容</p>' 
+                }}
+              />
+              
+              {/* 附件列表 */}
+              {assignment.attachments && assignment.attachments.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                    <Paperclip size={12} />
+                    附件 ({assignment.attachments.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {assignment.attachments.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-1 bg-white rounded-lg text-xs text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        <FileText size={12} />
+                        附件 {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   <Calendar size={12} />
@@ -597,12 +637,18 @@ const Assignments: React.FC<AssignmentsProps> = ({
   // 创建作业
   const handleCreateAssignment = async (form: AssignmentForm) => {
     try {
+      // 提取已上传的附件 URL
+      const attachmentUrls = form.attachments
+        .filter(f => f.status === 'done' && f.url)
+        .map(f => f.url!);
+
       const newAssignment = await assignmentService.createAssignment({
         title: form.title,
         course_id: form.courseId,
         content: form.content,
         deadline: form.deadline.replace('T', ' '),
-        max_score: form.maxScore
+        max_score: form.maxScore,
+        attachments: attachmentUrls
       });
 
       const course = courses.find(c => c.id === form.courseId);

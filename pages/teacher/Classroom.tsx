@@ -243,6 +243,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [classTimer, setClassTimer] = useState(0);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenShareType, setScreenShareType] = useState<'screen' | 'window' | 'ppt'>('screen');
+  const [screenShareViewers, setScreenShareViewers] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   // 白板状态
@@ -328,6 +330,26 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     }
     return () => clearInterval(interval);
   }, [isClassActive]);
+
+  // 模拟屏幕共享观看人数变化
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isScreenSharing && isClassActive) {
+      // 初始观看人数基于签到人数
+      setScreenShareViewers(Math.max(5, attendanceList.length));
+      
+      interval = setInterval(() => {
+        setScreenShareViewers(prev => {
+          // 随机波动 -2 到 +3
+          const change = Math.floor(Math.random() * 6) - 2;
+          return Math.max(0, prev + change);
+        });
+      }, 5000);
+    } else {
+      setScreenShareViewers(0);
+    }
+    return () => clearInterval(interval);
+  }, [isScreenSharing, isClassActive, attendanceList.length]);
 
   // 格式化时间
   const formatTime = (seconds: number) => {
@@ -831,16 +853,133 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             <button 
               onClick={() => setIsScreenSharing(!isScreenSharing)}
               className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors ${
-                isScreenSharing ? 'bg-white text-blue-600' : 'bg-white/20 text-white hover:bg-white/30'
+                isScreenSharing ? 'bg-green-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'
               }`}
             >
-              <Monitor size={18} /> {isScreenSharing ? '停止共享' : '屏幕共享'}
+              <Monitor size={18} /> 
+              {isScreenSharing ? `停止共享 (${screenShareViewers}人观看)` : '开始共享'}
             </button>
             <button className="flex-1 py-3 bg-white/20 rounded-xl font-medium flex items-center justify-center gap-2 text-white hover:bg-white/30 transition-colors">
               <Users size={18} /> 邀请学生
             </button>
           </div>
+          
+          {/* 屏幕共享类型选择 */}
+          {isScreenSharing && (
+            <div className="mt-3 flex gap-2">
+              {[
+                { type: 'screen', label: '整个屏幕', icon: Monitor },
+                { type: 'window', label: '应用窗口', icon: Play },
+                { type: 'ppt', label: 'PPT演示', icon: PenLine },
+              ].map(({ type, label, icon: Icon }) => (
+                <button
+                  key={type}
+                  onClick={() => setScreenShareType(type as any)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                    screenShareType === type 
+                      ? 'bg-white text-blue-600' 
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                >
+                  <Icon size={14} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* 屏幕共享区域 */}
+        {isScreenSharing && (
+          <div className="bg-gray-900 rounded-3xl p-4 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Monitor size={18} className="text-green-400" /> 
+                正在共享
+                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                  {screenShareType === 'screen' ? '整个屏幕' : screenShareType === 'window' ? '应用窗口' : 'PPT演示'}
+                </span>
+              </h3>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-400 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  {screenShareViewers} 人观看
+                </span>
+                <button 
+                  onClick={() => setIsScreenSharing(false)}
+                  className="p-2 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            
+            {/* 模拟共享内容 */}
+            <div className="relative bg-gray-800 rounded-2xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              {screenShareType === 'ppt' ? (
+                // PPT 演示模式
+                <div className="absolute inset-0 flex flex-col">
+                  <div className="flex-1 bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-8">
+                    <div className="text-center text-white">
+                      <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <PenLine size={40} />
+                      </div>
+                      <h4 className="text-2xl font-bold mb-2">项目管理基础</h4>
+                      <p className="text-white/80">第三章：进度管理与控制</p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
+                    <span className="text-sm text-gray-400">幻灯片 3 / 15</span>
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1 bg-white/10 rounded-lg text-white text-sm hover:bg-white/20">上一页</button>
+                      <button className="px-3 py-1 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-700">下一页</button>
+                    </div>
+                  </div>
+                </div>
+              ) : screenShareType === 'window' ? (
+                // 应用窗口模式
+                <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
+                  <div className="w-3/4 h-3/4 bg-white rounded-xl shadow-2xl overflow-hidden">
+                    <div className="h-8 bg-gray-200 flex items-center px-3 gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                      <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                      <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                      <span className="ml-2 text-xs text-gray-500">代码编辑器</span>
+                    </div>
+                    <div className="p-4 font-mono text-sm text-gray-700">
+                      <div className="text-purple-600">function</div>
+                      <div className="pl-4">
+                        <span className="text-blue-600">calculateProgress</span>
+                        <span className="text-gray-500">(tasks)</span>
+                      </div>
+                      <div className="pl-4 text-gray-400">{'{ ... }'}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // 整个屏幕模式
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <div className="w-24 h-24 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                      <Monitor size={48} className="text-white/80" />
+                    </div>
+                    <p className="text-lg font-medium">正在共享屏幕</p>
+                    <p className="text-sm text-white/60 mt-1">学生可以看到您的屏幕内容</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* 观看人数浮层 */}
+              <div className="absolute top-3 right-3 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-sm flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                {screenShareViewers} 人观看
+              </div>
+            </div>
+            
+            <p className="text-xs text-gray-500 mt-3 text-center">
+              屏幕共享模拟 · 实际实现需要 WebRTC 技术支持
+            </p>
+          </div>
+        )}
 
         {/* 白板区域 */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">

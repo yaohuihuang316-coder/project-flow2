@@ -10,21 +10,20 @@
 
 ### API Tokens（服务账号使用）
 
-**⚠️ 注意: Token 存储在 .env.local 文件中，不要提交到 Git**
+**⚠️ 重要: 本文件仅保存在本地，不要提交到 GitHub**
 
 ```yaml
-# 从 .env.local 文件读取:
 # Vercel 部署 Token
-VERCEL_TOKEN: <从 .env.local 读取>
+VERCEL_TOKEN: ${VERCEL_TOKEN}
 
 # GitHub 访问 Token  
-GITHUB_TOKEN: <从 .env.local 读取>
+GITHUB_TOKEN: ${GITHUB_TOKEN}
 
 # Supabase 服务密钥（拥有最高权限）
-SUPABASE_SERVICE_KEY: <从 .env.local 读取>
+SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
 
 # Supabase 匿名密钥（模拟前端用户）
-SUPABASE_ANON_KEY: <从 .env.local 读取>
+SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
 
 # Supabase 项目 URL
 SUPABASE_URL: https://ghhvdffsyvzkhbftifzy.supabase.co
@@ -32,8 +31,6 @@ SUPABASE_URL: https://ghhvdffsyvzkhbftifzy.supabase.co
 # Supabase Dashboard
 SUPABASE_DASHBOARD: https://supabase.com/dashboard/project/ghhvdffsyvzkhbftifzy
 ```
-
-**Kimi 使用时直接读取 .env.local 文件获取真实 Token**
 
 ### 数据库信息
 - 总表数: 19 张
