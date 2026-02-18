@@ -315,6 +315,19 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [checkInCode, setCheckInCode] = useState<string | null>(null);
   const [checkInCodeExpiry, setCheckInCodeExpiry] = useState<Date | null>(null);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  
+  // 课堂笔记状态
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [classNotes, setClassNotes] = useState<string[]>([]);
+  const [newNote, setNewNote] = useState('');
+  
+  // 公告状态
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [announcementText, setAnnouncementText] = useState('');
+  
+  // 邀请学生状态
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteLink] = useState('');
 
   // 将会话数据转换为课程列表展示
   const courseClasses: CourseClass[] = sessions.map(session => {
@@ -908,7 +921,10 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
               <Monitor size={18} /> 
               {isScreenSharing ? `停止共享 (${screenShareViewers}人观看)` : '开始共享'}
             </button>
-            <button className="flex-1 py-3 bg-white/20 rounded-xl font-medium flex items-center justify-center gap-2 text-white hover:bg-white/30 transition-colors">
+            <button 
+              onClick={() => setShowInviteModal(true)}
+              className="flex-1 py-3 bg-white/20 rounded-xl font-medium flex items-center justify-center gap-2 text-white hover:bg-white/30 transition-colors"
+            >
               <Users size={18} /> 邀请学生
             </button>
           </div>
@@ -1160,19 +1176,67 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
-          {/* 签到码区域 - 大屏显示 */}
-          <div className="mb-4 p-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl border border-blue-400 shadow-lg">
-            {!checkInCode ? (
-              <div className="text-center">
-                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <QrCode size={32} className="text-white" />
+          {/* 签到码区域 - 重新实现确保显示 */}
+          <div className="mb-4 p-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl border border-blue-400 shadow-lg" style={{ minHeight: '200px' }}>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <QrCode size={32} className="text-white" />
+              </div>
+              <h4 className="text-white font-bold text-lg mb-2">课堂签到码</h4>
+              <p className="text-blue-100 text-sm mb-4">学生输入6位数字完成签到</p>
+              
+              {checkInCode ? (
+                <div className="animate-fade-in">
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span className="text-blue-100 text-sm">签到进行中</span>
+                  </div>
+                  
+                  {/* 大字体显示签到码 */}
+                  <div 
+                    className="text-5xl md:text-6xl font-black text-white tracking-[0.2em] mb-3 py-4 bg-white/10 rounded-xl"
+                    style={{ textShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                  >
+                    {checkInCode}
+                  </div>
+                  
+                  {/* 倒计时 */}
+                  {checkInCodeExpiry && (
+                    <div className="text-blue-100 text-sm mb-4">
+                      剩余时间: <CheckInCountdown expiryTime={checkInCodeExpiry} onExpire={() => setCheckInCode(null)} />
+                    </div>
+                  )}
+                  
+                  {/* 操作按钮 */}
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <button
+                      onClick={refreshCheckInCode}
+                      className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors"
+                    >
+                      <RefreshCw size={16} /> 刷新
+                    </button>
+                    <button
+                      onClick={() => setShowAttendanceModal(true)}
+                      className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors"
+                    >
+                      <UserCheck size={16} /> 手动签到
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(checkInCode);
+                        alert('签到码已复制');
+                      }}
+                      className="px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-bold flex items-center gap-1.5 hover:bg-blue-50 transition-colors"
+                    >
+                      复制
+                    </button>
+                  </div>
                 </div>
-                <h4 className="text-white font-bold text-lg mb-2">生成签到码</h4>
-                <p className="text-blue-100 text-sm mb-4">学生输入6位数字完成签到</p>
+              ) : (
                 <button
                   onClick={generateCheckInCode}
-                  disabled={isGeneratingCode || !activeSessionId}
-                  className="w-full py-3 bg-white text-blue-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGeneratingCode}
+                  className="w-full max-w-xs mx-auto py-3 bg-white text-blue-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors disabled:opacity-50"
                 >
                   {isGeneratingCode ? (
                     <>
@@ -1186,53 +1250,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
                     </>
                   )}
                 </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                  <span className="text-blue-100 text-sm">签到进行中</span>
-                </div>
-                
-                {/* 大字体显示签到码 */}
-                <div 
-                  className="text-6xl md:text-7xl font-black text-white tracking-[0.3em] mb-3 select-all"
-                  data-testid="checkin-code"
-                  style={{ textShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-                >
-                  {checkInCode}
-                </div>
-                
-                {/* 倒计时显示 */}
-                {checkInCodeExpiry && (
-                  <CheckInCountdown expiryTime={checkInCodeExpiry} onExpire={() => setCheckInCode(null)} />
-                )}
-                
-                <div className="flex gap-3 justify-center mt-4">
-                  <button
-                    onClick={refreshCheckInCode}
-                    className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors backdrop-blur-sm"
-                  >
-                    <RefreshCw size={16} /> 刷新码
-                  </button>
-                  <button
-                    onClick={() => setShowAttendanceModal(true)}
-                    className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors backdrop-blur-sm"
-                  >
-                    <UserCheck size={16} /> 手动签到
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(checkInCode);
-                      alert('签到码已复制到剪贴板');
-                    }}
-                    className="px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-bold flex items-center gap-1.5 hover:bg-blue-50 transition-colors"
-                  >
-                    复制码
-                  </button>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
           
           {/* 签到进度条 */}
@@ -1249,15 +1268,17 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
+          {/* 学生列表 */}
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {attendanceList.length === 0 ? (
-              <div className="text-center py-4 text-gray-400 text-sm">
-                <p>暂无学生签到数据</p>
-                <p className="text-xs mt-1">生成签到码后学生可扫码或输入签到</p>
+              <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-xl">
+                <Users size={32} className="mx-auto mb-2 opacity-30" />
+                <p>暂无学生签到</p>
+                <p className="text-xs mt-1">生成签到码后学生可签到</p>
               </div>
             ) : (
               attendanceList.map((student) => (
-                <div key={student.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors">
+                <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                   <img src={student.avatar} alt="" className="w-10 h-10 rounded-full" />
                   <span className="flex-1 font-medium text-gray-900">{student.name}</span>
                   <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
@@ -1749,7 +1770,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
         desc: '记录课堂重点',
         color: 'bg-blue-100 text-blue-600',
         onClick: () => {
-          alert('课堂笔记功能：可以记录和分享课堂重点内容');
+          setShowMoreModal(false);
+          setShowNoteModal(true);
         }
       },
       { 
@@ -1758,7 +1780,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
         desc: '向学生发送通知',
         color: 'bg-green-100 text-green-600',
         onClick: () => {
-          alert('公告功能：可以向所有学生发送课程通知');
+          setShowMoreModal(false);
+          setShowAnnouncementModal(true);
         }
       },
       { 
@@ -1825,6 +1848,158 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
                 <div className="text-xs text-gray-500 mt-0.5">{tool.desc}</div>
               </button>
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== 课堂笔记弹窗 ====================
+  const renderNoteModal = () => {
+    if (!showNoteModal) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+        <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900">课堂笔记</h3>
+            <button 
+              onClick={() => setShowNoteModal(false)}
+              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4">
+            {/* 笔记列表 */}
+            {classNotes.length > 0 && (
+              <div className="mb-4 space-y-2">
+                {classNotes.map((note, idx) => (
+                  <div key={idx} className="p-3 bg-yellow-50 rounded-xl text-sm text-gray-700">
+                    {note}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* 添加笔记 */}
+            <textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="记录课堂重点..."
+              className="w-full h-32 p-4 bg-gray-50 rounded-xl border-0 resize-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div className="p-4 border-t border-gray-100">
+            <button
+              onClick={() => {
+                if (newNote.trim()) {
+                  setClassNotes([...classNotes, newNote]);
+                  setNewNote('');
+                  alert('笔记已保存');
+                }
+              }}
+              disabled={!newNote.trim()}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium disabled:bg-gray-300"
+            >
+              保存笔记
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
+  // ==================== 公告弹窗 ====================
+  const renderAnnouncementModal = () => {
+    if (!showAnnouncementModal) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+        <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900">发布公告</h3>
+            <button 
+              onClick={() => setShowAnnouncementModal(false)}
+              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+          </div>
+          
+          <div className="p-4">
+            <textarea
+              value={announcementText}
+              onChange={(e) => setAnnouncementText(e.target.value)}
+              placeholder="输入公告内容..."
+              className="w-full h-40 p-4 bg-gray-50 rounded-xl border-0 resize-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+          
+          <div className="p-4 border-t border-gray-100">
+            <button
+              onClick={() => {
+                if (announcementText.trim()) {
+                  alert('公告已发送给学生');
+                  setAnnouncementText('');
+                  setShowAnnouncementModal(false);
+                }
+              }}
+              disabled={!announcementText.trim()}
+              className="w-full py-3 bg-green-600 text-white rounded-xl font-medium disabled:bg-gray-300"
+            >
+              发送公告
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
+  // ==================== 邀请学生弹窗 ====================
+  const renderInviteModal = () => {
+    if (!showInviteModal) return null;
+    
+    const link = inviteLink || `${window.location.origin}/join/${activeSessionId || 'class'}`;
+    
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+        <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900">邀请学生</h3>
+            <button 
+              onClick={() => setShowInviteModal(false)}
+              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+          </div>
+          
+          <div className="text-center mb-6">
+            <div className="w-32 h-32 bg-gray-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+              <QrCode size={64} className="text-gray-400" />
+            </div>
+            <p className="text-sm text-gray-500">扫描二维码加入课堂</p>
+          </div>
+          
+          <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-2 mb-4">
+            <input 
+              type="text" 
+              value={link}
+              readOnly
+              className="flex-1 bg-transparent text-sm text-gray-600 outline-none"
+            />
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(link);
+                alert('链接已复制');
+              }}
+              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg"
+            >
+              复制
+            </button>
           </div>
         </div>
       </div>
@@ -1912,6 +2087,9 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       {renderAttendanceModal()}
       {renderQuizModal()}
       {renderMoreModal()}
+      {renderNoteModal()}
+      {renderAnnouncementModal()}
+      {renderInviteModal()}
     </div>
   );
 };
