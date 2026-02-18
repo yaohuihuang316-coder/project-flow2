@@ -5,9 +5,10 @@ import {
   Clock, Calendar, Bell, ChevronRight, Play, Square,
   Monitor, Users, CheckCircle2, MessageCircle,
   Send, Plus, FileText, Star, MoreHorizontal, Filter,
-  ArrowLeft, PenLine, Trash2, Download
+  ArrowLeft, PenLine, Trash2, Download, Loader2
 } from 'lucide-react';
 import { Page, UserProfile } from '../types';
+import { supabase } from '../lib/supabaseClient';
 
 interface TeacherDashboardProps {
   currentUser?: UserProfile | null;
@@ -120,51 +121,221 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [showQuestionDetail, setShowQuestionDetail] = useState(false);
   const [replyContent, setReplyContent] = useState('');
 
-  // 模拟数据
-  const [todayClasses] = useState<TodayClass[]>([
-    { id: 'c1', title: '项目管理基础', time: '09:00', duration: '45分钟', classroom: 'A101', studentCount: 32, status: 'completed' },
-    { id: 'c2', title: '敏捷开发实践', time: '14:00', duration: '45分钟', classroom: 'B203', studentCount: 28, status: 'ongoing' },
-    { id: 'c3', title: '风险管理专题', time: '16:00', duration: '45分钟', classroom: 'A105', studentCount: 30, status: 'upcoming' },
-  ]);
+  // 真实数据状态
+  const [stats, setStats] = useState({
+    courseCount: 0,
+    studentCount: 0,
+    pendingGrading: 0,
+    weekHours: 0
+  });
+  const [todayClasses, setTodayClasses] = useState<TodayClass[]>([]);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [myCourses, setMyCourses] = useState<Course[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions] = useState<StudentSubmission[]>([]);
+  const [questions] = useState<StudentQuestion[]>([]);
+  const [attendanceList] = useState<AttendanceStudent[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [todos] = useState<TodoItem[]>([
-    { id: 't1', type: 'homework', title: '待批改作业', count: 12, urgent: true },
-    { id: 't2', type: 'question', title: '学生提问', count: 5 },
-    { id: 't3', type: 'notice', title: '课程通知', count: 3 },
-  ]);
+  // 获取统计数据
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!currentUser?.id) return;
+      
+      try {
+        // 1. 获取课程数
+        const { count: courseCount } = await supabase
+          .from('app_courses')
+          .select('*', { count: 'exact', head: true });
 
-  const [myCourses] = useState<Course[]>([
-    { id: 'course1', title: '项目管理基础', category: 'Foundation', studentCount: 32, progress: 75, image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400', nextClass: '明天 09:00' },
-    { id: 'course2', title: '敏捷开发实践', category: 'Advanced', studentCount: 28, progress: 60, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400', nextClass: '今天 14:00' },
-    { id: 'course3', title: '风险管理专题', category: 'Implementation', studentCount: 30, progress: 45, image: 'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=400', nextClass: '今天 16:00' },
-    { id: 'course4', title: '项目沟通管理', category: 'Foundation', studentCount: 25, progress: 90, image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400', nextClass: '周三 10:00' },
-  ]);
+        // 2. 获取总学生数（去重）
+        const { data: enrollments } = await supabase
+          .from('app_course_enrollments')
+          .select('student_id');
+        const uniqueStudents = new Set(enrollments?.map(e => e.student_id));
 
-  const [assignments] = useState<Assignment[]>([
-    { id: 'a1', title: '项目计划书撰写', courseId: 'course1', courseName: '项目管理基础', deadline: '2026-02-16', submittedCount: 28, totalCount: 32, status: 'grading' },
-    { id: 'a2', title: '敏捷看板设计', courseId: 'course2', courseName: '敏捷开发实践', deadline: '2026-02-18', submittedCount: 15, totalCount: 28, status: 'pending' },
-    { id: 'a3', title: '风险评估报告', courseId: 'course3', courseName: '风险管理专题', deadline: '2026-02-15', submittedCount: 30, totalCount: 30, status: 'completed' },
-  ]);
+        // 3. 获取待批改作业数
+        const { count: pendingGrading } = await supabase
+          .from('app_assignments')
+          .select('*', { count: 'exact', head: true })
+          .eq('teacher_id', currentUser.id)
+          .eq('status', 'grading');
 
-  const [submissions] = useState<StudentSubmission[]>([
-    { id: 's1', studentName: '张明', studentAvatar: 'https://i.pravatar.cc/150?u=1', submittedAt: '2026-02-14 20:30', content: '已完成项目计划书，包含WBS分解和甘特图。', attachments: ['项目计划书.pdf', '甘特图.xlsx'], status: 'submitted' },
-    { id: 's2', studentName: '李华', studentAvatar: 'https://i.pravatar.cc/150?u=2', submittedAt: '2026-02-14 19:15', content: '项目计划书已提交，请老师批阅。', attachments: ['计划书.docx'], score: 85, comment: '整体结构清晰，但风险评估部分需要补充。', status: 'graded' },
-    { id: 's3', studentName: '王芳', studentAvatar: 'https://i.pravatar.cc/150?u=3', submittedAt: '2026-02-14 21:00', content: '这是我的项目计划书，包含了详细的时间安排。', attachments: ['计划书.pdf'], status: 'submitted' },
-  ]);
+        // 4. 获取本周课时
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        const { data: weekSessions } = await supabase
+          .from('app_class_sessions')
+          .select('duration')
+          .eq('teacher_id', currentUser.id)
+          .gte('scheduled_start', weekStart.toISOString());
+        const weekHours = (weekSessions?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0) / 3600;
 
-  const [questions] = useState<StudentQuestion[]>([
-    { id: 'q1', studentName: '陈小明', studentAvatar: 'https://i.pravatar.cc/150?u=4', courseName: '项目管理基础', content: '老师，WBS分解的最小单元应该到什么程度比较合适？', timestamp: '10分钟前', replies: 0, status: 'unanswered' },
-    { id: 'q2', studentName: '刘小红', studentAvatar: 'https://i.pravatar.cc/150?u=5', courseName: '敏捷开发实践', content: 'Scrum和Kanban的主要区别是什么？', timestamp: '30分钟前', replies: 2, status: 'answered' },
-    { id: 'q3', studentName: '赵小强', studentAvatar: 'https://i.pravatar.cc/150?u=6', courseName: '风险管理专题', content: '定性风险分析和定量风险分析分别在什么阶段进行？', timestamp: '1小时前', replies: 0, status: 'unanswered' },
-  ]);
+        setStats({
+          courseCount: courseCount || 0,
+          studentCount: uniqueStudents.size,
+          pendingGrading: pendingGrading || 0,
+          weekHours: Math.round(weekHours * 10) / 10
+        });
+      } catch (err) {
+        console.error('获取统计数据失败:', err);
+      }
+    };
 
-  const [attendanceList] = useState<AttendanceStudent[]>([
-    { id: 'st1', name: '张明', avatar: 'https://i.pravatar.cc/150?u=1', status: 'present', checkInTime: '13:58' },
-    { id: 'st2', name: '李华', avatar: 'https://i.pravatar.cc/150?u=2', status: 'present', checkInTime: '13:59' },
-    { id: 'st3', name: '王芳', avatar: 'https://i.pravatar.cc/150?u=3', status: 'late', checkInTime: '14:05' },
-    { id: 'st4', name: '陈小明', avatar: 'https://i.pravatar.cc/150?u=4', status: 'present', checkInTime: '13:57' },
-    { id: 'st5', name: '刘小红', avatar: 'https://i.pravatar.cc/150?u=5', status: 'absent' },
-  ]);
+    fetchStats();
+  }, [currentUser?.id]);
+
+  // 获取今日课程
+  useEffect(() => {
+    const fetchTodayClasses = async () => {
+      if (!currentUser?.id) return;
+      
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const { data: sessions } = await supabase
+          .from('app_class_sessions')
+          .select('*, app_courses(title)')
+          .eq('teacher_id', currentUser.id)
+          .gte('scheduled_start', today.toISOString())
+          .lt('scheduled_start', tomorrow.toISOString())
+          .order('scheduled_start', { ascending: true });
+
+        const formattedClasses: TodayClass[] = (sessions || []).map(s => ({
+          id: s.id,
+          title: s.title,
+          time: new Date(s.scheduled_start).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          duration: s.duration ? `${Math.round(s.duration / 60)}分钟` : '45分钟',
+          classroom: s.classroom || '线上课堂',
+          studentCount: s.max_students || 30,
+          status: s.status === 'ongoing' ? 'ongoing' : s.status === 'completed' ? 'completed' : 'upcoming'
+        }));
+
+        setTodayClasses(formattedClasses);
+      } catch (err) {
+        console.error('获取今日课程失败:', err);
+      }
+    };
+
+    fetchTodayClasses();
+  }, [currentUser?.id]);
+
+  // 获取待办事项
+  useEffect(() => {
+    const fetchTodos = async () => {
+      if (!currentUser?.id) return;
+      
+      try {
+        const todoItems: TodoItem[] = [];
+
+        // 1. 待批改作业
+        const { count: pendingHomework } = await supabase
+          .from('app_assignments')
+          .select('*', { count: 'exact', head: true })
+          .eq('teacher_id', currentUser.id)
+          .eq('status', 'grading');
+
+        if (pendingHomework && pendingHomework > 0) {
+          todoItems.push({
+            id: 't1',
+            type: 'homework',
+            title: '待批改作业',
+            count: pendingHomework,
+            urgent: true
+          });
+        }
+
+        // 2. 未回复提问（模拟数据，实际应查询社区表）
+        todoItems.push({
+          id: 't2',
+          type: 'question',
+          title: '学生提问',
+          count: 0
+        });
+
+        // 3. 课程通知
+        todoItems.push({
+          id: 't3',
+          type: 'notice',
+          title: '课程通知',
+          count: 0
+        });
+
+        setTodos(todoItems);
+      } catch (err) {
+        console.error('获取待办事项失败:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTodos();
+  }, [currentUser?.id]);
+
+  // 获取我的课程
+  useEffect(() => {
+    const fetchMyCourses = async () => {
+      try {
+        const { data: courses } = await supabase
+          .from('app_courses')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(4);
+
+        const formattedCourses: Course[] = (courses || []).map(c => ({
+          id: c.id,
+          title: c.title,
+          category: c.category || 'Foundation',
+          studentCount: c.student_count || 0,
+          progress: Math.floor(Math.random() * 40) + 50, // 临时使用随机进度
+          image: c.image || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400',
+          nextClass: '待定'
+        }));
+
+        setMyCourses(formattedCourses);
+      } catch (err) {
+        console.error('获取课程失败:', err);
+      }
+    };
+
+    fetchMyCourses();
+  }, []);
+
+  // 获取作业列表
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      if (!currentUser?.id) return;
+      
+      try {
+        const { data: assignmentsData } = await supabase
+          .from('app_assignments')
+          .select('*, app_courses(title)')
+          .eq('teacher_id', currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        const formattedAssignments: Assignment[] = (assignmentsData || []).map(a => ({
+          id: a.id,
+          title: a.title,
+          courseId: a.course_id,
+          courseName: a.app_courses?.title || '未知课程',
+          deadline: new Date(a.deadline).toLocaleDateString('zh-CN'),
+          submittedCount: a.submitted_count || 0,
+          totalCount: a.total_count || 0,
+          status: a.status as 'pending' | 'grading' | 'completed'
+        }));
+
+        setAssignments(formattedAssignments);
+      } catch (err) {
+        console.error('获取作业失败:', err);
+      }
+    };
+
+    fetchAssignments();
+  }, [currentUser?.id]);
 
   // 课堂计时器
   useEffect(() => {
@@ -480,19 +651,31 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </button>
       </div>
 
-      {/* 课程统计 */}
-      <div className="grid grid-cols-3 gap-3 lg:grid-cols-3 lg:max-w-2xl">
+      {/* 课程统计 - 使用真实数据 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:max-w-3xl">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-blue-600">{myCourses.length}</p>
-          <p className="text-xs text-gray-500 mt-1">授课中</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {loading ? <Loader2 size={20} className="animate-spin mx-auto" /> : stats.courseCount}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">我的课程</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-green-600">{myCourses.reduce((sum, c) => sum + c.studentCount, 0)}</p>
-          <p className="text-xs text-gray-500 mt-1">学生数</p>
+          <p className="text-2xl font-bold text-green-600">
+            {loading ? <Loader2 size={20} className="animate-spin mx-auto" /> : stats.studentCount}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">学生总数</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-          <p className="text-2xl font-bold text-purple-600">12</p>
-          <p className="text-xs text-gray-500 mt-1">课时/周</p>
+          <p className="text-2xl font-bold text-orange-600">
+            {loading ? <Loader2 size={20} className="animate-spin mx-auto" /> : stats.pendingGrading}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">待批改</p>
+        </div>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+          <p className="text-2xl font-bold text-purple-600">
+            {loading ? <Loader2 size={20} className="animate-spin mx-auto" /> : stats.weekHours}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">本周课时</p>
         </div>
       </div>
 
