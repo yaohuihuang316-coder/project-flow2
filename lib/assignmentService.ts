@@ -52,9 +52,9 @@ export async function getTeacherAssignments(teacherId: string): Promise<Assignme
         .from('app_assignments')
         .select(`
       *,
-      app_courses!inner(teacher_id)
+      app_courses!inner(author)
     `)
-        .eq('app_courses.teacher_id', teacherId)
+        .eq('app_courses.author', teacherId)
         .order('created_at', { ascending: false });
 
     if (error) {

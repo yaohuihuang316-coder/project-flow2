@@ -129,7 +129,7 @@ function useTeacherCourses(teacherId?: string) {
       const { data, error } = await supabase
         .from('app_courses')
         .select('*')
-        .eq('teacher_id', teacherId)
+        .eq('author', teacherId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;

@@ -97,7 +97,7 @@ const MyCourses: React.FC<MyCoursesProps> = ({
           (coursesData || []).map(async (course: any) => {
             // 获取学生数
             const { count: studentCount } = await supabase
-              .from('app_course_enrollments')
+              .from('app_user_progress')
               .select('*', { count: 'exact', head: true })
               .eq('course_id', course.id);
 
