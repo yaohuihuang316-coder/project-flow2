@@ -38,6 +38,51 @@ SUPABASE_DASHBOARD: https://supabase.com/dashboard/project/ghhvdffsyvzkhbftifzy
 - 数据库结构文档: `docs/database/schema.md`
 - 单表文档: `docs/database/tables/*.md`
 
+### 演示账号（用于测试）
+
+#### 教师账号
+```yaml
+ID: test-teacher-001
+邮箱: teacher@test.com
+姓名: 张老师
+角色: Teacher
+密码: 任意（演示模式直接登录）
+```
+
+#### 学生账号
+```yaml
+Free用户:
+  ID: test-free-001
+  邮箱: free@test.com
+  姓名: Free用户
+  角色: Student
+
+Pro用户:
+  ID: test-pro-001
+  邮箱: pro@test.com
+  姓名: Pro用户
+  角色: Student
+
+ProPlus用户:
+  ID: test-pp-001
+  邮箱: pp@test.com
+  姓名: ProPlus用户
+  角色: Student
+
+其他学生:
+  - 张三: zhangsan@test.com / u-stu-01
+  - 李四: lisi@test.com / u-stu-02
+  - Mike Ross: mike@test.com / u-102
+```
+
+#### 管理员账号
+```yaml
+ID: test-admin-001
+邮箱: admin@test.com
+姓名: 管理员
+角色: SuperAdmin
+```
+
 ### 部署配置
 - 框架: Vite React
 - 部署平台: Vercel
