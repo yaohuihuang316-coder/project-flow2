@@ -172,59 +172,102 @@ const MyCourses: React.FC<MyCoursesProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  // 创建课程
-  const handleCreateCourse = () => {
+  // 创建课程 - 保存到数据库
+  const handleCreateCourse = async () => {
     if (!validateForm()) return;
 
-    const newCourse: TeacherCourse = {
-      id: `course${Date.now()}`,
-      title: courseForm.title,
-      category: courseForm.category,
-      description: courseForm.description,
-      studentCount: 0,
-      totalHours: courseForm.duration,
-      completedHours: 0,
-      progress: 0,
-      completionRate: 0,
-      image: `https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400`,
-      status: 'draft',
-      rating: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      totalAssignments: 0,
-      pendingAssignments: 0
-    };
+    try {
+      const { data, error } = await supabase
+        .from('app_courses')
+        .insert({
+          title: courseForm.title,
+          category: courseForm.category,
+          description: courseForm.description,
+          duration: `${courseForm.duration}小时`,
+          max_students: courseForm.maxStudents,
+          status: 'Draft',
+          image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400',
+          author: _currentUser?.name || '未知教师'
+        })
+        .select()
+        .single();
 
-    setCourses(prev => [newCourse, ...prev]);
-    setShowCreateModal(false);
-    resetForm();
+      if (error) throw error;
+
+      // 添加到本地状态
+      const newCourse: TeacherCourse = {
+        id: data.id,
+        title: data.title,
+        category: (data.category as 'Foundation' | 'Advanced' | 'Implementation') || 'Foundation',
+        description: data.description || '',
+        studentCount: 0,
+        totalHours: courseForm.duration,
+        completedHours: 0,
+        progress: 0,
+        completionRate: 0,
+        image: data.image || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400',
+        status: 'draft',
+        rating: 0,
+        createdAt: data.created_at || new Date().toISOString(),
+        totalAssignments: 0,
+        pendingAssignments: 0
+      };
+
+      setCourses(prev => [newCourse, ...prev]);
+      setShowCreateModal(false);
+      resetForm();
+    } catch (err) {
+      console.error('创建课程失败:', err);
+      alert('创建课程失败，请重试');
+    }
   };
 
-  // 编辑课程
-  const handleEditCourse = () => {
+  // 编辑课程 - 更新到数据库
+  const handleEditCourse = async () => {
     if (!selectedCourse || !validateForm()) return;
 
-    setCourses(prev => prev.map(course => 
-      course.id === selectedCourse.id
-        ? {
-            ...course,
-            title: courseForm.title,
-            category: courseForm.category,
-            description: courseForm.description,
-            totalHours: courseForm.duration
-          }
-        : course
-    ));
+    try {
+      const { error } = await supabase
+        .from('app_courses')
+        .update({
+          title: courseForm.title,
+          category: courseForm.category,
+          description: courseForm.description,
+          duration: `${courseForm.duration}小时`,
+          max_students: courseForm.maxStudents,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedCourse.id);
 
-    setSelectedCourse(prev => prev ? {
-      ...prev,
-      title: courseForm.title,
-      category: courseForm.category,
-      description: courseForm.description,
-      totalHours: courseForm.duration
-    } : null);
+      if (error) throw error;
 
-    setShowEditModal(false);
-    resetForm();
+      // 更新本地状态
+      setCourses(prev => prev.map(course => 
+        course.id === selectedCourse.id
+          ? {
+              ...course,
+              title: courseForm.title,
+              category: courseForm.category,
+              description: courseForm.description,
+              totalHours: courseForm.duration
+            }
+          : course
+      ));
+
+      setSelectedCourse(prev => prev ? {
+        ...prev,
+        title: courseForm.title,
+        category: courseForm.category,
+        description: courseForm.description,
+        totalHours: courseForm.duration
+      } : null);
+
+      setShowEditModal(false);
+      resetForm();
+    } catch (err) {
+      console.error('更新课程失败:', err);
+      alert('更新课程失败，请重试');
+    }
   };
 
   // 打开编辑模态框
@@ -240,30 +283,63 @@ const MyCourses: React.FC<MyCoursesProps> = ({
     setShowMoreMenu(null);
   };
 
-  // 删除课程
-  const handleDeleteCourse = (courseId: string) => {
-    if (confirm('确定要删除这门课程吗？此操作不可恢复。')) {
+  // 删除课程 - 从数据库删除
+  const handleDeleteCourse = async (courseId: string) => {
+    if (!confirm('确定要删除这门课程吗？此操作不可恢复。')) return;
+
+    try {
+      const { error } = await supabase
+        .from('app_courses')
+        .delete()
+        .eq('id', courseId);
+
+      if (error) throw error;
+
       setCourses(prev => prev.filter(c => c.id !== courseId));
       if (selectedCourse?.id === courseId) {
         setShowCourseDetail(false);
         setSelectedCourse(null);
       }
+    } catch (err) {
+      console.error('删除课程失败:', err);
+      alert('删除课程失败，请重试');
     }
     setShowMoreMenu(null);
   };
 
-  // 归档课程
-  const handleArchiveCourse = (courseId: string) => {
-    setCourses(prev => prev.map(course => 
-      course.id === courseId
-        ? { ...course, status: course.status === 'archived' ? 'active' : 'archived' }
-        : course
-    ));
-    if (selectedCourse?.id === courseId) {
-      setSelectedCourse(prev => prev ? {
-        ...prev,
-        status: prev.status === 'archived' ? 'active' : 'archived'
-      } : null);
+  // 归档课程 - 更新数据库状态
+  const handleArchiveCourse = async (courseId: string) => {
+    try {
+      const course = courses.find(c => c.id === courseId);
+      if (!course) return;
+
+      const newStatus = course.status === 'archived' ? 'active' : 'archived';
+      const dbStatus = newStatus === 'archived' ? 'Archived' : 'Published';
+
+      const { error } = await supabase
+        .from('app_courses')
+        .update({
+          status: dbStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', courseId);
+
+      if (error) throw error;
+
+      setCourses(prev => prev.map(c => 
+        c.id === courseId
+          ? { ...c, status: newStatus as 'active' | 'completed' | 'draft' | 'archived' }
+          : c
+      ));
+      if (selectedCourse?.id === courseId) {
+        setSelectedCourse(prev => prev ? {
+          ...prev,
+          status: newStatus as 'active' | 'completed' | 'draft' | 'archived'
+        } : null);
+      }
+    } catch (err) {
+      console.error('归档课程失败:', err);
+      alert('归档课程失败，请重试');
     }
     setShowMoreMenu(null);
   };
