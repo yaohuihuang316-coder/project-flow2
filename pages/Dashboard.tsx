@@ -755,6 +755,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, currentUser }) => {
                             <div className="font-medium text-sm">工具实验室</div>
                             <div className="text-xs text-gray-400">项目工具</div>
                         </button>
+                        <button 
+                            onClick={() => onNavigate(Page.STUDENT_ASSIGNMENTS)}
+                            className="p-4 bg-white rounded-2xl border border-gray-100 hover:border-orange-300 hover:shadow-md transition-all text-left"
+                        >
+                            <FileText size={20} className="text-orange-500 mb-2" />
+                            <div className="font-medium text-sm">我的作业</div>
+                            <div className="text-xs text-gray-400">查看提交</div>
+                        </button>
+                        <button 
+                            onClick={() => onNavigate(Page.STUDENT_ATTENDANCE)}
+                            className="p-4 bg-white rounded-2xl border border-gray-100 hover:border-green-300 hover:shadow-md transition-all text-left"
+                        >
+                            <CheckCircle2 size={20} className="text-green-500 mb-2" />
+                            <div className="font-medium text-sm">课堂签到</div>
+                            <div className="text-xs text-gray-400">扫码签到</div>
+                        </button>
                     </div>
                 </div>
 
