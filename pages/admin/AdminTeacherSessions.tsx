@@ -50,9 +50,9 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
 
   const fetchTeachers = async () => {
     const { data } = await supabase
-      .from('profiles')
+      .from('app_users')
       .select('id, name')
-      .eq('role', 'Teacher');
+      .in('role', ['Manager', 'Editor']);
     setTeachers(data || []);
   };
 
@@ -61,20 +61,31 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
     try {
       const { data: sessionsData, error } = await supabase
         .from('app_class_sessions')
-        .select(`
-          *,
-          course:course_id (title),
-          teacher:teacher_id (name)
-        `)
+        .select('*')
         .order('scheduled_start', { ascending: false });
 
       if (error) throw error;
 
-      const formattedSessions = (sessionsData || []).map((session: any) => ({
-        ...session,
-        course_title: session.course?.title || '未知课程',
-        teacher_name: session.teacher?.name || '未知教师'
-      }));
+      // 获取课程信息
+      const { data: coursesData } = await supabase
+        .from('app_courses')
+        .select('id, title');
+      
+      // 获取教师信息
+      const { data: teachersData } = await supabase
+        .from('app_users')
+        .select('id, name')
+        .in('role', ['Manager', 'Editor']);
+
+      const formattedSessions = (sessionsData || []).map((session: any) => {
+        const course = coursesData?.find(c => c.id === session.course_id);
+        const teacher = teachersData?.find(t => t.id === session.teacher_id);
+        return {
+          ...session,
+          course_title: course?.title || '未知课程',
+          teacher_name: teacher?.name || '未知教师'
+        };
+      });
 
       setSessions(formattedSessions);
     } catch (err) {
@@ -87,14 +98,30 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
   const fetchAttendance = async (sessionId: string) => {
     const { data } = await supabase
       .from('app_attendance')
-      .select(`
-        *,
-        student:student_id (name, avatar)
-      `)
+      .select('*')
       .eq('session_id', sessionId)
-      .order('checkin_time', { ascending: true });
+      .order('check_in_time', { ascending: true });
     
-    setAttendance(data || []);
+    // 获取学生信息
+    if (data && data.length > 0) {
+      const studentIds = data.map(a => a.student_id);
+      const { data: studentsData } = await supabase
+        .from('app_users')
+        .select('id, name, avatar')
+        .in('id', studentIds);
+      
+      const attendanceWithStudents = data.map(a => {
+        const student = studentsData?.find(s => s.id === a.student_id);
+        return {
+          ...a,
+          student: student || { name: '未知学生', avatar: null }
+        };
+      });
+      
+      setAttendance(attendanceWithStudents);
+    } else {
+      setAttendance([]);
+    }
   };
 
   const handleUpdateStatus = async (sessionId: string, newStatus: string) => {
@@ -150,8 +177,10 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'upcoming':
       case 'scheduled':
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"><Calendar size={12} /> 待开始</span>;
+      case 'ongoing':
       case 'in_progress':
         return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium"><Play size={12} /> 进行中</span>;
       case 'completed':
@@ -165,8 +194,8 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
 
   const stats = {
     total: sessions.length,
-    scheduled: sessions.filter(s => s.status === 'scheduled').length,
-    inProgress: sessions.filter(s => s.status === 'in_progress').length,
+    scheduled: sessions.filter(s => s.status === 'upcoming' || s.status === 'scheduled').length,
+    inProgress: sessions.filter(s => s.status === 'ongoing' || s.status === 'in_progress').length,
     completed: sessions.filter(s => s.status === 'completed').length
   };
 
@@ -239,8 +268,8 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
                 className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm min-w-[120px]"
               >
                 <option value="all">全部状态</option>
-                <option value="scheduled">待开始</option>
-                <option value="in_progress">进行中</option>
+                <option value="upcoming">待开始</option>
+                <option value="ongoing">进行中</option>
                 <option value="completed">已完成</option>
                 <option value="cancelled">已取消</option>
               </select>
@@ -317,24 +346,24 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
                           <span className="text-gray-400 text-sm">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {session.status === 'scheduled' && (
-                            <button
-                              onClick={() => handleUpdateStatus(session.id, 'in_progress')}
-                              className="px-3 py-1.5 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors"
-                            >
-                              开始
-                            </button>
-                          )}
-                          {session.status === 'in_progress' && (
-                            <button
-                              onClick={() => handleUpdateStatus(session.id, 'completed')}
-                              className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
-                            >
-                              结束
-                            </button>
-                          )}
+                       <td className="px-6 py-4 text-right">
+                         <div className="flex items-center justify-end gap-2">
+                           {(session.status === 'scheduled' || session.status === 'upcoming') && (
+                             <button
+                               onClick={() => handleUpdateStatus(session.id, 'ongoing')}
+                               className="px-3 py-1.5 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors"
+                             >
+                               开始
+                             </button>
+                           )}
+                           {(session.status === 'in_progress' || session.status === 'ongoing') && (
+                             <button
+                               onClick={() => handleUpdateStatus(session.id, 'completed')}
+                               className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                             >
+                               结束
+                             </button>
+                           )}
                           <button
                             onClick={() => handleViewDetail(session)}
                             className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -412,7 +441,7 @@ const AdminTeacherSessions: React.FC<AdminTeacherSessionsProps> = ({ onNavigate,
                              record.status === 'late' ? '迟到' : '缺勤'}
                           </span>
                           <span className="text-gray-500 w-16">
-                            {record.checkin_time ? new Date(record.checkin_time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : '-'}
+                            {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : '-'}
                           </span>
                         </div>
                       </div>

@@ -68,12 +68,22 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
       if (error) {
         console.error('获取作业失败:', error);
         setAssignments([]);
+        setLoading(false);
         return;
       }
 
-      const assignmentsWithDetails = (data || []).map((assignment: any) => {
-        const course = courses.find(c => c.id === assignment.course_id);
-        const teacher = teachers.find(t => t.id === assignment.teacher_id);
+      if (!data || data.length === 0) {
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
+      const coursesData = await supabase.from('app_courses').select('id, title');
+      const teachersData = await supabase.from('app_users').select('id, name').in('role', ['Manager', 'Editor']);
+
+      const assignmentsWithDetails = data.map((assignment: any) => {
+        const course = coursesData.data?.find(c => c.id === assignment.course_id);
+        const teacher = teachersData.data?.find(t => t.id === assignment.teacher_id);
         return {
           ...assignment,
           course_title: course?.title || '未知课程',
