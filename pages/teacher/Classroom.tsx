@@ -4,7 +4,8 @@ import {
   Home, BookOpen, Video, ClipboardList, User,
   Clock, Play, Square, Monitor, Users, CheckCircle2,
   MessageCircle, PenLine, Trash2,
-  ArrowLeft, BarChart3, Plus, X, QrCode, UserCheck, RefreshCw
+  ArrowLeft, BarChart3, Plus, X, QrCode, UserCheck, RefreshCw,
+  MoreHorizontal, FileText, Send, Download, Copy, Loader2
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -73,6 +74,45 @@ interface Poll {
 
 // 底部导航 Tab 类型
 type TeacherTab = 'home' | 'courses' | 'class' | 'assignments' | 'profile';
+
+// ==================== 签到倒计时组件 ====================
+interface CheckInCountdownProps {
+  expiryTime: Date;
+  onExpire: () => void;
+}
+
+const CheckInCountdown: React.FC<CheckInCountdownProps> = ({ expiryTime, onExpire }) => {
+  const [remaining, setRemaining] = useState(0);
+  
+  useEffect(() => {
+    const updateRemaining = () => {
+      const now = new Date().getTime();
+      const expiry = new Date(expiryTime).getTime();
+      const diff = Math.max(0, expiry - now);
+      setRemaining(diff);
+      
+      if (diff === 0) {
+        onExpire();
+      }
+    };
+    
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [expiryTime, onExpire]);
+  
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  
+  return (
+    <div className="text-blue-100 text-sm">
+      <span className="text-xs">剩余时间:</span>
+      <span className="ml-1 font-mono font-bold">
+        {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+      </span>
+    </div>
+  );
+};
 
 // ==================== 自定义 Hooks ====================
 
@@ -258,9 +298,18 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [showPollModal, setShowPollModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showMoreModal, setShowMoreModal] = useState(false);
   const [newPollQuestion, setNewPollQuestion] = useState('');
   const [newPollOptions, setNewPollOptions] = useState(['', '']);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
+  
+  // 随堂测状态
+  const [quizQuestion, setQuizQuestion] = useState('');
+  const [quizOptions, setQuizOptions] = useState(['', '', '', '']);
+  const [correctOption, setCorrectOption] = useState(0);
+  const [activeQuiz, setActiveQuiz] = useState<any>(null);
+  const [quizResponses, setQuizResponses] = useState<any[]>([]);
   
   // 签到码状态
   const [checkInCode, setCheckInCode] = useState<string | null>(null);
@@ -1111,37 +1160,75 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
-          {/* 签到码区域 V2 */}
-          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+          {/* 签到码区域 - 大屏显示 */}
+          <div className="mb-4 p-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl border border-blue-400 shadow-lg">
             {!checkInCode ? (
-              <button
-                onClick={generateCheckInCode}
-                disabled={isGeneratingCode || !activeSessionId}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <QrCode size={20} />
-                {isGeneratingCode ? '生成中...' : '生成签到码'}
-              </button>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <QrCode size={32} className="text-white" />
+                </div>
+                <h4 className="text-white font-bold text-lg mb-2">生成签到码</h4>
+                <p className="text-blue-100 text-sm mb-4">学生输入6位数字完成签到</p>
+                <button
+                  onClick={generateCheckInCode}
+                  disabled={isGeneratingCode || !activeSessionId}
+                  className="w-full py-3 bg-white text-blue-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingCode ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode size={20} />
+                      生成签到码
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600 tracking-widest mb-2" data-testid="checkin-code">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  <span className="text-blue-100 text-sm">签到进行中</span>
+                </div>
+                
+                {/* 大字体显示签到码 */}
+                <div 
+                  className="text-6xl md:text-7xl font-black text-white tracking-[0.3em] mb-3 select-all"
+                  data-testid="checkin-code"
+                  style={{ textShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                >
                   {checkInCode}
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  学生输入此码签到 · {checkInCodeExpiry && `过期时间: ${checkInCodeExpiry.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`}
-                </p>
-                <div className="flex gap-2 justify-center">
+                
+                {/* 倒计时显示 */}
+                {checkInCodeExpiry && (
+                  <CheckInCountdown expiryTime={checkInCodeExpiry} onExpire={() => setCheckInCode(null)} />
+                )}
+                
+                <div className="flex gap-3 justify-center mt-4">
                   <button
                     onClick={refreshCheckInCode}
-                    className="px-3 py-1.5 bg-white text-blue-600 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-blue-50 transition-colors"
+                    className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors backdrop-blur-sm"
                   >
-                    <RefreshCw size={14} /> 刷新
+                    <RefreshCw size={16} /> 刷新码
                   </button>
                   <button
                     onClick={() => setShowAttendanceModal(true)}
-                    className="px-3 py-1.5 bg-white text-gray-700 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors backdrop-blur-sm"
                   >
-                    <UserCheck size={14} /> 手动签到
+                    <UserCheck size={16} /> 手动签到
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(checkInCode);
+                      alert('签到码已复制到剪贴板');
+                    }}
+                    className="px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-bold flex items-center gap-1.5 hover:bg-blue-50 transition-colors"
+                  >
+                    复制码
                   </button>
                 </div>
               </div>
@@ -1190,27 +1277,49 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
         </div>
 
         {/* 互动工具 */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <button 
             onClick={() => setShowQuestionModal(true)}
             className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-blue-200 transition-colors"
           >
-            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-              <MessageCircle size={24} />
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+              <MessageCircle size={20} />
             </div>
-            <span className="text-sm font-medium text-gray-900">学生提问</span>
-            <span className="text-xs text-gray-500">{questions.filter(q => !q.isAnswered).length} 个未回答</span>
+            <span className="text-xs font-medium text-gray-900">提问</span>
+            <span className="text-[10px] text-gray-500">{questions.filter(q => !q.isAnswered).length} 未答</span>
           </button>
           
           <button 
             onClick={() => setShowPollModal(true)}
             className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-green-200 transition-colors"
           >
-            <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600">
-              <BarChart3 size={24} />
+            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
+              <BarChart3 size={20} />
             </div>
-            <span className="text-sm font-medium text-gray-900">课堂投票</span>
-            <span className="text-xs text-gray-500">{activePoll ? '进行中' : '发起投票'}</span>
+            <span className="text-xs font-medium text-gray-900">投票</span>
+            <span className="text-[10px] text-gray-500">{activePoll ? '进行中' : '发起'}</span>
+          </button>
+          
+          <button 
+            onClick={() => setShowQuizModal(true)}
+            className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-purple-200 transition-colors"
+          >
+            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
+              <ClipboardList size={20} />
+            </div>
+            <span className="text-xs font-medium text-gray-900">随堂测</span>
+            <span className="text-[10px] text-gray-500">{activeQuiz ? '进行中' : '发起'}</span>
+          </button>
+          
+          <button 
+            onClick={() => setShowMoreModal(true)}
+            className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-orange-200 transition-colors"
+          >
+            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
+              <MoreHorizontal size={20} />
+            </div>
+            <span className="text-xs font-medium text-gray-900">更多</span>
+            <span className="text-[10px] text-gray-500">工具箱</span>
           </button>
         </div>
 
@@ -1481,6 +1590,247 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     );
   };
 
+  // ==================== 随堂测弹窗 ====================
+  const renderQuizModal = () => {
+    if (!showQuizModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+        <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[80vh] flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900">发起随堂测</h3>
+            <button 
+              onClick={() => setShowQuizModal(false)}
+              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {activeQuiz ? (
+              // 显示进行中的随堂测结果
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium text-gray-900">{activeQuiz.question}</h4>
+                  <button
+                    onClick={() => setActiveQuiz(null)}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    结束测验
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {activeQuiz.options.map((opt: string, idx: number) => {
+                    const responseCount = quizResponses.filter((r: any) => r.option === idx).length;
+                    const total = quizResponses.length || 1;
+                    const percentage = Math.round((responseCount / total) * 100);
+                    const isCorrect = idx === activeQuiz.correctOption;
+                    
+                    return (
+                      <div key={idx} className={`p-3 rounded-xl ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className={isCorrect ? 'text-green-700 font-medium' : 'text-gray-700'}>
+                            {opt} {isCorrect && '(正确答案)'}
+                          </span>
+                          <span className="text-gray-500">{responseCount}人 ({percentage}%)</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${isCorrect ? 'bg-green-500' : 'bg-blue-500'}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  共 {quizResponses.length} 人参与 · 正确率: {Math.round((quizResponses.filter((r: any) => r.option === activeQuiz.correctOption).length / (quizResponses.length || 1)) * 100)}%
+                </p>
+              </div>
+            ) : (
+              // 创建新随堂测
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">题目</label>
+                  <input 
+                    type="text" 
+                    value={quizQuestion}
+                    onChange={(e) => setQuizQuestion(e.target.value)}
+                    placeholder="请输入题目"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">选项</label>
+                  <div className="space-y-2">
+                    {quizOptions.map((option, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <button
+                          onClick={() => setCorrectOption(idx)}
+                          className={`w-8 h-10 rounded-lg text-sm font-bold flex items-center justify-center transition-colors ${
+                            correctOption === idx 
+                              ? 'bg-green-500 text-white' 
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {String.fromCharCode(65 + idx)}
+                        </button>
+                        <input 
+                          type="text" 
+                          value={option}
+                          onChange={(e) => {
+                            const newOptions = [...quizOptions];
+                            newOptions[idx] = e.target.value;
+                            setQuizOptions(newOptions);
+                          }}
+                          placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
+                          className="flex-1 px-4 py-2 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    点击选项前的字母标记为正确答案
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {!activeQuiz && (
+            <div className="p-4 border-t border-gray-100">
+              <button 
+                onClick={() => {
+                  if (!quizQuestion.trim() || quizOptions.some(opt => !opt.trim())) {
+                    alert('请填写题目和所有选项');
+                    return;
+                  }
+                  setActiveQuiz({
+                    question: quizQuestion,
+                    options: quizOptions,
+                    correctOption: correctOption,
+                    id: Date.now().toString()
+                  });
+                  setQuizResponses([]);
+                  // 模拟学生答题
+                  setTimeout(() => {
+                    setQuizResponses([
+                      { studentId: 's1', option: correctOption },
+                      { studentId: 's2', option: correctOption },
+                      { studentId: 's3', option: 1 },
+                      { studentId: 's4', option: correctOption },
+                      { studentId: 's5', option: 2 },
+                    ]);
+                  }, 2000);
+                }}
+                disabled={!quizQuestion.trim() || quizOptions.some(opt => !opt.trim())}
+                className="w-full py-3.5 bg-purple-600 text-white rounded-xl font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                发起随堂测
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== 更多工具弹窗 ====================
+  const renderMoreModal = () => {
+    if (!showMoreModal) return null;
+
+    const tools = [
+      { 
+        icon: FileText, 
+        label: '课堂笔记', 
+        desc: '记录课堂重点',
+        color: 'bg-blue-100 text-blue-600',
+        onClick: () => {
+          alert('课堂笔记功能：可以记录和分享课堂重点内容');
+        }
+      },
+      { 
+        icon: Send, 
+        label: '发布公告', 
+        desc: '向学生发送通知',
+        color: 'bg-green-100 text-green-600',
+        onClick: () => {
+          alert('公告功能：可以向所有学生发送课程通知');
+        }
+      },
+      { 
+        icon: Download, 
+        label: '导出数据', 
+        desc: '下载课堂统计',
+        color: 'bg-orange-100 text-orange-600',
+        onClick: () => {
+          // 导出签到数据
+          const data = attendanceList.map(a => ({
+            name: a.name,
+            status: a.status,
+            time: a.checkInTime || '-'
+          }));
+          const csv = ['姓名,状态,签到时间', ...data.map(d => `${d.name},${d.status},${d.time}`)].join('\n');
+          const blob = new Blob(['\ufeff' + csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `签到数据_${new Date().toLocaleDateString()}.csv`;
+          a.click();
+          alert('签到数据已导出');
+        }
+      },
+      { 
+        icon: Copy, 
+        label: '复制课堂链接', 
+        desc: '分享给学生',
+        color: 'bg-purple-100 text-purple-600',
+        onClick: () => {
+          navigator.clipboard.writeText(window.location.href);
+          alert('课堂链接已复制到剪贴板');
+        }
+      },
+    ];
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+        <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[70vh]">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900">更多工具</h3>
+            <button 
+              onClick={() => setShowMoreModal(false)}
+              className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} className="text-gray-600" />
+            </button>
+          </div>
+
+          <div className="p-4 grid grid-cols-2 gap-3">
+            {tools.map((tool, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  tool.onClick();
+                  setShowMoreModal(false);
+                }}
+                className="p-4 bg-gray-50 rounded-2xl text-left hover:bg-gray-100 transition-colors"
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${tool.color}`}>
+                  <tool.icon size={20} />
+                </div>
+                <div className="font-medium text-sm text-gray-900">{tool.label}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{tool.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ==================== 主渲染 ====================
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1560,6 +1910,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       {renderQuestionModal()}
       {renderPollModal()}
       {renderAttendanceModal()}
+      {renderQuizModal()}
+      {renderMoreModal()}
     </div>
   );
 };
