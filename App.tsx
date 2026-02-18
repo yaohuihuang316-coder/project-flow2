@@ -109,11 +109,7 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_DASHBOARD && <AdminDashboard />}
           {currentPage === Page.ADMIN_ANALYTICS && <AdminAnalytics />}
           {currentPage === Page.ADMIN_USERS && (
-            <AdminUsers 
-              onNavigate={navigateTo}
-              currentUser={currentUser}
-              onLogout={handleLogout}
-            />
+            <AdminUsers currentUser={currentUser} />
           )}
           {currentPage === Page.ADMIN_PROGRESS && <AdminProgress />}
           {/* AdminContent now receives the param to switch tabs internally */}
@@ -123,32 +119,16 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_MEMBERSHIP && <AdminMembership />}
           {currentPage === Page.ADMIN_SIMULATION && <AdminSimulation />}
           {currentPage === Page.ADMIN_TEACHER_COURSES && (
-            <AdminTeacherCourses 
-              onNavigate={navigateTo}
-              currentUser={currentUser}
-              onLogout={handleLogout}
-            />
+            <AdminTeacherCourses currentUser={currentUser} />
           )}
           {currentPage === Page.ADMIN_TEACHER_ASSIGNMENTS && (
-            <AdminTeacherAssignments 
-              onNavigate={navigateTo}
-              currentUser={currentUser}
-              onLogout={handleLogout}
-            />
+            <AdminTeacherAssignments currentUser={currentUser} />
           )}
           {currentPage === Page.ADMIN_TEACHER_SESSIONS && (
-            <AdminTeacherSessions 
-              onNavigate={navigateTo}
-              currentUser={currentUser}
-              onLogout={handleLogout}
-            />
+            <AdminTeacherSessions currentUser={currentUser} />
           )}
           {currentPage === Page.ADMIN_TEACHER_STUDENTS && (
-            <AdminTeacherStudents 
-              onNavigate={navigateTo}
-              currentUser={currentUser}
-              onLogout={handleLogout}
-            />
+            <AdminTeacherStudents currentUser={currentUser} />
           )}
         </AdminLayout>
       );

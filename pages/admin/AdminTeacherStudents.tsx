@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Page, UserProfile } from '../../types';
+import { UserProfile } from '../../types';
 import { 
   Users, Search, BookOpen, FileText, 
   Mail, GraduationCap, Plus, Edit2, Trash2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import AdminLayout from './AdminLayout';
+
 
 interface Student {
   id: string;
@@ -21,12 +21,10 @@ interface Student {
 }
 
 interface AdminTeacherStudentsProps {
-  onNavigate: (page: Page, param?: string) => void;
   currentUser?: UserProfile | null;
-  onLogout?: () => void;
 }
 
-const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate, currentUser, onLogout }) => {
+const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ currentUser: _currentUser }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,13 +168,7 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
   };
 
   return (
-    <AdminLayout 
-      currentPage={Page.ADMIN_USERS} 
-      onNavigate={onNavigate}
-      currentUser={currentUser}
-      onLogout={onLogout}
-    >
-      <div className="space-y-4">
+    <div className="w-full space-y-4">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
@@ -185,7 +177,7 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
               </div>
               学生管理
             </h1>
-            <p className="text-gray-500 mt-1 ml-13">查看所有学生数据及学习进度</p>
+            <p className="text-gray-500 mt-1 ml-12">查看所有学生数据及学习进度</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
@@ -417,8 +409,7 @@ const AdminTeacherStudents: React.FC<AdminTeacherStudentsProps> = ({ onNavigate,
             </div>
           </div>
         )}
-      </div>
-    </AdminLayout>
+    </div>
   );
 };
 

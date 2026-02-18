@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Page, UserProfile } from '../../types';
+import { UserProfile } from '../../types';
 import { Search, Plus, FileText, BookOpen, Clock, User, Trash2, Loader2, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import AdminLayout from './AdminLayout';
 
 interface Assignment {
   id: string;
@@ -20,12 +19,10 @@ interface Assignment {
 }
 
 interface AdminTeacherAssignmentsProps {
-  onNavigate: (page: Page, param?: string) => void;
   currentUser?: UserProfile | null;
-  onLogout?: () => void;
 }
 
-const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNavigate, currentUser, onLogout }) => {
+const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ currentUser }) => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -177,13 +174,7 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
   const statuses = ['All', 'pending', 'grading', 'completed'];
 
   return (
-    <AdminLayout 
-      currentPage={Page.ADMIN_TEACHER_ASSIGNMENTS} 
-      onNavigate={onNavigate}
-      currentUser={currentUser}
-      onLogout={onLogout}
-    >
-      <div className="space-y-4 animate-fade-in">
+    <div className="space-y-4 animate-fade-in w-full">
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex flex-1 gap-4 w-full">
@@ -376,7 +367,6 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
           </div>
         )}
       </div>
-    </AdminLayout>
   );
 };
 
