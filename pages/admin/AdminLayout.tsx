@@ -216,8 +216,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-auto p-6 md:p-8 bg-[#F5F5F7]">
-          <div className="max-w-7xl mx-auto min-h-full">
+        <main className="flex-1 overflow-auto p-4 md:p-6 bg-[#F5F5F7]">
+          <div className="w-full min-h-full">
             {children}
           </div>
         </main>
