@@ -42,10 +42,10 @@ SUPABASE_DASHBOARD: https://supabase.com/dashboard/project/ghhvdffsyvzkhbftifzy
 
 #### 教师账号
 ```yaml
-ID: test-teacher-001
+ID: 340f28b9-8557-4e6f-adbf-e2abb1543ec2
 邮箱: teacher@test.com
 姓名: 张老师
-角色: Teacher
+角色: Editor
 密码: 任意（演示模式直接登录）
 ```
 
