@@ -4,8 +4,8 @@ import {
   Home, BookOpen, Video, ClipboardList, User,
   Clock, Play, Square, Monitor, Users, CheckCircle2,
   MessageCircle, PenLine, Trash2,
-  ArrowLeft, BarChart3, Plus, X, QrCode, UserCheck, RefreshCw,
-  MoreHorizontal, FileText, Send, Download, Copy, Loader2
+  ArrowLeft, BarChart3, Plus, X, QrCode,
+  MoreHorizontal, FileText, Send, Download, Copy
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -74,45 +74,6 @@ interface Poll {
 
 // 底部导航 Tab 类型
 type TeacherTab = 'home' | 'courses' | 'class' | 'assignments' | 'profile';
-
-// ==================== 签到倒计时组件 ====================
-interface CheckInCountdownProps {
-  expiryTime: Date;
-  onExpire: () => void;
-}
-
-const CheckInCountdown: React.FC<CheckInCountdownProps> = ({ expiryTime, onExpire }) => {
-  const [remaining, setRemaining] = useState(0);
-  
-  useEffect(() => {
-    const updateRemaining = () => {
-      const now = new Date().getTime();
-      const expiry = new Date(expiryTime).getTime();
-      const diff = Math.max(0, expiry - now);
-      setRemaining(diff);
-      
-      if (diff === 0) {
-        onExpire();
-      }
-    };
-    
-    updateRemaining();
-    const interval = setInterval(updateRemaining, 1000);
-    return () => clearInterval(interval);
-  }, [expiryTime, onExpire]);
-  
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-  
-  return (
-    <div className="text-blue-100 text-sm">
-      <span className="text-xs">剩余时间:</span>
-      <span className="ml-1 font-mono font-bold">
-        {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
-      </span>
-    </div>
-  );
-};
 
 // ==================== 自定义 Hooks ====================
 
@@ -310,11 +271,6 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [correctOption, setCorrectOption] = useState(0);
   const [activeQuiz, setActiveQuiz] = useState<any>(null);
   const [quizResponses, setQuizResponses] = useState<any[]>([]);
-  
-  // 签到码状态
-  const [checkInCode, setCheckInCode] = useState<string | null>(null);
-  const [checkInCodeExpiry, setCheckInCodeExpiry] = useState<Date | null>(null);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   
   // 课堂笔记状态
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -563,88 +519,6 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     const late = attendanceList.filter(s => s.status === 'late').length;
     const absent = attendanceList.filter(s => s.status === 'absent').length;
     return { present, late, absent, total: attendanceList.length };
-  };
-
-  // 生成签到码 - 使用 whiteboard_data 字段存储
-  const generateCheckInCode = async () => {
-    if (!activeSessionId) {
-      alert('请先开始课堂');
-      return;
-    }
-    
-    setIsGeneratingCode(true);
-    try {
-      // 生成 6 位随机码
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 分钟后过期
-      
-      // 存储到 whiteboard_data 字段（JSONB）
-      const { error } = await supabase
-        .from('app_class_sessions')
-        .update({
-          whiteboard_data: {
-            check_in_code: code,
-            check_in_expires_at: expiresAt.toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        })
-        .eq('id', activeSessionId);
-      
-      if (error) throw error;
-      
-      setCheckInCode(code);
-      setCheckInCodeExpiry(expiresAt);
-      console.log('签到码生成成功:', code);
-    } catch (err) {
-      console.error('生成签到码失败:', err);
-      alert('生成签到码失败，请重试');
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  };
-  
-  // 加载已保存的签到码 - 从 whiteboard_data 读取
-  useEffect(() => {
-    const loadCheckInCode = async () => {
-      if (!activeSessionId) {
-        setCheckInCode(null);
-        setCheckInCodeExpiry(null);
-        return;
-      }
-      
-      try {
-        const { data, error } = await supabase
-          .from('app_class_sessions')
-          .select('whiteboard_data')
-          .eq('id', activeSessionId)
-          .single();
-        
-        if (error) throw error;
-        
-        if (data?.whiteboard_data?.check_in_code) {
-          const { check_in_code, check_in_expires_at } = data.whiteboard_data;
-          if (new Date(check_in_expires_at) > new Date()) {
-            setCheckInCode(check_in_code);
-            setCheckInCodeExpiry(new Date(check_in_expires_at));
-          } else {
-            // 过期了，清除
-            setCheckInCode(null);
-            setCheckInCodeExpiry(null);
-          }
-        }
-      } catch (e) {
-        console.error('加载签到码失败:', e);
-      }
-    };
-    
-    loadCheckInCode();
-  }, [activeSessionId]);
-
-  // 刷新签到码
-  const refreshCheckInCode = async () => {
-    setCheckInCode(null);
-    setCheckInCodeExpiry(null);
-    await generateCheckInCode();
   };
 
   // 手动为学生签到
@@ -1163,7 +1037,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
           </p>
         </div>
 
-        {/* 学生签到 */}
+        {/* 学生签到 - 简化版 */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -1176,105 +1050,11 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             </div>
           </div>
           
-          {/* 签到码区域 - 重新实现确保显示 */}
-          <div className="mb-4 p-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl border border-blue-400 shadow-lg" style={{ minHeight: '200px' }}>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <QrCode size={32} className="text-white" />
-              </div>
-              <h4 className="text-white font-bold text-lg mb-2">课堂签到码</h4>
-              <p className="text-blue-100 text-sm mb-4">学生输入6位数字完成签到</p>
-              
-              {checkInCode ? (
-                <div className="animate-fade-in">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                    <span className="text-blue-100 text-sm">签到进行中</span>
-                  </div>
-                  
-                  {/* 大字体显示签到码 */}
-                  <div 
-                    className="text-5xl md:text-6xl font-black text-white tracking-[0.2em] mb-3 py-4 bg-white/10 rounded-xl"
-                    style={{ textShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-                  >
-                    {checkInCode}
-                  </div>
-                  
-                  {/* 倒计时 */}
-                  {checkInCodeExpiry && (
-                    <div className="text-blue-100 text-sm mb-4">
-                      剩余时间: <CheckInCountdown expiryTime={checkInCodeExpiry} onExpire={() => setCheckInCode(null)} />
-                    </div>
-                  )}
-                  
-                  {/* 操作按钮 */}
-                  <div className="flex gap-2 justify-center flex-wrap">
-                    <button
-                      onClick={refreshCheckInCode}
-                      className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors"
-                    >
-                      <RefreshCw size={16} /> 刷新
-                    </button>
-                    <button
-                      onClick={() => setShowAttendanceModal(true)}
-                      className="px-4 py-2 bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-1.5 hover:bg-white/30 transition-colors"
-                    >
-                      <UserCheck size={16} /> 手动签到
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(checkInCode);
-                        alert('签到码已复制');
-                      }}
-                      className="px-4 py-2 bg-white text-blue-600 rounded-lg text-sm font-bold flex items-center gap-1.5 hover:bg-blue-50 transition-colors"
-                    >
-                      复制
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={generateCheckInCode}
-                  disabled={isGeneratingCode}
-                  className="w-full max-w-xs mx-auto py-3 bg-white text-blue-600 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors disabled:opacity-50"
-                >
-                  {isGeneratingCode ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      生成中...
-                    </>
-                  ) : (
-                    <>
-                      <QrCode size={20} />
-                      生成签到码
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-          
-          {/* 签到进度条 */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>签到率</span>
-              <span>{stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0}%</span>
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all"
-                style={{ width: `${stats.total > 0 ? ((stats.present + stats.late) / stats.total) * 100 : 0}%` }} 
-              />
-            </div>
-          </div>
-          
-          {/* 学生列表 */}
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {attendanceList.length === 0 ? (
               <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-xl">
                 <Users size={32} className="mx-auto mb-2 opacity-30" />
-                <p>暂无学生签到</p>
-                <p className="text-xs mt-1">生成签到码后学生可签到</p>
+                <p>暂无学生签到数据</p>
               </div>
             ) : (
               attendanceList.map((student) => (
