@@ -160,7 +160,7 @@ const AdminTeacherCourses: React.FC<AdminTeacherCoursesProps> = ({ onNavigate, c
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="space-y-6 animate-fade-in min-h-[600px]">
+      <div className="space-y-4 animate-fade-in">
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex flex-1 gap-4 w-full">
