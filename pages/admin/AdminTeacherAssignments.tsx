@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
-import { 
-  FileText, Search, Trash2, 
-  Clock, BookOpen, Plus, Edit2, CheckCircle
-} from 'lucide-react';
+import { Search, Plus, FileText, BookOpen, Clock, User, Trash2, Loader2, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
 
@@ -18,7 +15,7 @@ interface Assignment {
   deadline: string;
   max_score: number;
   status: string;
-  total_count: number;
+  submitted_count: number;
   created_at: string;
 }
 
@@ -31,12 +28,31 @@ interface AdminTeacherAssignmentsProps {
 const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNavigate, currentUser, onLogout }) => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('All');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    content: '', 
+    course_id: '', 
+    max_score: 100,
+    deadline: '',
+    status: 'pending'
+  });
+  const [courses, setCourses] = useState<any[]>([]);
 
   useEffect(() => {
     fetchAssignments();
+    fetchCourses();
   }, []);
+
+  const fetchCourses = async () => {
+    const { data } = await supabase.from('app_courses').select('id, title');
+    setCourses(data || []);
+  };
 
   const fetchAssignments = async () => {
     setLoading(true);
@@ -53,16 +69,11 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
         return;
       }
 
-      if (!data || data.length === 0) {
-        setAssignments([]);
-        setLoading(false);
-        return;
-      }
-
+      // 获取关联数据
       const coursesData = await supabase.from('app_courses').select('id, title');
       const teachersData = await supabase.from('app_users').select('id, name').in('role', ['Manager', 'Editor']);
 
-      const assignmentsWithDetails = data.map((assignment: any) => {
+      const assignmentsWithDetails = (data || []).map((assignment: any) => {
         const course = coursesData.data?.find(c => c.id === assignment.course_id);
         const teacher = teachersData.data?.find(t => t.id === assignment.teacher_id);
         return {
@@ -72,7 +83,7 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
         };
       });
 
-      setAssignments(assignmentsWithDetails as Assignment[]);
+      setAssignments(assignmentsWithDetails);
     } catch (err) {
       console.error('获取作业失败:', err);
       setAssignments([]);
@@ -81,203 +92,284 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
     }
   };
 
-  const handleDelete = async (assignmentId: string) => {
-    if (!confirm('确定要删除这个作业吗？')) return;
-    
+  const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('app_assignments')
-        .delete()
-        .eq('id', assignmentId);
+      const payload = {
+        ...formData,
+        id: editingAssignment?.id || crypto.randomUUID(),
+        teacher_id: currentUser?.id,
+        submitted_count: editingAssignment?.submitted_count || 0,
+      };
+
+      if (editingAssignment) {
+        await supabase.from('app_assignments').update(payload).eq('id', editingAssignment.id);
+      } else {
+        await supabase.from('app_assignments').insert([payload]);
+      }
       
-      if (error) throw error;
+      setIsModalOpen(false);
+      setEditingAssignment(null);
+      setFormData({ title: '', content: '', course_id: '', max_score: 100, deadline: '', status: 'pending' });
       fetchAssignments();
     } catch (err) {
-      alert('删除失败: ' + (err as Error).message);
+      console.error('保存失败:', err);
+      alert('保存失败，请重试');
     }
+  };
+
+  const handleDelete = async (assignmentId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('确定要删除此作业吗？')) return;
+    
+    try {
+      await supabase.from('app_assignments').delete().eq('id', assignmentId);
+      fetchAssignments();
+    } catch (err) {
+      console.error('删除失败:', err);
+      alert('删除失败');
+    }
+  };
+
+  const openEditModal = (assignment: Assignment) => {
+    setEditingAssignment(assignment);
+    setFormData({
+      title: assignment.title,
+      content: assignment.content || '',
+      course_id: assignment.course_id || '',
+      max_score: assignment.max_score || 100,
+      deadline: assignment.deadline ? new Date(assignment.deadline).toISOString().slice(0, 16) : '',
+      status: assignment.status || 'pending',
+    });
+    setIsModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    setEditingAssignment(null);
+    setFormData({ title: '', content: '', course_id: '', max_score: 100, deadline: '', status: 'pending' });
+    setIsModalOpen(true);
   };
 
   const filteredAssignments = assignments.filter(assignment => {
-    return assignment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           assignment.course_title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       assignment.course_title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = filterStatus === 'All' || assignment.status === filterStatus;
+    return matchSearch && matchStatus;
   });
 
-  const stats = {
-    total: assignments.length,
-    pending: assignments.filter(a => a.status === 'pending').length,
-    grading: assignments.filter(a => a.status === 'grading').length,
-    completed: assignments.filter(a => a.status === 'completed').length,
-  };
-
-  const getStatusBadge = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'completed':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium"><CheckCircle size={12} /> 已完成</span>;
-      case 'grading':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium"><Edit2 size={12} /> 批改中</span>;
-      case 'pending':
-      default:
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium"><Clock size={12} /> 进行中</span>;
+      case 'completed': return 'bg-green-50 text-green-700 border-green-200';
+      case 'grading': return 'bg-orange-50 text-orange-600 border-orange-200';
+      case 'pending': return 'bg-blue-50 text-blue-600 border-blue-200';
+      default: return 'bg-gray-100 text-gray-500 border-gray-200';
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'completed': return '已完成';
+      case 'grading': return '批改中';
+      case 'pending': return '进行中';
+      default: return status;
+    }
+  };
+
+  const statuses = ['All', 'pending', 'grading', 'completed'];
+
   return (
     <AdminLayout 
-      currentPage={Page.ADMIN_USERS} 
+      currentPage={Page.ADMIN_TEACHER_ASSIGNMENTS} 
       onNavigate={onNavigate}
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="p-6 md:p-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                <FileText className="text-white" size={20} />
-              </div>
-              教师作业管理
-            </h1>
-            <p className="text-gray-500 mt-1 ml-13">查看和管理所有教师布置的作业</p>
+      <div className="space-y-6 animate-fade-in min-h-[600px]">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-1 gap-4 w-full">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="搜索作业或课程..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto">
+              {statuses.map(status => (
+                <button 
+                  key={status} 
+                  onClick={() => setFilterStatus(status)} 
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border whitespace-nowrap transition-colors ${filterStatus === status ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}
+                >
+                  {status === 'All' ? '全部' : getStatusText(status)}
+                </button>
+              ))}
+            </div>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/30 transition-all"
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-sm font-bold shadow-lg shadow-gray-200 hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
           >
-            <Plus size={18} />
-            添加作业
+            <Plus size={18} /> 添加作业
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
-            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-600 mt-1">作业总数</p>
-          </div>
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100">
-            <p className="text-3xl font-bold text-blue-600">{stats.pending}</p>
-            <p className="text-sm text-gray-600 mt-1">进行中</p>
-          </div>
-          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-5 border border-amber-100">
-            <p className="text-3xl font-bold text-amber-600">{stats.grading}</p>
-            <p className="text-sm text-gray-600 mt-1">批改中</p>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-100">
-            <p className="text-3xl font-bold text-emerald-600">{stats.completed}</p>
-            <p className="text-sm text-gray-600 mt-1">已完成</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="搜索作业或课程..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Data Grid */}
+        <div className="grid grid-cols-1 gap-4">
           {loading ? (
-            <div className="p-16 text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-500 border-t-transparent mx-auto mb-4"></div>
-              <p className="text-gray-500">加载中...</p>
-            </div>
-          ) : filteredAssignments.length === 0 ? (
-            <div className="p-16 text-center text-gray-400">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FileText size={32} className="text-gray-300" />
+            <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-gray-400" /></div>
+          ) : filteredAssignments.length > 0 ? filteredAssignments.map(assignment => (
+            <div
+              key={assignment.id}
+              onClick={() => openEditModal(assignment)}
+              className="group bg-white p-5 rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer relative overflow-hidden"
+            >
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${assignment.status === 'completed' ? 'bg-green-500' : assignment.status === 'grading' ? 'bg-orange-400' : 'bg-blue-400'}`}></div>
+              <div className="flex items-center gap-5 pl-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-white shadow-sm">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">{assignment.title}</h3>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1.5 font-medium">
+                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-mono">{assignment.id.slice(0, 8)}</span>
+                    <span className="flex items-center gap-1 text-blue-600"><BookOpen size={10} /> {assignment.course_title}</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="flex items-center gap-1"><User size={10} /> {assignment.teacher_name}</span>
+                  </div>
+                </div>
               </div>
-              <p className="text-lg font-medium">暂无作业数据</p>
-              <p className="text-sm mt-1">作业功能需要关联 auth.users 表，请联系管理员配置</p>
+              <div className="flex items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end pl-3 sm:pl-0">
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-1"><CheckCircle size={14} /> {assignment.max_score}分</span>
+                  <span className={`flex items-center gap-1 ${new Date(assignment.deadline) < new Date() ? 'text-red-500' : ''}`}>
+                    <Clock size={14} /> {new Date(assignment.deadline).toLocaleDateString('zh-CN')}
+                  </span>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${getStatusStyle(assignment.status)}`}>
+                  {getStatusText(assignment.status)}
+                </div>
+                <button 
+                  onClick={(e) => handleDelete(assignment.id, e)} 
+                  className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50/80 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">作业信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">所属课程</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">教师</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">截止日</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">满分</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-semibold text-gray-900">{assignment.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 max-w-[200px]">{assignment.content || '暂无描述'}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 text-sm text-blue-600 font-medium">
-                          <BookOpen size={14} />
-                          {assignment.course_title}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-700 font-medium">{assignment.teacher_name}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${
-                          new Date(assignment.deadline) < new Date() ? 'text-red-600' : 'text-gray-700'
-                        }`}>
-                          <Clock size={14} />
-                          {new Date(assignment.deadline).toLocaleDateString('zh-CN')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-semibold text-gray-900">{assignment.max_score} 分</span>
-                      </td>
-                      <td className="px-6 py-4">{getStatusBadge(assignment.status)}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleDelete(assignment.id)}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )) : (
+            <div className="text-center py-24 bg-white border border-dashed border-gray-200 rounded-2xl flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <FileText size={24} className="text-gray-300" />
+              </div>
+              <p className="text-gray-900 font-bold">暂无作业</p>
+              <p className="text-sm text-gray-500 mt-1">点击上方按钮添加作业</p>
+              <button
+                onClick={openAddModal}
+                className="mt-4 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                立即添加
+              </button>
             </div>
           )}
         </div>
 
-        {showAddModal && (
+        {/* Modal */}
+        {isModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-fade-in-up">
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900">提示</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingAssignment ? '编辑作业' : '添加作业'}
+                </h2>
                 <button 
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   ✕
                 </button>
               </div>
-              <div className="p-6 text-center text-gray-500">
-                <p>作业功能需要关联 auth.users 表</p>
-                <p className="text-sm mt-2">请联系管理员在 Supabase 中配置外键约束</p>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">作业标题 *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    placeholder="请输入作业标题"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">作业内容</label>
+                  <textarea
+                    value={formData.content}
+                    onChange={(e) => setFormData({...formData, content: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 h-20 resize-none"
+                    placeholder="请输入作业内容"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">所属课程</label>
+                  <select
+                    value={formData.course_id}
+                    onChange={(e) => setFormData({...formData, course_id: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">选择课程</option>
+                    {courses.map(c => (
+                      <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">满分</label>
+                    <input
+                      type="number"
+                      value={formData.max_score}
+                      onChange={(e) => setFormData({...formData, max_score: parseInt(e.target.value)})}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">截止时间</label>
+                    <input
+                      type="datetime-local"
+                      value={formData.deadline}
+                      onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">状态</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="pending">进行中</option>
+                    <option value="grading">批改中</option>
+                    <option value="completed">已完成</option>
+                  </select>
+                </div>
               </div>
-              <div className="p-6 border-t border-gray-100">
+              <div className="flex gap-3 p-6 border-t border-gray-100">
                 <button
-                  onClick={() => setShowAddModal(false)}
-                  className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                  onClick={() => setIsModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                 >
-                  关闭
+                  取消
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+                >
+                  {editingAssignment ? '保存' : '添加'}
                 </button>
               </div>
             </div>

@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
-import { 
-  Users, Search, CheckCircle, XCircle, 
-  ChevronDown, ChevronUp, GraduationCap,
-  Star, Plus, Edit2, Trash2, Mail
-} from 'lucide-react';
+import { Search, Plus, GraduationCap, Mail, BookOpen, Trash2, Loader2, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
 
@@ -19,27 +15,30 @@ interface Teacher {
   name: string;
   email: string;
   avatar?: string;
-  phone?: string;
   status: string;
-  created_at: string;
   department?: string;
   job_title?: string;
+  created_at: string;
   total_courses: number;
   total_students: number;
-  rating: number;
 }
 
 const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, onLogout }) => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'created' | 'students'>('created');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', department: '', job_title: '', phone: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('All');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    email: '', 
+    department: '', 
+    job_title: '', 
+    status: '正常' 
+  });
 
   useEffect(() => {
     fetchTeachers();
@@ -67,11 +66,7 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
             .from('app_course_enrollments')
             .select('student_id')
             .in('course_id', 
-              (await supabase
-                .from('app_courses')
-                .select('id')
-                .eq('author', profile.name)
-              ).data?.map(c => c.id) || []
+              (await supabase.from('app_courses').select('id').eq('author', profile.name)).data?.map(c => c.id) || []
             );
 
           const uniqueStudents = new Set(enrollments?.map(e => e.student_id)).size;
@@ -81,150 +76,98 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
             name: profile.name || '未命名',
             email: profile.email || '',
             avatar: profile.avatar,
-            phone: profile.phone || '',
             status: profile.status || '正常',
-            created_at: profile.created_at,
             department: profile.department,
             job_title: profile.job_title,
+            created_at: profile.created_at,
             total_courses: courseCount || 0,
             total_students: uniqueStudents,
-            rating: 4.5 + Math.random() * 0.5,
           };
         })
       );
 
       setTeachers(teachersWithStats);
     } catch (err) {
-      console.error('Failed to fetch teachers:', err);
+      console.error('获取教师失败:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddTeacher = async () => {
+  const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('app_users')
-        .insert([{
-          ...formData,
-          id: crypto.randomUUID(),
-          role: 'Manager',
-          status: '正常',
-          subscription_tier: 'free',
-          xp: 0,
-          streak: 0,
-        }]);
-      
-      if (error) throw error;
-      setShowAddModal(false);
-      setFormData({ name: '', email: '', department: '', job_title: '', phone: '' });
-      fetchTeachers();
-    } catch (err) {
-      console.error('Failed to add teacher:', err);
-      alert('添加失败，请重试');
-    }
-  };
+      const payload = {
+        ...formData,
+        id: editingTeacher?.id || crypto.randomUUID(),
+        role: 'Manager',
+        subscription_tier: 'free',
+        xp: 0,
+        streak: 0,
+      };
 
-  const handleEditTeacher = async () => {
-    if (!selectedTeacher) return;
-    try {
-      const { error } = await supabase
-        .from('app_users')
-        .update(formData)
-        .eq('id', selectedTeacher.id);
-      
-      if (error) throw error;
-      setShowEditModal(false);
-      setSelectedTeacher(null);
-      fetchTeachers();
-    } catch (err) {
-      console.error('Failed to edit teacher:', err);
-      alert('更新失败，请重试');
-    }
-  };
-
-  const handleDeleteTeacher = async (teacherId: string) => {
-    if (!confirm('确定要删除这位教师吗？')) return;
-    try {
-      const { error } = await supabase
-        .from('app_users')
-        .delete()
-        .eq('id', teacherId);
-      
-      if (error) throw error;
-      fetchTeachers();
-    } catch (err) {
-      console.error('Failed to delete teacher:', err);
-      alert('删除失败，请重试');
-    }
-  };
-
-  const updateTeacherStatus = async (teacherId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('app_users')
-        .update({ status: newStatus })
-        .eq('id', teacherId);
-
-      if (error) throw error;
-      setTeachers(prev => prev.map(t => 
-        t.id === teacherId ? { ...t, status: newStatus } : t
-      ));
-    } catch (err) {
-      console.error('Failed to update teacher status:', err);
-      alert('更新状态失败，请重试');
-    }
-  };
-
-  const filteredTeachers = teachers
-    .filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           t.email.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || 
-                           (statusFilter === 'active' && t.status === '正常') ||
-                           (statusFilter === 'inactive' && t.status !== '正常');
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      switch (sortBy) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'created':
-          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          break;
-        case 'students':
-          comparison = a.total_students - b.total_students;
-          break;
+      if (editingTeacher) {
+        await supabase.from('app_users').update(payload).eq('id', editingTeacher.id);
+      } else {
+        await supabase.from('app_users').insert([payload]);
       }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-  const stats = {
-    total: teachers.length,
-    active: teachers.filter(t => t.status === '正常').length,
-    inactive: teachers.filter(t => t.status !== '正常').length,
+      
+      setIsModalOpen(false);
+      setEditingTeacher(null);
+      setFormData({ name: '', email: '', department: '', job_title: '', status: '正常' });
+      fetchTeachers();
+    } catch (err) {
+      console.error('保存失败:', err);
+      alert('保存失败，请重试');
+    }
   };
 
-  const getStatusBadge = (status: string) => {
-    if (status === '正常') {
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium"><CheckCircle size={12} /> 正常</span>;
+  const handleDelete = async (teacherId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('确定要删除此教师吗？')) return;
+    
+    try {
+      await supabase.from('app_users').delete().eq('id', teacherId);
+      fetchTeachers();
+    } catch (err) {
+      console.error('删除失败:', err);
+      alert('删除失败');
     }
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-medium"><XCircle size={12} /> 禁用</span>;
   };
 
   const openEditModal = (teacher: Teacher) => {
-    setSelectedTeacher(teacher);
+    setEditingTeacher(teacher);
     setFormData({
       name: teacher.name,
       email: teacher.email,
       department: teacher.department || '',
       job_title: teacher.job_title || '',
-      phone: teacher.phone || '',
+      status: teacher.status,
     });
-    setShowEditModal(true);
+    setIsModalOpen(true);
   };
+
+  const openAddModal = () => {
+    setEditingTeacher(null);
+    setFormData({ name: '', email: '', department: '', job_title: '', status: '正常' });
+    setIsModalOpen(true);
+  };
+
+  const filteredTeachers = teachers.filter(teacher => {
+    const matchSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       teacher.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = filterStatus === 'All' || teacher.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case '正常': return 'bg-green-50 text-green-700 border-green-200';
+      case '禁用': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-gray-100 text-gray-500 border-gray-200';
+    }
+  };
+
+  const statuses = ['All', '正常', '禁用'];
 
   return (
     <AdminLayout 
@@ -233,222 +176,110 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                <GraduationCap className="text-white" size={20} />
-              </div>
-              教师管理
-            </h1>
-            <p className="text-gray-500 mt-1 ml-13">管理教师账号、查看授课统计</p>
+      <div className="space-y-6 animate-fade-in min-h-[600px]">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-1 gap-4 w-full">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="搜索教师姓名、邮箱..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto">
+              {statuses.map(status => (
+                <button 
+                  key={status} 
+                  onClick={() => setFilterStatus(status)} 
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border whitespace-nowrap transition-colors ${filterStatus === status ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}
+                >
+                  {status === 'All' ? '全部' : status}
+                </button>
+              ))}
+            </div>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all"
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-sm font-bold shadow-lg shadow-gray-200 hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
           >
-            <Plus size={18} />
-            添加教师
+            <Plus size={18} /> 添加教师
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <Users className="text-blue-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-600">教师总数</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <CheckCircle className="text-emerald-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-emerald-600">{stats.active}</p>
-                <p className="text-sm text-gray-600">正常</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-5 border border-red-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <XCircle className="text-red-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-red-600">{stats.inactive}</p>
-                <p className="text-sm text-gray-600">禁用</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="搜索教师姓名或邮箱..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
-              >
-                <option value="all">全部状态</option>
-                <option value="active">正常</option>
-                <option value="inactive">禁用</option>
-              </select>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
-              >
-                <option value="created">最近加入</option>
-                <option value="name">姓名</option>
-                <option value="students">学生数</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
-              >
-                {sortOrder === 'asc' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Data Grid */}
+        <div className="grid grid-cols-1 gap-4">
           {loading ? (
-            <div className="p-16 text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-              <p className="text-gray-500">加载中...</p>
-            </div>
-          ) : filteredTeachers.length === 0 ? (
-            <div className="p-16 text-center text-gray-400">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <GraduationCap size={32} className="text-gray-300" />
+            <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-gray-400" /></div>
+          ) : filteredTeachers.length > 0 ? filteredTeachers.map(teacher => (
+            <div
+              key={teacher.id}
+              onClick={() => openEditModal(teacher)}
+              className="group bg-white p-5 rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer relative overflow-hidden"
+            >
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${teacher.status === '正常' ? 'bg-blue-500' : 'bg-red-400'}`}></div>
+              <div className="flex items-center gap-5 pl-3">
+                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 shadow-sm">
+                  {teacher.avatar ? (
+                    <img src={teacher.avatar} alt={teacher.name} className="w-full h-full rounded-xl object-cover" />
+                  ) : (
+                    <GraduationCap size={20} className="text-blue-500" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">{teacher.name}</h3>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1.5 font-medium">
+                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-mono">{teacher.id.slice(0, 8)}</span>
+                    <span className="flex items-center gap-1"><Mail size={10} /> {teacher.email}</span>
+                    {teacher.department && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{teacher.department}</span>}
+                  </div>
+                </div>
               </div>
-              <p className="text-lg font-medium">暂无教师数据</p>
-              <p className="text-sm mt-1">点击上方"添加教师"按钮添加第一位教师</p>
+              <div className="flex items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end pl-3 sm:pl-0">
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-1"><BookOpen size={14} /> {teacher.total_courses} 课程</span>
+                  <span className="flex items-center gap-1"><Users size={14} /> {teacher.total_students} 学生</span>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${getStatusStyle(teacher.status)}`}>
+                  {teacher.status}
+                </div>
+                <button 
+                  onClick={(e) => handleDelete(teacher.id, e)} 
+                  className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50/80 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">教师信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">部门/职称</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">课程/学生</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">评分</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">加入时间</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredTeachers.map((teacher) => (
-                    <tr key={teacher.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={teacher.avatar || `https://i.pravatar.cc/150?u=${teacher.id}`}
-                            alt={teacher.name}
-                            className="w-11 h-11 rounded-xl object-cover ring-2 ring-gray-100"
-                          />
-                          <div>
-                            <p className="font-semibold text-gray-900">{teacher.name}</p>
-                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                              <Mail size={11} />
-                              {teacher.email}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-gray-900 font-medium">{teacher.department || '未设置'}</p>
-                        <p className="text-xs text-gray-500">{teacher.job_title || '普通教师'}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <p className="text-gray-900 font-semibold">{teacher.total_courses} 门课程</p>
-                          <p className="text-gray-500">{teacher.total_students} 名学生</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <Star size={14} className="text-amber-500 fill-amber-500" />
-                          <span className="text-sm font-semibold text-gray-900">{teacher.rating.toFixed(1)}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">{getStatusBadge(teacher.status)}</td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {new Date(teacher.created_at).toLocaleDateString('zh-CN')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openEditModal(teacher)}
-                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="编辑"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTeacher(teacher.id)}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="删除"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          {teacher.status === '正常' ? (
-                            <button
-                              onClick={() => updateTeacherStatus(teacher.id, '禁用')}
-                              className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                            >
-                              禁用
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => updateTeacherStatus(teacher.id, '正常')}
-                              className="px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
-                            >
-                              启用
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )) : (
+            <div className="text-center py-24 bg-white border border-dashed border-gray-200 rounded-2xl flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <GraduationCap size={24} className="text-gray-300" />
+              </div>
+              <p className="text-gray-900 font-bold">暂无教师</p>
+              <button
+                onClick={openAddModal}
+                className="mt-4 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                立即添加
+              </button>
             </div>
           )}
         </div>
 
-        {(showAddModal || showEditModal) && (
+        {/* Modal */}
+        {isModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-fade-in-up">
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">
-                  {showAddModal ? '添加教师' : '编辑教师'}
+                  {editingTeacher ? '编辑教师' : '添加教师'}
                 </h2>
                 <button 
-                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                  onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   ✕
@@ -460,7 +291,7 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                     placeholder="请输入姓名"
                   />
@@ -470,7 +301,7 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                     placeholder="请输入邮箱"
                   />
@@ -481,7 +312,7 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
                     <input
                       type="text"
                       value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      onChange={(e) => setFormData({...formData, department: e.target.value})}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                       placeholder="如：计算机学院"
                     />
@@ -491,35 +322,36 @@ const AdminTeachers: React.FC<AdminTeachersProps> = ({ onNavigate, currentUser, 
                     <input
                       type="text"
                       value={formData.job_title}
-                      onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                      onChange={(e) => setFormData({...formData, job_title: e.target.value})}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                       placeholder="如：讲师"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">电话</label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">状态</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
-                    placeholder="请输入电话"
-                  />
+                  >
+                    <option value="正常">正常</option>
+                    <option value="禁用">禁用</option>
+                  </select>
                 </div>
               </div>
               <div className="flex gap-3 p-6 border-t border-gray-100">
                 <button
-                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                  onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                 >
                   取消
                 </button>
                 <button
-                  onClick={showAddModal ? handleAddTeacher : handleEditTeacher}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
                 >
-                  {showAddModal ? '添加' : '保存'}
+                  {editingTeacher ? '保存' : '添加'}
                 </button>
               </div>
             </div>

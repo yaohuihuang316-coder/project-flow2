@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Page, UserProfile } from '../../types';
-import { 
-  Users, Search, Edit2, Trash2, Plus, 
-  CheckCircle, XCircle, Shield, Mail
-} from 'lucide-react';
+import { Search, Plus, Users, Mail, Shield, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import AdminLayout from './AdminLayout';
 
@@ -27,10 +24,12 @@ interface User {
 const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogout }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('All');
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
@@ -52,7 +51,6 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
       setUsers(data || []);
     } catch (err) {
       console.error('获取用户失败:', err);
@@ -61,106 +59,88 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
     }
   };
 
-  const handleAddUser = async () => {
+  const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('app_users')
-        .insert([{
-          ...formData,
-          id: crypto.randomUUID(),
-          subscription_tier: 'free',
-          xp: 0,
-          streak: 0,
-        }]);
+      const payload = {
+        ...formData,
+        id: editingUser?.id || crypto.randomUUID(),
+        subscription_tier: 'free',
+        xp: 0,
+        streak: 0,
+      };
+
+      if (editingUser) {
+        await supabase.from('app_users').update(payload).eq('id', editingUser.id);
+      } else {
+        await supabase.from('app_users').insert([payload]);
+      }
       
-      if (error) throw error;
-      setShowAddModal(false);
+      setIsModalOpen(false);
+      setEditingUser(null);
       setFormData({ name: '', email: '', role: 'Student', department: '', status: '正常' });
       fetchUsers();
     } catch (err) {
-      console.error('添加失败:', err);
-      alert('添加失败，请重试');
+      console.error('保存失败:', err);
+      alert('保存失败，请重试');
     }
   };
 
-  const handleEditUser = async () => {
-    if (!selectedUser) return;
-    try {
-      const { error } = await supabase
-        .from('app_users')
-        .update(formData)
-        .eq('id', selectedUser.id);
-      
-      if (error) throw error;
-      setShowEditModal(false);
-      setSelectedUser(null);
-      fetchUsers();
-    } catch (err) {
-      console.error('更新失败:', err);
-      alert('更新失败，请重试');
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
+  const handleDelete = async (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm('确定要删除此用户吗？')) return;
+    
     try {
-      const { error } = await supabase
-        .from('app_users')
-        .delete()
-        .eq('id', userId);
-      
-      if (error) throw error;
+      await supabase.from('app_users').delete().eq('id', userId);
       fetchUsers();
     } catch (err) {
       console.error('删除失败:', err);
-      alert('删除失败，请重试');
+      alert('删除失败');
     }
   };
 
   const openEditModal = (user: User) => {
-    setSelectedUser(user);
+    setEditingUser(user);
     setFormData({
-      name: user.name,
-      email: user.email,
-      role: user.role,
+      name: user.name || '',
+      email: user.email || '',
+      role: user.role || 'Student',
       department: user.department || '',
-      status: user.status,
+      status: user.status || '正常',
     });
-    setShowEditModal(true);
+    setIsModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    setEditingUser(null);
+    setFormData({ name: '', email: '', role: 'Student', department: '', status: '正常' });
+    setIsModalOpen(true);
   };
 
   const filteredUsers = users.filter(user => {
-    return user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           user.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchRole = filterRole === 'All' || user.role === filterRole;
+    return matchSearch && matchRole;
   });
 
-  const stats = {
-    total: users.length,
-    active: users.filter(u => u.status === '正常').length,
-    inactive: users.filter(u => u.status !== '正常').length,
-    admins: users.filter(u => u.role === '管理员').length,
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case '正常': return 'bg-green-50 text-green-700 border-green-200';
+      case '禁用': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-gray-100 text-gray-500 border-gray-200';
+    }
   };
 
-  const getRoleBadge = (role: string) => {
+  const getRoleIcon = (role: string) => {
     switch (role) {
-      case '管理员':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium"><Shield size={10} /> 管理员</span>;
-      case 'Manager':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">经理</span>;
-      case 'Editor':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">编辑</span>;
-      case 'Student':
-      default:
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">学生</span>;
+      case '管理员': return <Shield size={18} className="text-purple-500" />;
+      case 'Manager': return <Shield size={18} className="text-blue-500" />;
+      case 'Editor': return <Shield size={18} className="text-indigo-500" />;
+      default: return <Users size={18} className="text-gray-400" />;
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    if (status === '正常') {
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium"><CheckCircle size={12} /> 正常</span>;
-    }
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-medium"><XCircle size={12} /> 禁用</span>;
-  };
+  const roles = ['All', 'Student', 'Editor', 'Manager', '管理员'];
 
   return (
     <AdminLayout 
@@ -169,180 +149,109 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
       currentUser={currentUser}
       onLogout={onLogout}
     >
-      <div className="p-6 md:p-8 max-w-7xl mx-auto">
-        {/* Header - 统一风格 */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <Users className="text-white" size={20} />
-              </div>
-              用户管理
-            </h1>
-            <p className="text-gray-500 mt-1 ml-13">管理系统所有用户账号</p>
+      <div className="space-y-6 animate-fade-in min-h-[600px]">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-1 gap-4 w-full">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="搜索姓名、邮箱..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+              />
+            </div>
+            <div className="flex gap-2 overflow-x-auto">
+              {roles.map(role => (
+                <button 
+                  key={role} 
+                  onClick={() => setFilterRole(role)} 
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border whitespace-nowrap transition-colors ${filterRole === role ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}
+                >
+                  {role === 'All' ? '全部' : role}
+                </button>
+              ))}
+            </div>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-violet-500/30 transition-all"
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-sm font-bold shadow-lg shadow-gray-200 hover:bg-gray-800 hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
           >
-            <Plus size={18} />
-            添加用户
+            <Plus size={18} /> 添加用户
           </button>
         </div>
 
-        {/* Stats - 统一为渐变背景卡片 */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <Users className="text-blue-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-600">用户总数</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl p-5 border border-emerald-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <CheckCircle className="text-emerald-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-emerald-600">{stats.active}</p>
-                <p className="text-sm text-gray-600">正常</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-5 border border-red-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <XCircle className="text-red-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-red-600">{stats.inactive}</p>
-                <p className="text-sm text-gray-600">禁用</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-5 border border-purple-100">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                <Shield className="text-purple-600" size={24} />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-purple-600">{stats.admins}</p>
-                <p className="text-sm text-gray-600">管理员</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Search - 统一风格 */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="搜索用户姓名或邮箱..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Table - 统一风格 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Data Grid */}
+        <div className="grid grid-cols-1 gap-4">
           {loading ? (
-            <div className="p-16 text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-2 border-violet-500 border-t-transparent mx-auto mb-4"></div>
-              <p className="text-gray-500">加载中...</p>
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="p-16 text-center text-gray-400">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Users size={32} className="text-gray-300" />
+            <div className="text-center py-20"><Loader2 className="animate-spin mx-auto text-gray-400" /></div>
+          ) : filteredUsers.length > 0 ? filteredUsers.map(user => (
+            <div
+              key={user.id}
+              onClick={() => openEditModal(user)}
+              className="group bg-white p-5 rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between hover:shadow-lg hover:border-blue-200 transition-all cursor-pointer relative overflow-hidden"
+            >
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${user.status === '正常' ? 'bg-green-500' : 'bg-red-400'}`}></div>
+              <div className="flex items-center gap-5 pl-3">
+                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100 shadow-sm">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="w-full h-full rounded-xl object-cover" />
+                  ) : (
+                    getRoleIcon(user.role)
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">{user.name || '未命名'}</h3>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1.5 font-medium">
+                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 font-mono">{user.id.slice(0, 8)}</span>
+                    <span className="flex items-center gap-1"><Mail size={10} /> {user.email}</span>
+                    {user.department && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{user.department}</span>}
+                  </div>
+                </div>
               </div>
-              <p className="text-lg font-medium">暂无用户数据</p>
-              <p className="text-sm mt-1">点击上方"添加用户"按钮添加第一位用户</p>
+              <div className="flex items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto justify-between sm:justify-end pl-3 sm:pl-0">
+                <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${getStatusStyle(user.status)}`}>
+                  {user.status}
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-bold border bg-gray-50 text-gray-600 border-gray-200`}>
+                  {user.role}
+                </div>
+                <button 
+                  onClick={(e) => handleDelete(user.id, e)} 
+                  className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50/80 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">用户信息</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">角色</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">部门</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">状态</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">加入时间</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={user.avatar || `https://i.pravatar.cc/150?u=${user.id}`}
-                            alt={user.name}
-                            className="w-11 h-11 rounded-xl object-cover ring-2 ring-gray-100"
-                          />
-                          <div>
-                            <p className="font-semibold text-gray-900">{user.name || '未命名'}</p>
-                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                              <Mail size={11} />
-                              {user.email}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-700">{user.department || '未设置'}</span>
-                      </td>
-                      <td className="px-6 py-4">{getStatusBadge(user.status)}</td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {new Date(user.created_at).toLocaleDateString('zh-CN')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openEditModal(user)}
-                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )) : (
+            <div className="text-center py-24 bg-white border border-dashed border-gray-200 rounded-2xl flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <Users size={24} className="text-gray-300" />
+              </div>
+              <p className="text-gray-900 font-bold">暂无用户</p>
+              <button
+                onClick={openAddModal}
+                className="mt-4 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                立即添加
+              </button>
             </div>
           )}
         </div>
 
-        {/* Add/Edit Modal */}
-        {(showAddModal || showEditModal) && (
+        {/* Modal */}
+        {isModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-fade-in-up">
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">
-                  {showAddModal ? '添加用户' : '编辑用户'}
+                  {editingUser ? '编辑用户' : '添加用户'}
                 </h2>
                 <button 
-                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                  onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   ✕
@@ -354,7 +263,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                     placeholder="请输入姓名"
                   />
@@ -364,7 +273,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                     placeholder="请输入邮箱"
                   />
@@ -374,7 +283,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">角色</label>
                     <select
                       value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="Student">学生</option>
@@ -388,7 +297,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
                     <input
                       type="text"
                       value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      onChange={(e) => setFormData({...formData, department: e.target.value})}
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                       placeholder="如：计算机学院"
                     />
@@ -398,7 +307,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">状态</label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    onChange={(e) => setFormData({...formData, status: e.target.value})}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="正常">正常</option>
@@ -408,16 +317,16 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ onNavigate, currentUser, onLogo
               </div>
               <div className="flex gap-3 p-6 border-t border-gray-100">
                 <button
-                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                  onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                 >
                   取消
                 </button>
                 <button
-                  onClick={showAddModal ? handleAddUser : handleEditUser}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-2.5 bg-black text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
                 >
-                  {showAddModal ? '添加' : '保存'}
+                  {editingUser ? '保存' : '添加'}
                 </button>
               </div>
             </div>
