@@ -33,29 +33,10 @@ const AdminTeacherAssignments: React.FC<AdminTeacherAssignmentsProps> = ({ onNav
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchAssignments();
-    fetchCourses();
-    fetchTeachers();
   }, []);
-
-  const fetchTeachers = async () => {
-    const { data } = await supabase
-      .from('app_users')
-      .select('id, name')
-      .in('role', ['Manager', 'Editor']);
-    setTeachers(data || []);
-  };
-
-  const fetchCourses = async () => {
-    const { data } = await supabase
-      .from('app_courses')
-      .select('id, title');
-    setCourses(data || []);
-  };
 
   const fetchAssignments = async () => {
     setLoading(true);

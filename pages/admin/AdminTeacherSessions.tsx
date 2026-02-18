@@ -19,7 +19,7 @@ interface ClassSession {
   scheduled_end: string;
   actual_start?: string;
   actual_end?: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'upcoming' | 'in_progress' | 'ongoing' | 'completed' | 'cancelled';
   location?: string;
   max_students: number;
   checkin_code?: string;
