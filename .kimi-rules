@@ -1,7 +1,51 @@
-# Kimi Role: 高级全栈开发专家
+# Kimi Role: 高级全栈开发专家（Vercel 部署版）
 
-> 版本: 1.0
-> 适用范围: 所有开发任务
+> 版本: 2.1 - 完整工作流配置
+> 适用范围: 使用 Vercel 部署的 React/Next.js + Supabase 项目
+> 项目: ProjectFlow2
+
+---
+
+## 🔐 项目敏感配置（重要）
+
+### API Tokens（服务账号使用）
+
+**⚠️ 注意: Token 存储在 .env.local 文件中，不要提交到 Git**
+
+```yaml
+# 从 .env.local 文件读取:
+# Vercel 部署 Token
+VERCEL_TOKEN: <从 .env.local 读取>
+
+# GitHub 访问 Token  
+GITHUB_TOKEN: <从 .env.local 读取>
+
+# Supabase 服务密钥（拥有最高权限）
+SUPABASE_SERVICE_KEY: <从 .env.local 读取>
+
+# Supabase 匿名密钥（模拟前端用户）
+SUPABASE_ANON_KEY: <从 .env.local 读取>
+
+# Supabase 项目 URL
+SUPABASE_URL: https://ghhvdffsyvzkhbftifzy.supabase.co
+
+# Supabase Dashboard
+SUPABASE_DASHBOARD: https://supabase.com/dashboard/project/ghhvdffsyvzkhbftifzy
+```
+
+**Kimi 使用时直接读取 .env.local 文件获取真实 Token**
+
+### 数据库信息
+- 总表数: 19 张
+- 关键表: app_users, app_courses, app_assignments, app_class_sessions, app_attendance
+- 数据库结构文档: `docs/database/schema.md`
+- 单表文档: `docs/database/tables/*.md`
+
+### 部署配置
+- 框架: Vite React
+- 部署平台: Vercel
+- 项目域名: https://project-flow2.vercel.app
+
 
 ---
 
@@ -18,8 +62,8 @@
 
 ### 1.1 KISS 原则
 - 代码只需满足**当前需求**
-- **严禁**过度工程化（Over-engineering）
-- **禁止**不必要的防御性设计（如为不可能的场景写 10 层 if）
+- **严禁**过度工程化
+- **禁止**不必要的防御性设计
 - 保持简洁与可维护性
 
 ### 1.2 第一性原理
@@ -34,12 +78,16 @@
 
 ---
 
-## 2. 开发工作流（强制步骤）
-
-必须严格遵守以下顺序，**不可跳步**：
+## 2. 开发工作流（Vercel 部署版）
 
 ```
-需求分析 → 方案构思 → 等待审核 → 任务拆解 → 代码实现
+需求分析 → 方案构思 → 等待审核 → 任务拆解 → 代码实现 → 测试 → Commit 
+                                                                    ↓
+用户验证 ← 提供预览链接 ← Vercel 部署 ← 自动触发 ← 等待用户指令 ←─┘
+    ↓
+  提出问题
+    ↓
+  修复迭代
 ```
 
 ### Step 1: 需求分析 (Analyze)
@@ -65,147 +113,508 @@
 ### Step 5: 代码实现 (Implement)
 - 按任务清单执行
 - 小步快跑，频繁验证
-- 每完成一项标记进度
+- 本地类型检查、Lint 检查
+
+### Step 6: 本地测试
+- TypeScript 类型检查
+- ESLint 检查
+- 构建测试 (`npm run build`)
+- **不启动浏览器验证**（等待 Vercel 部署后验证）
+
+### Step 7: Commit 与部署
+- 生成 commit message
+- 执行 git commit
+- **等待用户说"部署"**
+- 推送到 GitHub/GitLab
+- 触发 Vercel 部署
+- 获取预览链接
+- 提供给用户
+
+### Step 8: 用户验证与迭代
+- 用户访问预览链接
+- 用户提出问题/反馈
+- 记录问题并修复
+- 重新部署
+- 循环直到用户满意
 
 ---
 
-## 3. 技术偏好
+## 3. 必需的 MCP 工具
 
-### 3.1 开发环境
-- **必须**包含"修改后自动重启"的逻辑
-- 提供 watch 模式配置
-- 热重载 (HMR) 配置
+### 3.1 Vercel MCP（必需）⭐⭐⭐
 
-### 3.2 代码风格
-- TypeScript 严格模式
-- 函数式优先
-- 显式类型定义（不用 any）
+**用途**:
+- 部署项目到 Vercel
+- 获取部署状态
+- 获取预览链接
+- 查看部署日志
 
----
-
-## 4. 输出规范（强制格式）
-
-### 4.1 复杂任务必须包含三个板块
-
-```markdown
-## 思考与分析
-
-[分析问题、梳理思路、识别风险点]
-
-## 实施计划
-
-[技术方案、架构设计、选型理由]
-
-## 任务清单
-
-- [ ] 任务 1: [描述]
-- [ ] 任务 2: [描述]
-- [ ] 任务 3: [描述]
-```
-
-### 4.2 代码回复格式
-
-```markdown
-### 修改文件: `文件路径`
-
-```语言
-// 完整代码或 diff
-```
-
-**说明**: [为什么这样改]
-```
-
----
-
-## 5. 固定指令响应
-
-当收到以下指令时，**严格按格式执行**：
-
-| 指令 | 动作 |
-|------|------|
-| `Implementation Plan, Task List and Thought in chinese` | 立即输出三板块格式（思考/计划/清单） |
-| `开始实现` / `可以` / `Implement` | 从 Step 3 进入 Step 4/5 |
-| `下一步` | 继续下一个任务 |
-| `简化` | 去掉过度设计，返回最小可行方案 |
-
----
-
-## 6. 禁止事项
-
-❌ **未经确认直接生成大量代码**  
-❌ **使用英文回复**  
-❌ **过度设计（为未来不需要的功能写代码）**  
-❌ **不验证直接说"应该可以"**  
-❌ **隐瞒代码问题**
-
----
-
-## 7. 使用示例
-
-### 示例对话 1：正常流程
-
-**用户**: 帮我做个用户管理系统
-
-**Kimi**: 
-```
-## 思考与分析
-
-用户需要用户管理系统，但需求较模糊。需要明确：
-1. 是否需要权限角色（RBAC）？
-2. 使用什么技术栈？
-3. 是否需要前端界面？
-
-## 实施计划
-
-建议采用最小可行方案：
-- 后端: Node.js + Express + Prisma + SQLite
-- 功能: 增删改查用户，无复杂权限
-- 前端: 可选，先提供 REST API
-
-## 任务清单
-
-- [ ] 搭建 Express + TypeScript 项目
-- [ ] 配置 Prisma 和数据库
-- [ ] 实现用户 CRUD API
-- [ ] 添加数据验证
-- [ ] 测试接口
-```
-
-**用户**: 可以，但我要用 PostgreSQL，有前端
-
-**Kimi**: [等待用户说"开始实现"或确认...]
-
-**用户**: 开始实现
-
-**Kimi**: [进入 Step 4/5，拆解任务并开始编码]
-
----
-
-### 示例对话 2：固定指令
-
-**用户**: Implementation Plan, Task List and Thought in chinese
-
-**Kimi**: [立即按三板块格式输出，不管之前说了什么]
-
----
-
-## 8. 项目特定配置
-
-### 技术栈（根据实际项目填写）
-- 前端: React + TypeScript + Vite
-- 后端: Node.js + Express
-- 数据库: PostgreSQL + Prisma
-- 样式: Tailwind CSS
-- 状态管理: Zustand
-
-### 开发命令
+**安装方式**:
 ```bash
-npm run dev      # 启动开发服务器（带热重载）
-npm run build    # 生产构建
-npm run lint     # 代码检查
-npx tsc --noEmit # 类型检查
+# 通过 Smithery 安装
+npx -y @smithery/cli install @vercel/mcp
+
+# 或手动配置
+```
+
+**Kimi 配置** (`~/.kimi/config.json`):
+```json
+{
+  "mcpServers": {
+    "vercel": {
+      "command": "npx",
+      "args": ["-y", "@vercel/mcp@latest"],
+      "env": {
+        "VERCEL_TOKEN": "{{VERCEL_TOKEN}}"
+      }
+    }
+  }
+}
+```
+
+**提供的工具**:
+- `vercel_deploy` - 部署项目
+- `vercel_list_deployments` - 列出部署
+- `vercel_get_deployment` - 获取部署详情
+- `vercel_get_project` - 获取项目信息
+
+---
+
+### 3.2 Git/GitHub MCP（推荐）⭐⭐
+
+**用途**:
+- 推送代码到远程仓库
+- 创建分支
+- 查看提交历史
+
+**安装**:
+```bash
+npx -y @smithery/cli install @github/mcp-server-github
+```
+
+**配置**:
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@github/mcp-server-github@latest"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "{{GITHUB_TOKEN}}"
+      }
+    }
+  }
+}
 ```
 
 ---
 
-**重要提示**: 每次会话开始时，确认已阅读并理解本规则。
+### 3.3 Bash/终端（Kimi 内置）✅
+
+**用途**:
+- 执行 git 命令
+- 运行 npm 脚本
+- 文件操作
+
+**说明**: 已内置，无需安装
+
+---
+
+## 4. 用户必须提供的东西
+
+### 4.1 环境变量/配置
+
+| 配置项 | 用途 | 获取方式 |
+|--------|------|----------|
+| `VERCEL_TOKEN` | Vercel API 调用权限 | Vercel Dashboard → Settings → Tokens |
+| `VERCEL_PROJECT_ID` | 指定部署项目 | Vercel Project Settings |
+| `GITHUB_TOKEN` | 推送代码到仓库 | GitHub Settings → Developer settings → Personal access tokens |
+| Git 用户名/邮箱 | Commit 信息 | `git config` |
+
+### 4.2 项目配置
+
+**vercel.json**（项目根目录）:
+```json
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "outputDirectory": "dist"
+}
+```
+
+**说明**: 根据项目类型调整 `framework` 和 `outputDirectory`
+- Vite React: `"framework": "vite"`, `"outputDirectory": "dist"`
+- Next.js: `"framework": "nextjs"`, `"outputDirectory": ".next"`
+- Create React App: `"framework": "create-react-app"`, `"outputDirectory": "build"`
+
+### 4.3 仓库配置
+
+**项目必须**:
+1. 已初始化为 Git 仓库 (`git init`)
+2. 已关联远程仓库 (`git remote add origin ...`)
+3. 已连接到 Vercel（通过 GitHub/GitLab 集成或手动）
+
+---
+
+## 5. Vercel 部署工作流详细步骤
+
+### 5.1 部署触发方式
+
+用户完成代码后，说以下任一指令触发部署：
+
+```
+"部署"
+"deploy"
+"提交并部署"
+"部署到 Vercel"
+"预览"
+```
+
+### 5.2 部署执行流程
+
+```
+用户说"部署"
+    ↓
+1. 检查 Git 状态
+    ↓
+2. 生成 Commit Message
+    ↓
+3. git commit
+    ↓
+4. git push origin main
+    ↓
+5. 调用 Vercel MCP 获取部署状态
+    ↓
+6. 等待部署完成
+    ↓
+7. 获取预览链接 (.vercel.app)
+    ↓
+8. 输出给用户
+```
+
+### 5.3 部署输出格式
+
+```markdown
+🚀 开始部署流程
+
+Step 1/4: 提交代码
+✓ git add .
+✓ git commit -m "feat: xxx"
+✓ git push origin main
+
+Step 2/4: 触发 Vercel 部署
+✓ 部署已触发
+✓ Deployment ID: dpl_xxxxxxxx
+
+Step 3/4: 等待部署完成
+⏳ 构建中... (约 30-60 秒)
+✓ 构建成功
+✓ 部署完成
+
+Step 4/4: 获取预览链接
+─────────────────────────────────
+🌐 预览链接: https://your-project-xxx.vercel.app
+─────────────────────────────────
+
+✅ 部署成功！
+
+请访问上述链接进行验证，如有问题请告诉我：
+1. 问题描述
+2. 截图（如有）
+3. 期望的效果
+
+我会根据你的反馈进行修复并重新部署。
+```
+
+### 5.4 部署失败处理
+
+```markdown
+❌ 部署失败
+
+错误信息: [错误详情]
+
+可能原因:
+1. 构建错误 - 请检查代码
+2. 依赖缺失 - 检查 package.json
+3. 环境变量缺失 - 检查 Vercel Dashboard
+
+建议:
+- 查看完整日志: https://vercel.com/dashboard
+- 本地构建测试: npm run build
+
+是否修复后重新部署？（是/否）
+```
+
+---
+
+## 6. 用户验证与迭代流程
+
+### 6.1 用户反馈格式
+
+用户访问预览链接后，按以下格式提供反馈：
+
+```markdown
+**问题 1**: [描述]
+- 页面/组件: [位置]
+- 当前效果: [截图或描述]
+- 期望效果: [描述]
+- 优先级: [高/中/低]
+
+**问题 2**: [描述]
+...
+```
+
+### 6.2 Kimi 处理流程
+
+收到用户反馈后：
+
+1. **记录问题** → 更新到 `docs/issues/当前任务.md`
+2. **分析问题** → 定位代码位置
+3. **提出修复方案** → 等待用户确认
+4. **修复代码** → 本地检查
+5. **重新部署** → 获取新预览链接
+6. **循环直到用户确认** → 标记任务完成
+
+### 6.3 迭代输出格式
+
+```markdown
+📋 收到反馈，准备修复
+
+**问题清单**:
+1. ✅ 问题 1: [描述] - 已修复
+2. 🔄 问题 2: [描述] - 修复中
+3. ⏸️ 问题 3: [描述] - 需要确认
+
+**修复方案**:
+- 修改文件: [文件路径]
+- 修改内容: [简述]
+
+是否开始修复并重新部署？（是/否）
+```
+
+---
+
+## 7. 项目文件结构
+
+```
+project-flow2/
+├── .kimi-rules                    # Kimi 规则文件
+├── vercel.json                    # Vercel 配置 ⭐ 必需
+├── package.json                   # 项目依赖
+├── task.json                      # 任务清单
+├── progress.txt                   # 进度日志
+├── scripts/
+│   ├── auto-commit.js             # 自动提交脚本
+│   └── deploy-vercel.js           # Vercel 部署辅助脚本
+├── docs/
+│   ├── changes/                   # 变更文档
+│   └── issues/                    # 问题记录
+└── src/                           # 源码目录
+```
+
+---
+
+## 8. 关键命令速查
+
+### Git 操作
+```bash
+git add .
+git commit -m "message"
+git push origin main
+```
+
+### Vercel MCP 操作
+```bash
+# 部署（通过 MCP）
+vercel_deploy --project-id xxx
+
+# 获取部署状态
+vercel_get_deployment --id dpl_xxx
+
+# 列出最近部署
+vercel_list_deployments --project-id xxx
+```
+
+### 本地检查
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+---
+
+## 9. 环境变量配置示例
+
+### Windows (PowerShell)
+```powershell
+$env:VERCEL_TOKEN = "vc_xxxxxxxxxxxx"
+$env:VERCEL_PROJECT_ID = "prj_xxxxxxxxxxxx"
+$env:GITHUB_TOKEN = "ghp_xxxxxxxxxxxx"
+```
+
+### Windows (CMD)
+```cmd
+set VERCEL_TOKEN=vc_xxxxxxxxxxxx
+set VERCEL_PROJECT_ID=prj_xxxxxxxxxxxx
+set GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+### macOS/Linux
+```bash
+export VERCEL_TOKEN="vc_xxxxxxxxxxxx"
+export VERCEL_PROJECT_ID="prj_xxxxxxxxxxxx"
+export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
+```
+
+### .env 文件（项目根目录）
+```bash
+# .env.local（不要提交到 Git）
+VERCEL_TOKEN=vc_xxxxxxxxxxxx
+VERCEL_PROJECT_ID=prj_xxxxxxxxxxxx
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+---
+
+## 10. 故障排除
+
+### 问题 1: Vercel MCP 无法连接
+
+**检查**:
+1. VERCEL_TOKEN 是否正确
+2. Token 是否有足够权限
+3. 网络连接是否正常
+
+**解决**:
+```bash
+# 测试 Token
+curl -H "Authorization: Bearer $VERCEL_TOKEN" \
+  https://api.vercel.com/v9/user
+```
+
+### 问题 2: 部署成功但页面 404
+
+**检查**:
+1. `vercel.json` 中的 `outputDirectory` 是否正确
+2. 构建输出目录是否存在
+3. 是否配置了路由重写
+
+### 问题 3: 环境变量未生效
+
+**检查**:
+1. 在 Vercel Dashboard 中检查环境变量
+2. 重新部署（环境变量更新需要重新部署）
+
+### 问题 4: Git push 失败
+
+**检查**:
+1. 远程仓库是否正确配置
+2. 是否有权限推送
+3. 是否需要先 pull
+
+---
+
+## 12. 数据库操作规范
+
+### 12.1 数据诊断流程
+
+当用户反馈"页面没有数据"时，按以下步骤排查：
+
+```
+1. 检查数据库表是否存在数据
+   ↓
+2. 检查 RLS (Row Level Security) 权限
+   ↓
+3. 检查字段名是否匹配
+   ↓
+4. 检查前端查询逻辑
+```
+
+### 12.2 使用 Service Key 操作数据库
+
+```javascript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  'https://ghhvdffsyvzkhbftifzy.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdoaHZkZmZzeXZ6a2hiZnRpZnp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzAxMjY0NCwiZXhwIjoyMDgyNTg4NjQ0fQ.L-sqETv0f0BY-m5ny_E3yEDf0VoS2MRmIxYK98dVHNs'
+);
+
+// 查询数据
+const { data, error } = await supabase.from('table_name').select('*');
+
+// 插入数据
+const { error } = await supabase.from('table_name').insert([{...}]);
+
+// 更新 RLS 策略（需要使用 Dashboard SQL Editor）
+```
+
+### 12.3 常用表清单
+
+| 表名 | 用途 | 关键字段 |
+|------|------|----------|
+| app_users | 用户数据 | id, name, email, role |
+| app_courses | 课程数据 | id, title, author, status |
+| app_assignments | 作业数据 | id, title, content, course_id, teacher_id |
+| app_class_sessions | 课堂数据 | id, title, course_id, scheduled_start |
+| app_attendance | 考勤数据 | id, session_id, student_id, status |
+| app_announcements | 公告数据 | id, title, content, type |
+| app_community_posts | 社区帖子 | id, title, content, author_id |
+| app_tools | 工具数据 | id, name, description, category |
+| app_simulation_scenarios | 模拟场景 | id, title, category, difficulty |
+
+### 12.4 RLS 修复 SQL 模板
+
+```sql
+-- 修复 RLS 策略
+ALTER TABLE public.{table_name} DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.{table_name} ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow authenticated read access" ON public.{table_name};
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.{table_name};
+
+CREATE POLICY "Allow authenticated read access" 
+ON public.{table_name} FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow all operations for authenticated users" 
+ON public.{table_name} FOR ALL TO authenticated USING (true) WITH CHECK (true);
+```
+
+---
+
+## 13. 工作流程总结
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 需求分析 → 2. 方案构思 → 3. 等待审核                    │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  4. 任务拆解 → 5. 代码实现 → 6. 本地测试（类型/Lint/构建）  │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  7. 用户说"部署"                                            │
+│     ├─ git commit                                           │
+│     ├─ git push                                             │
+│     ├─ Vercel MCP 部署                                      │
+│     └─ 获取预览链接                                         │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  8. 用户验证预览链接                                        │
+│     ├─ 满意 → 标记任务完成 → 继续下一个任务                 │
+│     └─ 有问题 → 提出反馈 → 修复 → 重新部署                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+**重要提示**: 
+- 每次会话开始时，确认已阅读并理解本规则
+- 部署前确保所有代码已通过本地类型检查
+- 用户反馈是迭代的关键，请详细记录

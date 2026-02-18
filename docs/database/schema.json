@@ -1,0 +1,1171 @@
+{
+  "app_users": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "u-admin-01"
+    },
+    {
+      "column_name": "email",
+      "data_type": "string",
+      "sample_value": "admin@company.com"
+    },
+    {
+      "column_name": "name",
+      "data_type": "string",
+      "sample_value": "Admin User"
+    },
+    {
+      "column_name": "role",
+      "data_type": "string",
+      "sample_value": "SuperAdmin"
+    },
+    {
+      "column_name": "status",
+      "data_type": "string",
+      "sample_value": "正常"
+    },
+    {
+      "column_name": "department",
+      "data_type": "string",
+      "sample_value": "IT部"
+    },
+    {
+      "column_name": "avatar",
+      "data_type": "string",
+      "sample_value": "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2025-12-29T17:24:56.994169+00:00"
+    },
+    {
+      "column_name": "subscription_tier",
+      "data_type": "string",
+      "sample_value": "pro"
+    },
+    {
+      "column_name": "xp",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "streak",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "ai_tier",
+      "data_type": "string",
+      "sample_value": "none"
+    },
+    {
+      "column_name": "ai_daily_used",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "ai_daily_reset_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "completed_courses_count",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "membership_expires_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "is_lifetime_member",
+      "data_type": "boolean",
+      "sample_value": false
+    },
+    {
+      "column_name": "teacher_license_url",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "teacher_verified_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "teacher_verified_by",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "institution_name",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "institution_code",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "job_title",
+      "data_type": "object",
+      "sample_value": null
+    }
+  ],
+  "app_courses": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "c-sys-001"
+    },
+    {
+      "column_name": "category",
+      "data_type": "string",
+      "sample_value": "Course"
+    },
+    {
+      "column_name": "title",
+      "data_type": "string",
+      "sample_value": "项目全生命周期管理实战"
+    },
+    {
+      "column_name": "author",
+      "data_type": "string",
+      "sample_value": "项目管理中心"
+    },
+    {
+      "column_name": "description",
+      "data_type": "string",
+      "sample_value": "从项目启动到收尾的端到端管理体系，涵盖五大过程组与十大知识领域在企业内部的落地实践。"
+    },
+    {
+      "column_name": "image",
+      "data_type": "string",
+      "sample_value": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800&q=80"
+    },
+    {
+      "column_name": "status",
+      "data_type": "string",
+      "sample_value": "Published"
+    },
+    {
+      "column_name": "duration",
+      "data_type": "string",
+      "sample_value": "12h 30m"
+    },
+    {
+      "column_name": "views",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "chapters",
+      "data_type": "object",
+      "sample_value": [
+        {
+          "type": "video",
+          "title": "第1章：项目启动与立项",
+          "duration": "45:00"
+        },
+        {
+          "type": "video",
+          "title": "第2章：WBS 分解与进度规划",
+          "duration": "60:00"
+        },
+        {
+          "type": "quiz",
+          "title": "实战演练：制定项目章程",
+          "duration": "20:00"
+        }
+      ]
+    },
+    {
+      "column_name": "resources",
+      "data_type": "object",
+      "sample_value": [
+        {
+          "url": "#",
+          "name": "项目管理手册_V3.0.pdf",
+          "size": "15MB"
+        },
+        {
+          "url": "#",
+          "name": "WBS_标准模板.xlsx",
+          "size": "2MB"
+        }
+      ]
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2025-12-29T17:24:56.994169+00:00"
+    },
+    {
+      "column_name": "rating",
+      "data_type": "number",
+      "sample_value": 4.5
+    },
+    {
+      "column_name": "last_update",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "kb_node_ids",
+      "data_type": "object",
+      "sample_value": []
+    },
+    {
+      "column_name": "learning_path_order",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "category_color",
+      "data_type": "object",
+      "sample_value": null
+    }
+  ],
+  "app_assignments": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "2ed360f0-3e21-44da-b0f9-6569d234b7e7"
+    },
+    {
+      "column_name": "title",
+      "data_type": "string",
+      "sample_value": "项目计划书撰写"
+    },
+    {
+      "column_name": "content",
+      "data_type": "string",
+      "sample_value": "撰写一份完整的项目计划书"
+    },
+    {
+      "column_name": "course_id",
+      "data_type": "string",
+      "sample_value": "c-sys-001"
+    },
+    {
+      "column_name": "teacher_id",
+      "data_type": "string",
+      "sample_value": "340f28b9-8557-4e6f-adbf-e2abb1543ec2"
+    },
+    {
+      "column_name": "deadline",
+      "data_type": "string",
+      "sample_value": "2026-02-25T09:42:58.956+00:00"
+    },
+    {
+      "column_name": "max_score",
+      "data_type": "number",
+      "sample_value": 100
+    },
+    {
+      "column_name": "attachments",
+      "data_type": "object",
+      "sample_value": []
+    },
+    {
+      "column_name": "status",
+      "data_type": "string",
+      "sample_value": "pending"
+    },
+    {
+      "column_name": "submitted_count",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "total_count",
+      "data_type": "number",
+      "sample_value": 5
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-02-18T09:43:01.303691+00:00"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "string",
+      "sample_value": "2026-02-18T09:43:01.303691+00:00"
+    },
+    {
+      "column_name": "is_deleted",
+      "data_type": "boolean",
+      "sample_value": false
+    },
+    {
+      "column_name": "deleted_at",
+      "data_type": "object",
+      "sample_value": null
+    }
+  ],
+  "app_class_sessions": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "4c2cdfb7-7030-4928-ab03-fae6062253ed"
+    },
+    {
+      "column_name": "course_id",
+      "data_type": "string",
+      "sample_value": "c-sys-001"
+    },
+    {
+      "column_name": "teacher_id",
+      "data_type": "string",
+      "sample_value": "340f28b9-8557-4e6f-adbf-e2abb1543ec2"
+    },
+    {
+      "column_name": "title",
+      "data_type": "string",
+      "sample_value": "项目管理基础 - 第1讲"
+    },
+    {
+      "column_name": "description",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "classroom",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "scheduled_start",
+      "data_type": "string",
+      "sample_value": "2026-02-16T18:42:59.257+00:00"
+    },
+    {
+      "column_name": "scheduled_end",
+      "data_type": "string",
+      "sample_value": "2026-02-16T19:42:59.257+00:00"
+    },
+    {
+      "column_name": "actual_start",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "actual_end",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "duration",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "status",
+      "data_type": "string",
+      "sample_value": "completed"
+    },
+    {
+      "column_name": "max_students",
+      "data_type": "number",
+      "sample_value": 30
+    },
+    {
+      "column_name": "recording_enabled",
+      "data_type": "boolean",
+      "sample_value": false
+    },
+    {
+      "column_name": "recording_started_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "recording_ended_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "recording_duration",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "recording_url",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "recording_file_size",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "recording_status",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "screen_share_enabled",
+      "data_type": "boolean",
+      "sample_value": false
+    },
+    {
+      "column_name": "screen_share_started_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "screen_share_ended_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "whiteboard_data",
+      "data_type": "object",
+      "sample_value": []
+    },
+    {
+      "column_name": "attendance_count",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "question_count",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "poll_count",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "engagement_score",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-02-18T09:43:02.236585+00:00"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "string",
+      "sample_value": "2026-02-18T09:43:02.236585+00:00"
+    }
+  ],
+  "app_attendance": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "93ca02a6-d948-4789-ac85-6b7485f3c2eb"
+    },
+    {
+      "column_name": "session_id",
+      "data_type": "string",
+      "sample_value": "4c2cdfb7-7030-4928-ab03-fae6062253ed"
+    },
+    {
+      "column_name": "student_id",
+      "data_type": "string",
+      "sample_value": "23d45360-290b-4c65-b5da-d55a00ad6d5b"
+    },
+    {
+      "column_name": "status",
+      "data_type": "string",
+      "sample_value": "present"
+    },
+    {
+      "column_name": "check_in_time",
+      "data_type": "string",
+      "sample_value": "2026-02-17T18:58:24.581+00:00"
+    },
+    {
+      "column_name": "check_out_time",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "device_type",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "device_name",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "ip_address",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "user_agent",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "location_lat",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "location_lng",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "location_accuracy",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "notes",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-02-18T09:43:02.566282+00:00"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "string",
+      "sample_value": "2026-02-18T09:43:02.566282+00:00"
+    }
+  ],
+  "app_course_enrollments": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "ea828798-2048-4e29-bb93-5dd6cf58b128"
+    },
+    {
+      "column_name": "student_id",
+      "data_type": "string",
+      "sample_value": "u-student-001"
+    },
+    {
+      "column_name": "course_id",
+      "data_type": "string",
+      "sample_value": "c-teacher-001"
+    },
+    {
+      "column_name": "enrolled_at",
+      "data_type": "string",
+      "sample_value": "2026-01-25T06:30:50.086+00:00"
+    },
+    {
+      "column_name": "enrolled_by",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "status",
+      "data_type": "string",
+      "sample_value": "active"
+    },
+    {
+      "column_name": "last_accessed_at",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "completion_date",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "final_score",
+      "data_type": "object",
+      "sample_value": null
+    }
+  ],
+  "app_announcements": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "7b660ee2-703a-4b15-9a5e-30f55387e7fc"
+    },
+    {
+      "column_name": "title",
+      "data_type": "string",
+      "sample_value": "欢迎使用 ProjectFlow 项目管理学习平台！"
+    },
+    {
+      "column_name": "content",
+      "data_type": "string",
+      "sample_value": "亲爱的用户，欢迎加入 ProjectFlow！在这里您可以：\r\n• 学习专业的项目管理课程\r\n• 使用强大的项目管理工具\r\n• 参与社区讨论与经验分享\r\n• 体验实战模拟场景\r\n\r\n祝您学习愉快，技能精进！如有任何问题，请联系我们的客服团队。"
+    },
+    {
+      "column_name": "type",
+      "data_type": "string",
+      "sample_value": "success"
+    },
+    {
+      "column_name": "priority",
+      "data_type": "number",
+      "sample_value": 10
+    },
+    {
+      "column_name": "target_audience",
+      "data_type": "string",
+      "sample_value": "all"
+    },
+    {
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "sample_value": true
+    },
+    {
+      "column_name": "start_at",
+      "data_type": "string",
+      "sample_value": "2026-01-01T00:00:00+00:00"
+    },
+    {
+      "column_name": "end_at",
+      "data_type": "string",
+      "sample_value": "2026-03-01T00:00:00+00:00"
+    },
+    {
+      "column_name": "created_by",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-01-01T00:00:00+00:00"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "string",
+      "sample_value": "2026-02-15T18:55:22.406565+00:00"
+    }
+  ],
+  "app_community_posts": [
+    {
+      "column_name": "id",
+      "data_type": "number",
+      "sample_value": 1
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "string",
+      "sample_value": "u-alex-demo"
+    },
+    {
+      "column_name": "user_name",
+      "data_type": "string",
+      "sample_value": "Alex Chen"
+    },
+    {
+      "column_name": "user_avatar",
+      "data_type": "string",
+      "sample_value": "https://images.unsplash.com/photo-1599566150163-29194dcaad36?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80"
+    },
+    {
+      "column_name": "role",
+      "data_type": "string",
+      "sample_value": "Student"
+    },
+    {
+      "column_name": "content",
+      "data_type": "string",
+      "sample_value": "终于拿到了 PMP 证书！🎉 感谢 Michael 老师的课程，特别是关于风险管理的那一章，在实际工作中帮我避了好几个坑。备考笔记整理好了，有需要的同学可以私信我。"
+    },
+    {
+      "column_name": "image",
+      "data_type": "object",
+      "sample_value": null
+    },
+    {
+      "column_name": "tags",
+      "data_type": "object",
+      "sample_value": [
+        "PMP",
+        "备考心得",
+        "ProjectManagement"
+      ]
+    },
+    {
+      "column_name": "likes",
+      "data_type": "number",
+      "sample_value": 128
+    },
+    {
+      "column_name": "comments",
+      "data_type": "number",
+      "sample_value": 45
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2025-12-30T03:24:13.281365+00:00"
+    },
+    {
+      "column_name": "is_pinned",
+      "data_type": "boolean",
+      "sample_value": false
+    }
+  ],
+  "app_simulation_scenarios": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "a5d48778-ea84-432e-a90e-0bbdc5307fef"
+    },
+    {
+      "column_name": "title",
+      "data_type": "string",
+      "sample_value": "项目危机处理"
+    },
+    {
+      "column_name": "description",
+      "data_type": "string",
+      "sample_value": "模拟项目中突发危机的应对决策，测试你的危机管理能力"
+    },
+    {
+      "column_name": "difficulty",
+      "data_type": "string",
+      "sample_value": "Hard"
+    },
+    {
+      "column_name": "category",
+      "data_type": "string",
+      "sample_value": "Crisis Management"
+    },
+    {
+      "column_name": "cover_image",
+      "data_type": "string",
+      "sample_value": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800"
+    },
+    {
+      "column_name": "stages",
+      "data_type": "object",
+      "sample_value": [
+        {
+          "id": "stage-1",
+          "title": "危机发现",
+          "context": "你是一名项目经理，负责一个6个月期的软件开发项目。项目进行到第4个月，发现核心模块开发进度严重滞后。",
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "立即增加人手加班赶工",
+              "impact": {
+                "score": -10,
+                "feedback": "Brooks法则：增加人手会进一步延误项目，新人需要时间熟悉项目。",
+                "resources": {
+                  "budget": -15,
+                  "morale": -10
+                }
+              },
+              "description": "投入更多资源，每天加班3小时"
+            },
+            {
+              "id": "d2",
+              "text": "快速跟进并行任务",
+              "impact": {
+                "score": 20,
+                "feedback": "正确！快速跟进是进度压缩的标准技术，能在不增加太多成本的情况下缩短工期。",
+                "resources": {
+                  "time": -3,
+                  "budget": -5
+                },
+                "is_optimal": true
+              },
+              "description": "将原本串行的任务改为并行执行"
+            },
+            {
+              "id": "d3",
+              "text": "削减范围并与客户协商",
+              "impact": {
+                "score": 15,
+                "feedback": "不错的策略，通过范围管理来平衡进度，但需要获得客户同意。",
+                "resources": {
+                  "budget": 0,
+                  "morale": 5
+                }
+              },
+              "description": "优先交付核心功能，将非核心功能延后"
+            }
+          ],
+          "description": "项目关键路径延误3天，预算超支20%，客户要求提前交付。"
+        },
+        {
+          "id": "stage-2",
+          "title": "团队冲突",
+          "context": "由于进度压力，开发和测试团队之间的矛盾激化。开发人员认为测试过于苛刻，测试人员认为开发质量差。",
+          "decisions": [
+            {
+              "id": "d4",
+              "text": "一对一沟通调解",
+              "impact": {
+                "score": 15,
+                "feedback": "优秀的冲突解决方法！通过私下沟通了解真实问题，避免了公开对抗。",
+                "resources": {
+                  "morale": 10
+                },
+                "is_optimal": true
+              },
+              "description": "分别与两个团队负责人沟通，了解各自诉求"
+            },
+            {
+              "id": "d5",
+              "text": "召开全体团队会议",
+              "impact": {
+                "score": 5,
+                "feedback": "公开会议可能加剧冲突，建议在私下沟通后再考虑公开讨论。",
+                "resources": {
+                  "morale": 0
+                }
+              },
+              "description": "召集所有相关人员，公开讨论问题"
+            },
+            {
+              "id": "d6",
+              "text": "更换问题团队成员",
+              "impact": {
+                "score": -5,
+                "feedback": "更换成员成本高且影响团队稳定，应该在尝试其他方法后再考虑。",
+                "resources": {
+                  "budget": -10,
+                  "morale": -5
+                }
+              },
+              "description": "调离表现不佳的成员，引入新成员"
+            }
+          ],
+          "description": "开发团队和测试团队产生严重冲突，互相指责，团队士气低落。"
+        }
+      ]
+    },
+    {
+      "column_name": "decisions",
+      "data_type": "object",
+      "sample_value": []
+    },
+    {
+      "column_name": "resources",
+      "data_type": "object",
+      "sample_value": {}
+    },
+    {
+      "column_name": "learning_objectives",
+      "data_type": "object",
+      "sample_value": [
+        "危机管理",
+        "冲突解决",
+        "进度压缩",
+        "团队管理"
+      ]
+    },
+    {
+      "column_name": "is_published",
+      "data_type": "boolean",
+      "sample_value": true
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-02-14T16:48:21.347225+00:00"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "string",
+      "sample_value": "2026-02-14T16:48:21.347225+00:00"
+    },
+    {
+      "column_name": "estimated_time",
+      "data_type": "number",
+      "sample_value": 15
+    },
+    {
+      "column_name": "completion_count",
+      "data_type": "number",
+      "sample_value": 0
+    }
+  ],
+  "app_tools": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "91ea8a8c-96f4-4515-9c7a-c23463b109db"
+    },
+    {
+      "column_name": "name",
+      "data_type": "string",
+      "sample_value": "蒙特卡洛模拟器"
+    },
+    {
+      "column_name": "description",
+      "data_type": "string",
+      "sample_value": "基于PERT分布的风险量化分析，10,000次模拟预测项目完成概率"
+    },
+    {
+      "column_name": "category",
+      "data_type": "string",
+      "sample_value": "risk"
+    },
+    {
+      "column_name": "icon",
+      "data_type": "string",
+      "sample_value": "Calculator"
+    },
+    {
+      "column_name": "config",
+      "data_type": "object",
+      "sample_value": {}
+    },
+    {
+      "column_name": "is_active",
+      "data_type": "boolean",
+      "sample_value": true
+    },
+    {
+      "column_name": "required_tier",
+      "data_type": "string",
+      "sample_value": "pro"
+    },
+    {
+      "column_name": "difficulty",
+      "data_type": "string",
+      "sample_value": "Medium"
+    },
+    {
+      "column_name": "usage_count",
+      "data_type": "number",
+      "sample_value": 0
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-02-14T17:07:27.018314+00:00"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "string",
+      "sample_value": "2026-02-14T17:07:27.018314+00:00"
+    }
+  ],
+  "app_notifications": [
+    {
+      "column_name": "（表为空，无法推断结构）",
+      "data_type": "-",
+      "sample_value": "-"
+    }
+  ],
+  "app_learning_paths": [
+    {
+      "column_name": "（表为空，无法推断结构）",
+      "data_type": "-",
+      "sample_value": "-"
+    }
+  ],
+  "app_achievements": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "40b9016b-d957-4cf1-976c-66df45e84047"
+    },
+    {
+      "column_name": "code",
+      "data_type": "string",
+      "sample_value": "pmp_master"
+    },
+    {
+      "column_name": "name",
+      "data_type": "string",
+      "sample_value": "PMP大师"
+    },
+    {
+      "column_name": "description",
+      "data_type": "string",
+      "sample_value": "完成全部体系课程"
+    },
+    {
+      "column_name": "icon",
+      "data_type": "string",
+      "sample_value": "Trophy"
+    },
+    {
+      "column_name": "category",
+      "data_type": "string",
+      "sample_value": "learning"
+    },
+    {
+      "column_name": "unlock_type",
+      "data_type": "string",
+      "sample_value": "courses_completed"
+    },
+    {
+      "column_name": "unlock_threshold",
+      "data_type": "number",
+      "sample_value": 12
+    },
+    {
+      "column_name": "unlock_condition",
+      "data_type": "object",
+      "sample_value": {}
+    },
+    {
+      "column_name": "rarity",
+      "data_type": "string",
+      "sample_value": "legendary"
+    },
+    {
+      "column_name": "is_hidden",
+      "data_type": "boolean",
+      "sample_value": false
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2026-02-14T19:41:59.679329+00:00"
+    }
+  ],
+  "app_user_achievements": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "076418c3-fe8e-4af2-a59b-f2f5c245efc0"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "string",
+      "sample_value": "test-pro-001"
+    },
+    {
+      "column_name": "achievement_id",
+      "data_type": "string",
+      "sample_value": "bf8216bd-e406-4e04-ac89-8b71be718ead"
+    },
+    {
+      "column_name": "unlocked_at",
+      "data_type": "string",
+      "sample_value": "2026-01-27T13:54:42.003501+00:00"
+    },
+    {
+      "column_name": "progress",
+      "data_type": "number",
+      "sample_value": 100
+    },
+    {
+      "column_name": "is_new",
+      "data_type": "boolean",
+      "sample_value": false
+    }
+  ],
+  "app_user_badges": [
+    {
+      "column_name": "id",
+      "data_type": "string",
+      "sample_value": "4bd87c5e-8d63-4c60-9022-42d43255ec74"
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "string",
+      "sample_value": "test-pp-001"
+    },
+    {
+      "column_name": "badge_id",
+      "data_type": "string",
+      "sample_value": "pmp_master"
+    },
+    {
+      "column_name": "badge_name",
+      "data_type": "string",
+      "sample_value": "PMP大师"
+    },
+    {
+      "column_name": "badge_icon",
+      "data_type": "string",
+      "sample_value": "Crown"
+    },
+    {
+      "column_name": "badge_color",
+      "data_type": "string",
+      "sample_value": "text-yellow-600"
+    },
+    {
+      "column_name": "badge_bg",
+      "data_type": "string",
+      "sample_value": "bg-yellow-100"
+    },
+    {
+      "column_name": "condition",
+      "data_type": "string",
+      "sample_value": "通过PMP模拟考试且分数>85"
+    },
+    {
+      "column_name": "unlocked_at",
+      "data_type": "string",
+      "sample_value": "2026-02-09T16:48:21.347225+00:00"
+    }
+  ],
+  "app_polls": [
+    {
+      "column_name": "（表为空，无法推断结构）",
+      "data_type": "-",
+      "sample_value": "-"
+    }
+  ],
+  "app_poll_votes": [
+    {
+      "column_name": "（表为空，无法推断结构）",
+      "data_type": "-",
+      "sample_value": "-"
+    }
+  ],
+  "app_questions": [
+    {
+      "column_name": "（表为空，无法推断结构）",
+      "data_type": "-",
+      "sample_value": "-"
+    }
+  ],
+  "app_events": [
+    {
+      "column_name": "id",
+      "data_type": "number",
+      "sample_value": 1
+    },
+    {
+      "column_name": "user_id",
+      "data_type": "string",
+      "sample_value": "u-stu-01"
+    },
+    {
+      "column_name": "title",
+      "data_type": "string",
+      "sample_value": "每日敏捷站会"
+    },
+    {
+      "column_name": "start_time",
+      "data_type": "string",
+      "sample_value": "09:00 AM"
+    },
+    {
+      "column_name": "duration",
+      "data_type": "string",
+      "sample_value": "15min"
+    },
+    {
+      "column_name": "type",
+      "data_type": "string",
+      "sample_value": "meeting"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "string",
+      "sample_value": "2025-12-30T05:06:59.845281+00:00"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "project": "ProjectFlow2",
+  "generatedAt": "2026-02-18T13:31:30.974Z",
+  "supabaseUrl": "https://ghhvdffsyvzkhbftifzy.supabase.co",
+  "tableCount": 19,
+  "tables": [
+    "app_users",
+    "app_courses",
+    "app_assignments",
+    "app_class_sessions",
+    "app_attendance",
+    "app_course_enrollments",
+    "app_announcements",
+    "app_community_posts",
+    "app_simulation_scenarios",
+    "app_tools",
+    "app_notifications",
+    "app_learning_paths",
+    "app_achievements",
+    "app_user_achievements",
+    "app_user_badges",
+    "app_polls",
+    "app_poll_votes",
+    "app_questions",
+    "app_events"
+  ],
+  "stats": {
+    "app_users": 80,
+    "app_courses": 40,
+    "app_assignments": 3,
+    "app_class_sessions": 3,
+    "app_attendance": 10,
+    "app_course_enrollments": 93,
+    "app_announcements": 17,
+    "app_community_posts": 78,
+    "app_simulation_scenarios": 11,
+    "app_tools": 10,
+    "app_notifications": 0,
+    "app_learning_paths": 0,
+    "app_achievements": 13,
+    "app_user_achievements": 15,
+    "app_user_badges": 16,
+    "app_polls": 0,
+    "app_poll_votes": 0,
+    "app_questions": 0,
+    "app_events": 7
+  },
+  "rlsTest": {
+    "app_assignments": {
+      "status": "success",
+      "count": 0
+    },
+    "app_class_sessions": {
+      "status": "success",
+      "count": 0
+    },
+    "app_attendance": {
+      "status": "success",
+      "count": 0
+    },
+    "app_courses": {
+      "status": "success",
+      "count": 2
+    },
+    "app_users": {
+      "status": "success",
+      "count": 2
+    }
+  }
+}
