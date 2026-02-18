@@ -218,7 +218,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               completedCourses: 0
           },
           teacher: {
-              id: 'test-teacher-001',
+              id: '340f28b9-8557-4e6f-adbf-e2abb1543ec2',
               email: 'teacher@test.com',
               name: '张老师',
               role: 'Teacher',
