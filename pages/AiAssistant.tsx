@@ -22,7 +22,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<'basic' | 'pro'>('pro');
+    const [selectedModel, setSelectedModel] = useState<'basic' | 'pro'>('basic');
     const [usage, setUsage] = useState({ used: 0, limit: 0, resetAt: '' });
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -113,7 +113,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'ai',
-                content: '⚠️ Gemini Flash 需要 Pro+ 会员才能使用。您当前可以使用 Kimi AI。',
+                content: `⚠️ ${AI_MODELS['pro'].name} 需要 Pro+ 会员才能使用。您当前可以使用 ${AI_MODELS['basic'].name}。`,
                 timestamp: new Date()
             }]);
             return;
@@ -300,8 +300,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                                 onChange={(e) => setSelectedModel(e.target.value as 'basic' | 'pro')}
                                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             >
-                                <option value="basic">⚡ Gemini Flash</option>
-                                <option value="pro">🧠 Kimi 2.5</option>
+                                {availableModels.map(modelKey => (
+                                    <option key={modelKey} value={modelKey}>
+                                        {AI_MODELS[modelKey].icon} {AI_MODELS[modelKey].name}
+                                    </option>
+                                ))}
                             </select>
                         )}
 
