@@ -10,6 +10,7 @@ import {
   getAvailableModels, 
   getUsageLimitMessage,
   getGeminiApiKey,
+  getMoonshotApiKey,
   AI_DAILY_LIMITS
 } from '../lib/ai-config';
 
@@ -21,7 +22,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<'basic' | 'pro'>('basic');
+    const [selectedModel, setSelectedModel] = useState<'basic' | 'pro'>('pro');
     const [usage, setUsage] = useState({ used: 0, limit: 0, resetAt: '' });
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -139,16 +140,13 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
         try {
             const modelConfig = AI_MODELS[selectedModel];
             
-            if (selectedModel === 'basic') {
-                // 使用 Gemini
-                const apiKey = getGeminiApiKey();
-                if (!apiKey) {
-                    throw new Error('API Key 未配置');
-                }
+            // 使用 Moonshot/Kimi API
+            const apiKey = getMoonshotApiKey();
+            if (!apiKey) {
+                throw new Error('Moonshot API Key 未配置');
+            }
 
-                const ai = new GoogleGenAI({ apiKey });
-                
-                const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
+            const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
 用户信息:
 - 姓名: ${currentUser.name || '用户'}
 - 角色: ${currentUser.role || 'Student'}
@@ -156,43 +154,38 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
 
 请提供简洁、专业的回答。`;
 
-                const responseStream = await ai.models.generateContentStream({
-                    model: modelConfig.id,
-                    contents: [{ role: 'user', parts: [{ text }] }],
-                    config: { systemInstruction: systemPrompt }
-                });
+            const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'moonshot-v1-8k',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: text }
+                    ],
+                    temperature: 0.7,
+                    stream: false
+                })
+            });
 
-                setIsThinking(false);
-                let totalTokens = 0;
-
-                for await (const chunk of responseStream) {
-                    const chunkText = chunk.text || '';
-                    totalTokens += chunkText.length;
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === aiMsgId
-                            ? { ...msg, content: msg.content + chunkText }
-                            : msg
-                    ));
-                }
-
-                await recordUsage(modelConfig.id, totalTokens);
-            } else {
-                // Pro 模型 - Kimi (这里简化处理，实际接入 Moonshot API)
-                setIsThinking(false);
-                
-                // 模拟 Kimi 响应
-                setTimeout(async () => {
-                    const response = `【Kimi 2.5 深度分析】\n\n关于 "${text}" 的问题，我为您提供以下专业分析：\n\n1. **核心概念解析**\n   - 这是项目管理中的关键议题\n   - 涉及多个知识领域的交叉\n\n2. **最佳实践建议**\n   - 建议采用渐进式实施策略\n   - 注重团队协作和沟通\n\n3. **常见 pitfalls**\n   - 避免过度规划\n   - 保持灵活性\n\n如需更深入的分析，请提供更多背景信息。`;
-                    
-                    setMessages(prev => prev.map(msg =>
-                        msg.id === aiMsgId
-                            ? { ...msg, content: response }
-                            : msg
-                    ));
-                    
-                    await recordUsage(modelConfig.id, response.length);
-                }, 2000);
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
             }
+
+            const data = await response.json();
+            const aiResponse = data.choices?.[0]?.message?.content || '抱歉，我无法理解您的问题。';
+            
+            setIsThinking(false);
+            setMessages(prev => prev.map(msg =>
+                msg.id === aiMsgId
+                    ? { ...msg, content: aiResponse }
+                    : msg
+            ));
+
+            await recordUsage(modelConfig.id, aiResponse.length);
         } catch (err: any) {
             setIsThinking(false);
             const errorMsg = err.message.includes('API Key')
