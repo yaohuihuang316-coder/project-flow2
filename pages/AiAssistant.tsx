@@ -113,7 +113,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'ai',
-                content: '⚠️ Kimi 2.5 需要 Pro+ 会员才能使用。请切换到 Gemini Flash 或升级会员。',
+                content: '⚠️ Gemini Flash 需要 Pro+ 会员才能使用。您当前可以使用 Kimi AI。',
                 timestamp: new Date()
             }]);
             return;
@@ -139,14 +139,16 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
 
         try {
             const modelConfig = AI_MODELS[selectedModel];
+            let aiResponse = '';
             
-            // 使用 Moonshot/Kimi API
-            const apiKey = getMoonshotApiKey();
-            if (!apiKey) {
-                throw new Error('Moonshot API Key 未配置');
-            }
+            if (modelConfig.provider === 'moonshot') {
+                // 使用 Moonshot/Kimi API
+                const apiKey = getMoonshotApiKey();
+                if (!apiKey) {
+                    throw new Error('Moonshot API Key 未配置');
+                }
 
-            const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
+                const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
 用户信息:
 - 姓名: ${currentUser.name || '用户'}
 - 角色: ${currentUser.role || 'Student'}
@@ -154,29 +156,54 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
 
 请提供简洁、专业的回答。`;
 
-            const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: 'moonshot-v1-8k',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: text }
-                    ],
-                    temperature: 0.7,
-                    stream: false
-                })
-            });
+                const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'moonshot-v1-8k',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: text }
+                        ],
+                        temperature: 0.7,
+                        stream: false
+                    })
+                });
 
-            if (!response.ok) {
-                throw new Error(`API请求失败: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status}`);
+                }
+
+                const data = await response.json();
+                aiResponse = data.choices?.[0]?.message?.content || '抱歉，我无法理解您的问题。';
+            } else {
+                // 使用 Gemini API
+                const apiKey = getGeminiApiKey();
+                if (!apiKey) {
+                    throw new Error('Gemini API Key 未配置');
+                }
+
+                const ai = new GoogleGenAI({ apiKey });
+                
+                const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
+用户信息:
+- 姓名: ${currentUser.name || '用户'}
+- 角色: ${currentUser.role || 'Student'}
+- 当前等级: ${userTier}
+
+请提供简洁、专业的回答。`;
+
+                const response = await ai.models.generateContent({
+                    model: modelConfig.id,
+                    contents: [{ role: 'user', parts: [{ text }] }],
+                    config: { systemInstruction: systemPrompt }
+                });
+
+                aiResponse = response.text || '抱歉，我无法理解您的问题。';
             }
-
-            const data = await response.json();
-            const aiResponse = data.choices?.[0]?.message?.content || '抱歉，我无法理解您的问题。';
             
             setIsThinking(false);
             setMessages(prev => prev.map(msg =>
@@ -188,9 +215,12 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             await recordUsage(modelConfig.id, aiResponse.length);
         } catch (err: any) {
             setIsThinking(false);
-            const errorMsg = err.message.includes('API Key')
-                ? '⚠️ 错误：未配置 API Key。请联系管理员。'
-                : '⚠️ 连接中断，请稍后再试。';
+            let errorMsg = '⚠️ 连接中断，请稍后再试。';
+            if (err.message.includes('Moonshot API Key')) {
+                errorMsg = '⚠️ 错误：未配置 Moonshot API Key。请联系管理员。';
+            } else if (err.message.includes('Gemini API Key')) {
+                errorMsg = '⚠️ 错误：未配置 Gemini API Key。请联系管理员。';
+            }
 
             setMessages(prev => prev.map(msg =>
                 msg.id === aiMsgId ? { ...msg, content: errorMsg } : msg

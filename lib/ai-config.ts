@@ -6,7 +6,7 @@ export const AI_MODELS: Record<'basic' | 'pro', AIModelConfig> = {
     id: 'moonshot-v1-8k',
     provider: 'moonshot',
     name: 'Kimi AI',
-    description: 'Kimi智能助手，快速响应项目管理问题',
+    description: 'Kimi智能助手，快速响应项目管理问题（默认）',
     maxTokens: 8192,
     temperature: 0.7,
     icon: '🌙',
@@ -14,15 +14,15 @@ export const AI_MODELS: Record<'basic' | 'pro', AIModelConfig> = {
     features: ['知识问答', '概念解释', '简单分析', '文档辅助']
   },
   pro: {
-    id: 'moonshot-v1-32k',
-    provider: 'moonshot',
-    name: 'Kimi Pro',
-    description: 'Kimi高级版，深度分析和专业文档生成',
-    maxTokens: 32768,
-    temperature: 0.5,
-    icon: '🧠',
-    color: '#8b5cf6',
-    features: ['深度分析', '长文档处理', '代码编写', '战略规划', '复杂计算']
+    id: 'gemini-2.0-flash',
+    provider: 'google',
+    name: 'Gemini Flash',
+    description: 'Google Gemini，快速响应备选方案',
+    maxTokens: 8192,
+    temperature: 0.7,
+    icon: '⚡',
+    color: '#4285f4',
+    features: ['知识问答', '概念解释', '简单分析']
   }
 };
 
@@ -43,7 +43,8 @@ export const canUseAIModel = (
     pro: 1,
     pro_plus: 2
   };
-  // pro模型需要pro_plus, basic模型所有付费会员都可用
+  // pro模型(Gemini)需要pro_plus权限
+  // basic模型(Kimi)所有付费会员(pro/pro_plus)都可用
   const requiredLevel = modelType === 'pro' ? 2 : 1;
   return tierLevels[userTier] >= requiredLevel;
 };
@@ -51,8 +52,8 @@ export const canUseAIModel = (
 // 获取用户可用的AI模型
 export const getAvailableModels = (userTier: MembershipTier): ('basic' | 'pro')[] => {
   if (userTier === 'free') return [];
-  if (userTier === 'pro') return ['basic'];
-  if (userTier === 'pro_plus') return ['basic', 'pro'];
+  if (userTier === 'pro') return ['basic']; // Pro会员只能用Kimi
+  if (userTier === 'pro_plus') return ['basic', 'pro']; // ProPlus可以用Kimi和Gemini
   return [];
 };
 
