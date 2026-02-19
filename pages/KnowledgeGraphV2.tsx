@@ -108,45 +108,54 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
     fetchKnowledgeData();
   }, [currentUser]);
 
-  // 计算节点位置 - 使用分层布局
-  const calculateNodePositions = useMemo(() => {
-    const width = containerSize.width;
-    const height = containerSize.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
+  // 计算节点位置 - 使用网格布局避免重叠
+  const calculateNodePositions = (nodes: any[], width: number, height: number) => {
+    const padding = 100; // 边距
     
-    return (index: number, total: number, category: string) => {
-      // 根据分类分层布局 - 增加半径避免重叠
-      const categoryIndex = category === 'foundation' ? 0 : category === 'advanced' ? 1 : 2;
-      const layerRadius = [height * 0.25, height * 0.42, height * 0.58][categoryIndex];
-      
-      // 获取该分类的节点数
-      const categoryCounts = { foundation: 0, advanced: 0, expert: 0 };
-      // const categoryIndices = { foundation: 0, advanced: 0, expert: 0 };
-      
-      // 计算每个分类的节点数
-      for (let i = 0; i < total; i++) {
-        const cat = ['foundation', 'advanced', 'expert'][Math.floor(i / (total / 3))] as keyof typeof categoryCounts;
-        categoryCounts[cat]++;
-      }
-      
-      // 计算当前节点在其分类中的索引
-      const cat = category as keyof typeof categoryCounts;
-      const catTotal = categoryCounts[cat] || 1;
-      const catIndex = index % Math.ceil(total / 3);
-      
-      // 计算角度 - 将每个分类分布在不同扇区
-      const sectorAngle = (Math.PI * 2) / 3;
-      const sectorStart = categoryIndex * sectorAngle - Math.PI / 2;
-      const angleOffset = (catIndex / Math.max(catTotal - 1, 1)) * sectorAngle - sectorAngle / 2;
-      const angle = sectorStart + angleOffset;
-      
-      return {
-        x: centerX + Math.cos(angle) * layerRadius,
-        y: centerY + Math.sin(angle) * layerRadius
-      };
+    // 按分类分组节点
+    const nodesByCategory = {
+      foundation: nodes.filter((n: any) => n.category === 'foundation'),
+      advanced: nodes.filter((n: any) => n.category === 'advanced'),
+      expert: nodes.filter((n: any) => n.category === 'expert')
     };
-  }, [containerSize]);
+    
+    const positions = new Map<string, {x: number, y: number}>();
+    
+    // 每个分类占据屏幕的不同区域
+    const areaWidth = (width - padding * 2) / 3;
+    const areaHeight = height - padding * 2;
+    
+    (Object.keys(nodesByCategory) as Array<keyof typeof nodesByCategory>).forEach((category, catIdx) => {
+      const catNodes = nodesByCategory[category];
+      const catTotal = catNodes.length;
+      
+      if (catTotal === 0) return;
+      
+      const areaX = padding + catIdx * areaWidth;
+      
+      // 在区域内使用网格布局
+      const cols = Math.max(1, Math.ceil(Math.sqrt(catTotal)));
+      const rows = Math.ceil(catTotal / cols);
+      const cellWidth = areaWidth / cols;
+      const cellHeight = areaHeight / rows;
+      
+      catNodes.forEach((node, idx) => {
+        const row = Math.floor(idx / cols);
+        const col = idx % cols;
+        
+        // 添加随机偏移让布局更自然，但保持不重叠的最小距离
+        const randomOffsetX = (Math.random() - 0.5) * Math.min(cellWidth * 0.3, 40);
+        const randomOffsetY = (Math.random() - 0.5) * Math.min(cellHeight * 0.3, 40);
+        
+        positions.set(node.id, {
+          x: areaX + col * cellWidth + cellWidth / 2 + randomOffsetX,
+          y: padding + row * cellHeight + cellHeight / 2 + randomOffsetY
+        });
+      });
+    });
+    
+    return positions;
+  };
 
   const fetchKnowledgeData = async () => {
     // 从数据库获取知识节点
@@ -160,20 +169,15 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
       .select('*')
       .eq('user_id', currentUser?.id);
 
-    // 构建节点数据
-    const totalNodes = kbData?.length || 12;
-    
-    const processedNodes: KnowledgeNode[] = (kbData || []).map((node: any, index: number) => {
+    // 先构建基础节点数据（不含位置）
+    const baseNodes = (kbData || []).map((node: any, index: number) => {
       const progress = progressData?.find((p: any) => p.course_id === node.course_id);
       const mastery = progress?.progress || 0;
-      const pos = calculateNodePositions(index, totalNodes, node.type === 'concept' ? 'foundation' : node.type === 'skill' ? 'advanced' : 'expert');
       
       return {
         id: node.id,
         name: node.label,
         category: node.type === 'concept' ? 'foundation' : node.type === 'skill' ? 'advanced' : 'expert',
-        x: pos.x,
-        y: pos.y,
         value: node.difficulty || 2,
         mastery: mastery,
         prerequisites: node.prerequisites || [],
@@ -182,6 +186,19 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
         resourcesCount: Math.floor(Math.random() * 5) + 1,
         unlocked: mastery > 0 || index < 3,
         courseId: node.course_id
+      };
+    });
+    
+    // 计算节点位置
+    const positions = calculateNodePositions(baseNodes, containerSize.width, containerSize.height);
+    
+    // 合并位置信息
+    const processedNodes: KnowledgeNode[] = baseNodes.map((node: any) => {
+      const pos = positions.get(node.id) || { x: containerSize.width / 2, y: containerSize.height / 2 };
+      return {
+        ...node,
+        x: pos.x,
+        y: pos.y
       };
     });
 
