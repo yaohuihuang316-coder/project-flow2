@@ -88,47 +88,66 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, onLogout }) => {
   // Fetch user skills, achievements, and activity
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!currentUser) return;
+      if (!currentUser) {
+        console.log('Profile: No current user');
+        return;
+      }
+      
+      console.log('Profile: Fetching data for user:', currentUser.id);
       
       // 1. Fetch user skills
-      const { data: skillsData } = await supabase
+      const { data: skillsData, error: skillsError } = await supabase
         .from('app_user_skills')
         .select('*')
         .eq('user_id', currentUser.id)
         .single();
       
-      if (skillsData) {
+      if (skillsError) {
+        console.error('Profile: Error fetching skills:', skillsError);
+      } else if (skillsData) {
+        console.log('Profile: Skills data loaded:', skillsData);
         setUserSkills(skillsData);
+      } else {
+        console.log('Profile: No skills data found');
       }
       
       // 2. Fetch achievements definition
-      const { data: achievementsData } = await supabase
+      const { data: achievementsData, error: achDefError } = await supabase
         .from('app_achievements')
         .select('*')
         .order('rarity', { ascending: false });
       
-      if (achievementsData) {
+      if (achDefError) {
+        console.error('Profile: Error fetching achievements def:', achDefError);
+      } else if (achievementsData) {
+        console.log('Profile: Achievements def loaded:', achievementsData.length);
         setAchievementsDef(achievementsData);
       }
       
       // 3. Fetch user unlocked achievements
-      const { data: userAchData } = await supabase
+      const { data: userAchData, error: userAchError } = await supabase
         .from('app_user_achievements')
         .select('*')
         .eq('user_id', currentUser.id);
       
-      if (userAchData) {
+      if (userAchError) {
+        console.error('Profile: Error fetching user achievements:', userAchError);
+      } else if (userAchData) {
+        console.log('Profile: User achievements loaded:', userAchData.length);
         setUserAchievements(userAchData);
       }
       
       // 4. Fetch learning activity for heatmap
-      const { data: activityRaw } = await supabase
+      const { data: activityRaw, error: activityError } = await supabase
         .from('app_learning_activity')
         .select('*')
         .eq('user_id', currentUser.id)
         .gte('activity_date', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
       
-      if (activityRaw) {
+      if (activityError) {
+        console.error('Profile: Error fetching activity:', activityError);
+      } else if (activityRaw) {
+        console.log('Profile: Activity data loaded:', activityRaw.length);
         setActivityData(activityRaw);
       }
     };
