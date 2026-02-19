@@ -47,7 +47,18 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
   const [loading, setLoading] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [aiGrading, setAiGrading] = useState<string | null>(null);
+  
+  // 布置作业表单
+  const [newAssignment, setNewAssignment] = useState({
+    title: '',
+    courseId: '',
+    content: '',
+    deadline: '',
+    maxScore: 100
+  });
+  const [courses, setCourses] = useState<{id: string, title: string}[]>([]);
 
   // 加载作业列表
   useEffect(() => {
@@ -100,6 +111,7 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
 
   // 加载作业提交
   const loadSubmissions = async (assignmentId: string) => {
+    console.log('开始加载提交数据，作业ID:', assignmentId);
     try {
       // 直接查询提交数据
       const { data, error } = await supabase
@@ -108,10 +120,14 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
         .eq('assignment_id', assignmentId)
         .order('submitted_at', { ascending: false });
 
+      console.log('查询结果:', { data, error });
+
       if (error) {
         console.error('加载提交失败:', error);
         return;
       }
+
+      console.log('获取到提交数据数量:', data?.length || 0);
 
       // 格式化数据（使用默认学生信息）
       const formattedSubmissions: Submission[] = (data || []).map((item: any, index: number) => ({
@@ -124,6 +140,7 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
         score: item.score
       }));
 
+      console.log('格式化后的提交数据:', formattedSubmissions);
       setSubmissions(formattedSubmissions);
     } catch (err) {
       console.error('加载提交失败:', err);
@@ -224,8 +241,8 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
     const avgScore = submissions.filter(s => s.score).reduce((sum, s) => sum + (s.score || 0), 0) / gradedCount || 0;
 
     return (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowDetailModal(false)}>
+        <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
           {/* 头部 */}
           <div className="p-6 border-b border-gray-100 flex items-center justify-between">
             <div>
@@ -331,6 +348,94 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
     );
   };
 
+  // 渲染布置作业弹窗
+  const renderCreateModal = () => {
+    if (!showCreateModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowCreateModal(false)}>
+        <div className="bg-white rounded-3xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900">布置新作业</h2>
+            <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">作业标题</label>
+              <input
+                type="text"
+                value={newAssignment.title}
+                onChange={(e) => setNewAssignment({...newAssignment, title: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="请输入作业标题"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">所属课程</label>
+              <select
+                value={newAssignment.courseId}
+                onChange={(e) => setNewAssignment({...newAssignment, courseId: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">请选择课程</option>
+                <option value="course-1">项目管理基础入门</option>
+                <option value="course-2">敏捷项目管理实战</option>
+                <option value="course-3">PMP认证课程</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">作业要求</label>
+              <textarea
+                value={newAssignment.content}
+                onChange={(e) => setNewAssignment({...newAssignment, content: e.target.value})}
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="请输入作业要求"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">截止日期</label>
+                <input
+                  type="date"
+                  value={newAssignment.deadline}
+                  onChange={(e) => setNewAssignment({...newAssignment, deadline: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">满分</label>
+                <input
+                  type="number"
+                  value={newAssignment.maxScore}
+                  onChange={(e) => setNewAssignment({...newAssignment, maxScore: parseInt(e.target.value) || 100})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                alert('作业创建成功！');
+                setShowCreateModal(false);
+                setNewAssignment({ title: '', courseId: '', content: '', deadline: '', maxScore: 100 });
+              }}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+            >
+              创建作业
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <TeacherLayout
       activeTab="assignments"
@@ -363,7 +468,10 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
             <h1 className="text-2xl font-bold text-gray-900">作业管理</h1>
             <p className="text-sm text-gray-500 mt-1">管理课程作业和学生提交</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+          >
             <Plus size={20} />
             <span>布置作业</span>
           </button>
@@ -374,6 +482,9 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
 
         {/* 详情弹窗 */}
         {renderDetailModal()}
+        
+        {/* 布置作业弹窗 */}
+        {renderCreateModal()}
       </div>
     </TeacherLayout>
   );
