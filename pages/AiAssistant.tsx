@@ -1,114 +1,81 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, Eraser, Lightbulb, AlertTriangle, Crown } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Eraser, Lightbulb, AlertTriangle } from 'lucide-react';
 import { UserProfile, ChatMessage } from '../types';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabaseClient';
-import { 
-  AI_MODELS, 
-  canUseAIModel, 
-  getAvailableModels, 
-  getUsageLimitMessage,
-  getGeminiApiKey,
-  getMoonshotApiKey,
-  AI_DAILY_LIMITS
-} from '../lib/ai-config';
 
 interface AiAssistantProps {
     currentUser?: UserProfile | null;
 }
 
+// 简单的模型配置
+const MODELS = {
+    gemini: {
+        name: 'Gemini Flash',
+        icon: '⚡',
+        id: 'gemini-2.0-flash'
+    },
+    geminiPro: {
+        name: 'Gemini Pro',
+        icon: '🧠', 
+        id: 'gemini-2.0-pro'
+    }
+};
+
+// 每日限制
+const DAILY_LIMITS = {
+    free: 0,
+    pro: 20,
+    pro_plus: 50
+};
+
 const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<'basic' | 'pro'>('basic');
-    const [usage, setUsage] = useState({ used: 0, limit: 0, resetAt: '' });
+    const [selectedModel, setSelectedModel] = useState<'gemini' | 'geminiPro'>('gemini');
+    const [usage, setUsage] = useState({ used: 0, limit: 0 });
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const messagesContainerRef = useRef<HTMLDivElement>(null);
 
     const userTier = currentUser?.membershipTier || 'free';
     const canUseAI = userTier !== 'free';
-    const canUseProModel = canUseAIModel(userTier, 'pro');
-    const availableModels = getAvailableModels(userTier);
-    
-    // 调试信息
-    console.log('AI Assistant Debug:', {
-        userTier,
-        canUseAI,
-        canUseProModel,
-        availableModels,
-        availableModelsLength: availableModels.length,
-        currentUser: currentUser?.id,
-        membershipTier: currentUser?.membershipTier
-    });
+    const isProPlus = userTier === 'pro_plus';
 
-    // 初始化消息和获取使用量
+    // 初始化
     useEffect(() => {
         if (currentUser) {
             setMessages([{
                 id: '0',
                 role: 'ai',
-                content: `你好 ${currentUser.name || '探索者'}！我是 ProjectFlow AI助手。我可以协助你进行项目管理知识解答、文档撰写、风险分析等工作。${!canUseAI ? '请先升级会员以使用AI功能。' : ''}`,
+                content: `你好 ${currentUser.name || '探索者'}！我是 ProjectFlow AI助手，由 Google Gemini 驱动。我可以协助你进行项目管理知识解答、文档撰写、风险分析等工作。`,
                 timestamp: new Date()
             }]);
-
-            // 获取今日使用量
-            fetchUsage();
+            setUsage({
+                used: currentUser.aiDailyUsed || 0,
+                limit: DAILY_LIMITS[userTier]
+            });
         }
     }, [currentUser]);
-
-    // 获取使用量
-    const fetchUsage = async () => {
-        if (!currentUser) return;
-        
-        const limit = AI_DAILY_LIMITS[userTier];
-        
-        // 检查是否需要重置
-        if (currentUser.aiDailyResetAt && new Date(currentUser.aiDailyResetAt) < new Date()) {
-            await supabase
-                .from('app_users')
-                .update({ ai_daily_used: 0 })
-                .eq('id', currentUser.id);
-        }
-        
-        setUsage({
-            used: currentUser.aiDailyUsed || 0,
-            limit,
-            resetAt: currentUser.aiDailyResetAt || ''
-        });
-    };
 
     // 滚动到底部
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
 
-    // 记录使用量
-    const recordUsage = async (model: string, tokens: number) => {
-        if (!currentUser) return;
-        
-        await supabase.from('app_ai_usage').insert({
-            user_id: currentUser.id,
-            model,
-            prompt_tokens: Math.floor(tokens * 0.3),
-            completion_tokens: Math.floor(tokens * 0.7)
-        });
-        
-        // 更新用户日使用量
-        await supabase
-            .from('app_users')
-            .update({ ai_daily_used: (currentUser.aiDailyUsed || 0) + 1 })
-            .eq('id', currentUser.id);
-            
-        setUsage(prev => ({ ...prev, used: prev.used + 1 }));
+    // 获取API Key
+    const getApiKey = () => {
+        try {
+            // @ts-ignore
+            return import.meta.env?.VITE_GEMINI_API_KEY || null;
+        } catch {
+            return null;
+        }
     };
 
     // 发送消息
     const handleSendMessage = async (text: string = input) => {
         if (!text.trim() || !currentUser || !canUseAI) return;
         
-        // 检查是否超过限制
         if (usage.used >= usage.limit) {
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
@@ -119,12 +86,12 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             return;
         }
 
-        // 检查是否有权限使用选定模型
-        if (selectedModel === 'pro' && !canUseProModel) {
+        // ProPlus才能用Gemini Pro
+        if (selectedModel === 'geminiPro' && !isProPlus) {
             setMessages(prev => [...prev, {
                 id: Date.now().toString(),
                 role: 'ai',
-                content: `⚠️ ${AI_MODELS['pro'].name} 需要 Pro+ 会员才能使用。您当前可以使用 ${AI_MODELS['basic'].name}。`,
+                content: '⚠️ Gemini Pro 需要 Pro+ 会员才能使用。您当前可以使用 Gemini Flash。',
                 timestamp: new Date()
             }]);
             return;
@@ -149,132 +116,53 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
         }]);
 
         try {
-            const modelConfig = AI_MODELS[selectedModel];
-            let aiResponse = '';
-            
-            if (modelConfig.provider === 'moonshot') {
-                // 使用 Moonshot/Kimi API
-                const apiKey = getMoonshotApiKey();
-                console.log('Moonshot API Key check:', {
-                    hasKey: !!apiKey,
-                    keyLength: apiKey?.length,
-                    keyPrefix: apiKey?.substring(0, 10) + '...'
-                });
-                
-                if (!apiKey) {
-                    // 如果没有配置Moonshot Key，自动切换到Gemini
-                    console.log('Moonshot API Key未配置，自动切换到Gemini');
-                    throw new Error('SWITCH_TO_GEMINI');
-                }
-
-                const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
-用户信息:
-- 姓名: ${currentUser.name || '用户'}
-- 角色: ${currentUser.role || 'Student'}
-- 当前等级: ${userTier}
-
-请提供简洁、专业的回答。`;
-
-                try {
-                    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${apiKey}`
-                        },
-                        body: JSON.stringify({
-                            model: 'moonshot-v1-8k',
-                            messages: [
-                                { role: 'system', content: systemPrompt },
-                                { role: 'user', content: text }
-                            ],
-                            temperature: 0.7,
-                            stream: false
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('Moonshot API Error:', {
-                            status: response.status,
-                            statusText: response.statusText,
-                            error: errorText
-                        });
-                        // 如果是401错误，尝试切换到Gemini
-                        if (response.status === 401) {
-                            console.log('Moonshot 401错误，自动切换到Gemini');
-                            throw new Error('SWITCH_TO_GEMINI');
-                        }
-                        throw new Error(`API请求失败: ${response.status} - ${errorText}`);
-                    }
-
-                    const data = await response.json();
-                    aiResponse = data.choices?.[0]?.message?.content || '抱歉，我无法理解您的问题。';
-                } catch (err: any) {
-                    if (err.message === 'SWITCH_TO_GEMINI') {
-                        // 切换到Gemini
-                        const geminiKey = getGeminiApiKey();
-                        if (!geminiKey) {
-                            throw new Error('Gemini API Key 未配置');
-                        }
-
-                        const ai = new GoogleGenAI({ apiKey: geminiKey });
-                        
-                        const geminiResponse = await ai.models.generateContent({
-                            model: 'gemini-2.0-flash',
-                            contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n用户问题：' + text }] }]
-                        });
-
-                        aiResponse = geminiResponse.text || '抱歉，我无法理解您的问题。';
-                        // 添加提示信息
-                        aiResponse = '【已自动切换到 Gemini】\n\n' + aiResponse;
-                    } else {
-                        throw err;
-                    }
-                }
-            } else {
-                // 使用 Gemini API
-                const apiKey = getGeminiApiKey();
-                if (!apiKey) {
-                    throw new Error('Gemini API Key 未配置');
-                }
-
-                const ai = new GoogleGenAI({ apiKey });
-                
-                const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
-用户信息:
-- 姓名: ${currentUser.name || '用户'}
-- 角色: ${currentUser.role || 'Student'}
-- 当前等级: ${userTier}
-
-请提供简洁、专业的回答。`;
-
-                const response = await ai.models.generateContent({
-                    model: modelConfig.id,
-                    contents: [{ role: 'user', parts: [{ text }] }],
-                    config: { systemInstruction: systemPrompt }
-                });
-
-                aiResponse = response.text || '抱歉，我无法理解您的问题。';
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error('API Key 未配置');
             }
+
+            const ai = new GoogleGenAI({ apiKey });
+            
+            const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
+用户信息:
+- 姓名: ${currentUser.name || '用户'}
+- 角色: ${currentUser.role || 'Student'}
+- 当前等级: ${userTier}
+
+请提供简洁、专业的回答。`;
+
+            const response = await ai.models.generateContent({
+                model: MODELS[selectedModel].id,
+                contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n用户问题：' + text }] }]
+            });
+
+            const aiResponse = response.text || '抱歉，我无法理解您的问题。';
             
             setIsThinking(false);
             setMessages(prev => prev.map(msg =>
-                msg.id === aiMsgId
-                    ? { ...msg, content: aiResponse }
-                    : msg
+                msg.id === aiMsgId ? { ...msg, content: aiResponse } : msg
             ));
 
-            await recordUsage(modelConfig.id, aiResponse.length);
+            // 记录使用量
+            await supabase.from('app_ai_usage').insert({
+                user_id: currentUser.id,
+                model: MODELS[selectedModel].id,
+                prompt_tokens: Math.floor(text.length * 0.3),
+                completion_tokens: Math.floor(aiResponse.length * 0.7)
+            });
+            
+            await supabase
+                .from('app_users')
+                .update({ ai_daily_used: (currentUser.aiDailyUsed || 0) + 1 })
+                .eq('id', currentUser.id);
+                
+            setUsage(prev => ({ ...prev, used: prev.used + 1 }));
         } catch (err: any) {
             setIsThinking(false);
-            let errorMsg = '⚠️ 连接中断，请稍后再试。';
-            if (err.message.includes('Moonshot API Key')) {
-                errorMsg = '⚠️ 错误：未配置 Moonshot API Key。请联系管理员。';
-            } else if (err.message.includes('Gemini API Key')) {
-                errorMsg = '⚠️ 错误：未配置 Gemini API Key。请联系管理员。';
-            }
-
+            const errorMsg = err.message?.includes('API Key') 
+                ? '⚠️ 错误：API Key 未配置。请联系管理员。'
+                : '⚠️ 连接中断，请稍后再试。';
+            
             setMessages(prev => prev.map(msg =>
                 msg.id === aiMsgId ? { ...msg, content: errorMsg } : msg
             ));
@@ -294,29 +182,18 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
         { text: '敏捷 vs 瀑布，如何选择？', emoji: '🔄' },
     ];
 
-    // 使用限制提示
-    const usageMessage = getUsageLimitMessage(usage.used, usage.limit, usage.resetAt);
-
-    // 如果没有AI权限
     if (!canUseAI) {
         return (
             <div className="h-screen flex flex-col pt-20 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
                 <div className="flex-1 flex items-center justify-center p-6">
                     <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl text-center">
-                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Crown size={40} className="text-gray-400" />
+                        <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Sparkles size={40} className="text-purple-600" />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">会员专属功能</h2>
                         <p className="text-gray-500 mb-6">
-                            AI 助手是会员专属功能。升级会员即可使用 Gemini Flash 智能助手，
-                            获得项目管理知识解答、文档撰写等专业服务。
+                            AI 助手是会员专属功能。升级会员即可使用 Gemini AI 智能助手。
                         </p>
-                        <button 
-                            onClick={() => window.location.href = '/membership'}
-                            className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700"
-                        >
-                            查看会员权益
-                        </button>
                     </div>
                 </div>
             </div>
@@ -329,43 +206,36 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             <div className="flex-shrink-0 backdrop-blur-xl bg-white/70 border-b border-white/20 shadow-sm px-4 sm:px-6 py-3">
                 <div className="flex items-center justify-between max-w-5xl mx-auto">
                     <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                                <Sparkles className="text-white" size={20} />
-                            </div>
-                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                            <Sparkles className="text-white" size={20} />
                         </div>
                         <div>
                             <h2 className="text-base font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 AI 智能助手
                             </h2>
-                            <p className="text-xs text-gray-500 flex items-center gap-1">
-                                {AI_MODELS[selectedModel].name}
-                            </p>
+                            <p className="text-xs text-gray-500">{MODELS[selectedModel].name}</p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* 模型选择器 - 强制显示用于调试 */}
-                        {(availableModels.length > 1 || userTier === 'pro_plus') && (
-                            <select
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value as 'basic' | 'pro')}
-                                className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            >
-                                <option value="basic">🌙 Kimi AI</option>
-                                <option value="pro">⚡ Gemini Flash</option>
-                            </select>
-                        )}
+                        {/* 模型选择器 - 始终显示 */}
+                        <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value as 'gemini' | 'geminiPro')}
+                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                            <option value="gemini">⚡ Gemini Flash</option>
+                            {isProPlus && <option value="geminiPro">🧠 Gemini Pro</option>}
+                        </select>
 
                         {/* 使用量显示 */}
                         <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${
-                            usageMessage.type === 'exceeded' ? 'bg-red-100 text-red-700' :
-                            usageMessage.type === 'warning' ? 'bg-amber-100 text-amber-700' :
+                            usage.used >= usage.limit ? 'bg-red-100 text-red-700' :
+                            usage.used >= usage.limit * 0.8 ? 'bg-amber-100 text-amber-700' :
                             'bg-gray-100 text-gray-600'
                         }`}>
                             <AlertTriangle size={12} />
-                            {usageMessage.message}
+                            {usage.used}/{usage.limit}
                         </div>
 
                         <button
@@ -379,11 +249,8 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 </div>
             </div>
 
-            {/* Messages Area - 使用 flex-1 和 overflow 确保正确滚动 */}
-            <div 
-                ref={messagesContainerRef}
-                className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-6"
-            >
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
                 <div className="max-w-5xl mx-auto space-y-5">
                     {messages.map((msg) => (
                         <div
@@ -391,7 +258,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                             className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                             {msg.role === 'ai' && (
-                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                                     <Bot size={16} className="text-white" />
                                 </div>
                             )}
@@ -416,7 +283,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                             </div>
                             
                             {msg.role === 'user' && (
-                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center flex-shrink-0">
                                     <User size={16} className="text-white" />
                                 </div>
                             )}
@@ -425,7 +292,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                     
                     {isThinking && (
                         <div className="flex gap-3 justify-start">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
                                 <Bot size={16} className="text-white" />
                             </div>
                             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
@@ -467,18 +334,9 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 </div>
             )}
 
-            {/* Input Area - 固定在底部 */}
+            {/* Input Area */}
             <div className="flex-shrink-0 backdrop-blur-xl bg-white/70 border-t border-white/20 px-4 sm:px-6 py-4">
                 <div className="max-w-5xl mx-auto">
-                    {/* 移动端使用量提示 */}
-                    <div className={`sm:hidden mb-2 text-xs ${
-                        usageMessage.type === 'exceeded' ? 'text-red-600' :
-                        usageMessage.type === 'warning' ? 'text-amber-600' :
-                        'text-gray-500'
-                    }`}>
-                        {usageMessage.message}
-                    </div>
-                    
                     <div className="flex gap-3">
                         <div className="flex-1 relative">
                             <textarea
