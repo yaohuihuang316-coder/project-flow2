@@ -160,8 +160,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                     keyLength: apiKey?.length,
                     keyPrefix: apiKey?.substring(0, 10) + '...'
                 });
+                
                 if (!apiKey) {
-                    throw new Error('Moonshot API Key 未配置');
+                    // 如果没有配置Moonshot Key，自动切换到Gemini
+                    console.log('Moonshot API Key未配置，自动切换到Gemini');
+                    throw new Error('SWITCH_TO_GEMINI');
                 }
 
                 const systemPrompt = `你是 ProjectFlow AI 智能助手，专业的企业项目管理顾问。
@@ -172,35 +175,63 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
 
 请提供简洁、专业的回答。`;
 
-                const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'moonshot-v1-8k',
-                        messages: [
-                            { role: 'system', content: systemPrompt },
-                            { role: 'user', content: text }
-                        ],
-                        temperature: 0.7,
-                        stream: false
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Moonshot API Error:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        error: errorText
+                try {
+                    const response = await fetch('https://api.moonshot.cn/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'moonshot-v1-8k',
+                            messages: [
+                                { role: 'system', content: systemPrompt },
+                                { role: 'user', content: text }
+                            ],
+                            temperature: 0.7,
+                            stream: false
+                        })
                     });
-                    throw new Error(`API请求失败: ${response.status} - ${errorText}`);
-                }
 
-                const data = await response.json();
-                aiResponse = data.choices?.[0]?.message?.content || '抱歉，我无法理解您的问题。';
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('Moonshot API Error:', {
+                            status: response.status,
+                            statusText: response.statusText,
+                            error: errorText
+                        });
+                        // 如果是401错误，尝试切换到Gemini
+                        if (response.status === 401) {
+                            console.log('Moonshot 401错误，自动切换到Gemini');
+                            throw new Error('SWITCH_TO_GEMINI');
+                        }
+                        throw new Error(`API请求失败: ${response.status} - ${errorText}`);
+                    }
+
+                    const data = await response.json();
+                    aiResponse = data.choices?.[0]?.message?.content || '抱歉，我无法理解您的问题。';
+                } catch (err: any) {
+                    if (err.message === 'SWITCH_TO_GEMINI') {
+                        // 切换到Gemini
+                        const geminiKey = getGeminiApiKey();
+                        if (!geminiKey) {
+                            throw new Error('Gemini API Key 未配置');
+                        }
+
+                        const ai = new GoogleGenAI({ apiKey: geminiKey });
+                        
+                        const geminiResponse = await ai.models.generateContent({
+                            model: 'gemini-2.0-flash',
+                            contents: [{ role: 'user', parts: [{ text: systemPrompt + '\n\n用户问题：' + text }] }]
+                        });
+
+                        aiResponse = geminiResponse.text || '抱歉，我无法理解您的问题。';
+                        // 添加提示信息
+                        aiResponse = '【已自动切换到 Gemini】\n\n' + aiResponse;
+                    } else {
+                        throw err;
+                    }
+                }
             } else {
                 // 使用 Gemini API
                 const apiKey = getGeminiApiKey();
