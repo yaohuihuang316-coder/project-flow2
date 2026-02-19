@@ -3,7 +3,7 @@ import {
   Clock, Monitor, Users,
   MessageCircle, PenLine, Trash2, ArrowLeft, BarChart3,
   Plus, X, QrCode, Copy, RefreshCw, Maximize2, Minimize2,
-  FileText
+  FileText, Home, BookOpen, Video, ClipboardList, User
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -563,6 +563,45 @@ const ActiveClassroom: React.FC<ActiveClassroomProps> = ({
 
       {/* 主要内容区 */}
       <div className="flex h-[calc(100vh-64px)]">
+        {/* 左侧边栏导航 */}
+        <aside className="hidden lg:block w-64 bg-white h-full border-r border-gray-200 overflow-y-auto">
+          <div className="p-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-8">教师端</h1>
+            <nav className="space-y-2">
+              {[
+                { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
+                { id: 'courses', icon: BookOpen, label: '课程', page: Page.TEACHER_COURSES },
+                { id: 'class', icon: Video, label: '上课' },
+                { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
+                { id: 'profile', icon: User, label: '我的', page: Page.TEACHER_PROFILE },
+              ].map((item) => {
+                const isActive = item.id === 'class';
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (item.id !== 'class' && item.page && onNavigate) {
+                        if (confirm('课堂正在进行中，确定要离开吗？')) {
+                          onNavigate(item.page);
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-600 font-medium'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
         {/* 左侧：教学区域 */}
         <div className="flex-1 p-4 overflow-y-auto">
           {/* 功能按钮 */}
