@@ -532,7 +532,11 @@ const ActiveClassroom: React.FC<ActiveClassroomProps> = ({
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onNavigate?.(Page.TEACHER_CLASSROOM)}
+            onClick={() => {
+              if (confirm('确定要退出课堂吗？课堂将保持进行状态。')) {
+                onEndClass?.();
+              }
+            }}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
           >
             <ArrowLeft size={20} />
