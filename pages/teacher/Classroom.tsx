@@ -1326,7 +1326,56 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
-        {/* 主内容 - 侧边栏由外部 TeacherLayout 提供 */}
+        {/* 桌面端侧边栏 */}
+        <aside className="hidden lg:block w-64 bg-white h-screen sticky top-0 border-r border-gray-200">
+          <div className="p-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-8">教师端</h1>
+            <nav className="space-y-2">
+              {[
+                { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
+                { id: 'courses', icon: BookOpen, label: '课程', page: Page.TEACHER_COURSES },
+                { id: 'class', icon: Video, label: '上课' },
+                { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
+                { id: 'profile', icon: User, label: '我的', page: Page.TEACHER_PROFILE },
+              ].map((item) => {
+                const isActive = activeTab === item.id;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      // 如果正在上课，提示确认
+                      if (isClassActive && item.id !== 'class') {
+                        if (!confirm('课堂正在进行中，确定要离开吗？')) {
+                          return;
+                        }
+                        // 结束课堂状态
+                        setIsClassActive(false);
+                        setActiveSessionId(null);
+                        setClassTimer(0);
+                      }
+                      
+                      setActiveTab(item.id as TeacherTab);
+                      if (item.id !== 'class' && item.page && onNavigate) {
+                        onNavigate(item.page);
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      isActive 
+                        ? 'bg-blue-50 text-blue-600 font-medium' 
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
+        {/* 主内容 */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <div className="max-w-lg lg:max-w-none mx-auto">
             {/* 页面标题 */}

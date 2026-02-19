@@ -18,6 +18,7 @@ import GradeStats from '../../components/teacher/GradeStats';
 import RichTextEditor from '../../components/RichTextEditor';
 import FileUpload, { UploadFile } from '../../components/FileUpload';
 import { AIGradingService } from '../../src/services/aiGradingService';
+import TeacherLayout from '../../components/TeacherLayout';
 
 // import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
 
@@ -1224,68 +1225,45 @@ const Assignments: React.FC<AssignmentsProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7]">
-      {/* 桌面端侧边栏 + 移动端底部导航 */}
-      <div className="flex">
-        {/* 桌面端侧边栏 */}
-        <aside className="hidden lg:block w-64 bg-white h-screen sticky top-0 border-r border-gray-200">
-          <div className="p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-8">教师中心</h2>
-            <nav className="space-y-2">
-              {[
-                { id: 'home', icon: Home, label: '首页', page: Page.TEACHER_DASHBOARD },
-                { id: 'courses', icon: BookOpen, label: '我的课程', page: Page.TEACHER_COURSES },
-                { id: 'class', icon: Video, label: '上课', page: Page.TEACHER_CLASSROOM },
-                { id: 'assignments', icon: ClipboardList, label: '作业', page: Page.TEACHER_ASSIGNMENTS },
-                { id: 'profile', icon: User, label: '个人中心', page: Page.TEACHER_PROFILE },
-              ].map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id as TeacherTab);
-                      if (item.id !== 'assignments') onNavigate?.(item.page);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                      : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                  >
-                    <Icon size={20} />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+    <TeacherLayout
+      activeTab="assignments"
+      onTabChange={(tab) => {
+        setActiveTab(tab);
+        if (tab !== 'assignments') {
+          switch (tab) {
+            case 'home':
+              onNavigate?.(Page.TEACHER_DASHBOARD);
+              break;
+            case 'courses':
+              onNavigate?.(Page.TEACHER_COURSES);
+              break;
+            case 'class':
+              onNavigate?.(Page.TEACHER_CLASSROOM);
+              break;
+            case 'profile':
+              onNavigate?.(Page.TEACHER_PROFILE);
+              break;
+          }
+        }
+      }}
+      onNavigate={onNavigate}
+      onLogout={_onLogout}
+    >
+      <div className="max-w-7xl mx-auto">
+        {isLoading ? (
+          <div className="flex justify-center items-center h-96">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
           </div>
-        </aside>
-
-        {/* 主内容区域 */}
-        <main className="flex-1 min-h-screen">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-96">
-                <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
-              </div>
-            ) : error ? (
-              <div className="text-center py-16 text-red-500">
-                <p>{error}</p>
-                <button onClick={loadData} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg">
-                  重试
-                </button>
-              </div>
-            ) : (
-              renderMainContent()
-            )}
+        ) : error ? (
+          <div className="text-center py-16 text-red-500">
+            <p>{error}</p>
+            <button onClick={loadData} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg">
+              重试
+            </button>
           </div>
-        </main>
-      </div>
-
-      {/* 移动端底部导航 */}
-      <div className="lg:hidden">
-        {renderBottomNav()}
+        ) : (
+          renderMainContent()
+        )}
       </div>
 
       {/* 弹窗组件 */}
@@ -1320,7 +1298,7 @@ const Assignments: React.FC<AssignmentsProps> = ({
           handleGradeSubmit({ score, comment });
         }}
       />
-    </div>
+    </TeacherLayout>
   );
 };
 
