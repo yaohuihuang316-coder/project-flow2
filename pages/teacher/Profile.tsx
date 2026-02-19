@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Home, BookOpen, Video, ClipboardList, User,
-  Settings, HelpCircle, Info, ChevronRight, LogOut,
+  Settings as SettingsIcon, HelpCircle, Info, ChevronRight, LogOut,
   Clock, Users, BookMarked, Award, Shield, School,
-  Mail, Phone, MapPin, Star, Edit3, Camera, Bell,
-  Lock, Eye, UserCircle, X, Save, CheckCircle
+  Mail, Phone, MapPin, Star, Edit3, Camera,
+  X, Save, CheckCircle
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
+import Settings from '../../components/Settings';
 
 interface TeacherProfileProps {
   currentUser?: UserProfile | null;
@@ -44,8 +45,7 @@ interface EditFormData {
   location: string;
 }
 
-// 设置页面类型
-type SettingsTab = 'account' | 'notifications' | 'privacy';
+
 
 const TeacherProfile: React.FC<TeacherProfileProps> = ({
   currentUser,
@@ -55,7 +55,6 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
   const [activeTab, setActiveTab] = useState<TeacherTab>('profile');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('account');
   const [isLoading, setIsLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -77,19 +76,6 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
     bio: '',
     phone: '',
     location: ''
-  });
-
-  // 设置状态
-  const [settings, setSettings] = useState({
-    // 账号设置
-    emailNotifications: true,
-    smsNotifications: false,
-    pushNotifications: true,
-    // 隐私设置
-    profileVisible: true,
-    showTeachingStats: true,
-    allowStudentContact: true,
-    showOnlineStatus: true
   });
 
   // 从currentUser初始化教师信息 - 使用真实数据，无硬编码
@@ -321,7 +307,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
           onClick={() => setShowSettings(true)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all"
         >
-          <Settings size={22} />
+          <SettingsIcon size={22} />
           <span className="font-medium">设置</span>
         </button>
         <button
@@ -766,14 +752,8 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
   const renderSettings = () => {
     if (!showSettings) return null;
 
-    const settingsTabs = [
-      { id: 'account', label: '账号设置', icon: UserCircle },
-      { id: 'notifications', label: '通知设置', icon: Bell },
-      { id: 'privacy', label: '隐私设置', icon: Lock }
-    ];
-
     return (
-      <div className="fixed inset-0 z-50 bg-white">
+      <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
         {/* 设置页面头部 */}
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4">
           <div className="flex items-center gap-4">
@@ -787,161 +767,9 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
           </div>
         </div>
 
-        {/* 设置标签页 */}
-        <div className="flex gap-2 p-4 border-b border-gray-100 overflow-x-auto">
-          {settingsTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setSettingsTab(tab.id as SettingsTab)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap transition-colors ${
-                settingsTab === tab.id
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <tab.icon size={18} />
-              <span className="font-medium">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* 设置内容 */}
-        <div className="p-6 max-w-lg mx-auto">
-          {settingsTab === 'account' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-bold text-gray-900">账号设置</h3>
-              
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <Mail size={20} className="text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">邮箱地址</p>
-                      <p className="text-sm text-gray-500">{currentUser?.email}</p>
-                    </div>
-                  </div>
-                  <button className="text-sm text-blue-500 font-medium">修改</button>
-                </div>
-
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                      <Lock size={20} className="text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">修改密码</p>
-                      <p className="text-sm text-gray-500">定期更换密码保护账号安全</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-gray-400" />
-                </div>
-
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                      <Shield size={20} className="text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">双重认证</p>
-                      <p className="text-sm text-gray-500">提升账号安全性</p>
-                    </div>
-                  </div>
-                  <div className="w-12 h-6 bg-gray-200 rounded-full relative">
-                    <div className="w-5 h-5 bg-white rounded-full shadow absolute left-0.5 top-0.5"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-red-50 rounded-2xl p-4">
-                <h4 className="font-medium text-red-600 mb-2">危险区域</h4>
-                <button className="w-full py-3 bg-red-100 text-red-600 rounded-xl font-medium hover:bg-red-200 transition-colors">
-                  注销账号
-                </button>
-              </div>
-            </div>
-          )}
-
-          {settingsTab === 'notifications' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-bold text-gray-900">通知设置</h3>
-              
-              <div className="space-y-4">
-                {[
-                  { key: 'emailNotifications', label: '邮件通知', desc: '接收课程更新、作业提醒等邮件', icon: Mail },
-                  { key: 'smsNotifications', label: '短信通知', desc: '接收重要事项的短信提醒', icon: Phone },
-                  { key: 'pushNotifications', label: '推送通知', desc: '接收应用内的实时推送消息', icon: Bell }
-                ].map((item) => (
-                  <div key={item.key} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                        <item.icon size={20} className="text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{item.label}</p>
-                        <p className="text-sm text-gray-500">{item.desc}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof settings] }))}
-                      className={`w-12 h-6 rounded-full relative transition-colors ${
-                        settings[item.key as keyof typeof settings] ? 'bg-blue-500' : 'bg-gray-200'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${
-                        settings[item.key as keyof typeof settings] ? 'left-6' : 'left-0.5'
-                      }`}></div>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {settingsTab === 'privacy' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-bold text-gray-900">隐私设置</h3>
-              
-              <div className="space-y-4">
-                {[
-                  { key: 'profileVisible', label: '公开个人资料', desc: '允许其他用户查看您的个人资料', icon: User },
-                  { key: 'showTeachingStats', label: '显示教学统计', desc: '向学生展示您的教学数据', icon: Award },
-                  { key: 'allowStudentContact', label: '允许学生联系', desc: '学生可以通过平台与您联系', icon: Mail },
-                  { key: 'showOnlineStatus', label: '显示在线状态', desc: '向其他用户展示您是否在线', icon: Eye }
-                ].map((item) => (
-                  <div key={item.key} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                        <item.icon size={20} className="text-gray-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{item.label}</p>
-                        <p className="text-sm text-gray-500">{item.desc}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof settings] }))}
-                      className={`w-12 h-6 rounded-full relative transition-colors ${
-                        settings[item.key as keyof typeof settings] ? 'bg-blue-500' : 'bg-gray-200'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${
-                        settings[item.key as keyof typeof settings] ? 'left-6' : 'left-0.5'
-                      }`}></div>
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-blue-50 rounded-2xl p-4">
-                <h4 className="font-medium text-blue-600 mb-2">隐私提示</h4>
-                <p className="text-sm text-blue-500">
-                  您的个人信息将受到严格保护。我们绝不会将您的信息出售给第三方。
-                </p>
-              </div>
-            </div>
-          )}
+        {/* 设置内容 - 使用新的 Settings 组件 */}
+        <div className="p-6">
+          <Settings currentUser={currentUser} />
         </div>
       </div>
     );
@@ -964,7 +792,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
                 className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
                 onClick={() => setShowSettings(true)}
               >
-                <Settings size={20} className="text-gray-600" />
+                <SettingsIcon size={20} className="text-gray-600" />
               </button>
             </div>
 

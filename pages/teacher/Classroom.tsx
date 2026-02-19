@@ -386,8 +386,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     try {
       // 更新会话状态为进行中
       await updateClassSession(sessionId, {
-        status: 'in_progress',
-        started_at: new Date().toISOString()
+        status: 'ongoing',
+        actual_start: new Date().toISOString()
       });
       
       setActiveSessionId(sessionId);
@@ -414,7 +414,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       if (activeSessionId) {
         await updateClassSession(activeSessionId, {
           status: 'completed',
-          ended_at: new Date().toISOString()
+          actual_end: new Date().toISOString()
         });
       }
       
