@@ -304,18 +304,15 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* 模型选择器 */}
-                        {availableModels.length > 1 && (
+                        {/* 模型选择器 - 强制显示用于调试 */}
+                        {(availableModels.length > 1 || userTier === 'pro_plus') && (
                             <select
                                 value={selectedModel}
                                 onChange={(e) => setSelectedModel(e.target.value as 'basic' | 'pro')}
                                 className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             >
-                                {availableModels.map(modelKey => (
-                                    <option key={modelKey} value={modelKey}>
-                                        {AI_MODELS[modelKey].icon} {AI_MODELS[modelKey].name}
-                                    </option>
-                                ))}
+                                <option value="basic">🌙 Kimi AI</option>
+                                <option value="pro">⚡ Gemini Flash</option>
                             </select>
                         )}
 
