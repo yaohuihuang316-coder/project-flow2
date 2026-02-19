@@ -116,9 +116,9 @@ const KnowledgeGraphV2: React.FC<KnowledgeGraphProps> = ({ onNavigate, currentUs
     const centerY = height / 2;
     
     return (index: number, total: number, category: string) => {
-      // 根据分类分层布局
+      // 根据分类分层布局 - 增加半径避免重叠
       const categoryIndex = category === 'foundation' ? 0 : category === 'advanced' ? 1 : 2;
-      const layerRadius = [height * 0.18, height * 0.32, height * 0.45][categoryIndex];
+      const layerRadius = [height * 0.25, height * 0.42, height * 0.58][categoryIndex];
       
       // 获取该分类的节点数
       const categoryCounts = { foundation: 0, advanced: 0, expert: 0 };
@@ -503,7 +503,6 @@ ${lowMastery.slice(0, 5).map((n, i) => `${i+1}️⃣ **${n.name}** - 掌握度 $
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
                 <GitBranch className="text-blue-400" size={24} />
                 知识图谱
-                <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white px-2 py-0.5 rounded-full">AI驱动</span>
               </h1>
               <p className="text-xs text-slate-400">探索项目管理的知识宇宙，发现最优学习路径</p>
             </div>
