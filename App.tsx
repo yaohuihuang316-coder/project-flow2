@@ -42,7 +42,8 @@ import AdminAnalytics from './pages/admin/AdminAnalytics';
 import AdminTeacherCourses from './pages/admin/AdminTeacherCourses';
 import AdminTeacherAssignments from './pages/admin/AdminTeacherAssignments';
 import AdminTeacherSessions from './pages/admin/AdminTeacherSessions';
-import AdminTeacherStudents from './pages/admin/AdminTeacherStudents';
+import AdminTeachers from './pages/admin/AdminTeachers';
+import AdminStudents from './pages/admin/AdminStudents';
 // 已删除: AdminSettings, AdminMonitor
 import { Page, UserProfile } from './types';
 
@@ -130,8 +131,11 @@ const App: React.FC = () => {
           {currentPage === Page.ADMIN_TEACHER_SESSIONS && (
             <AdminTeacherSessions currentUser={currentUser} />
           )}
+          {currentPage === Page.ADMIN_TEACHER_TEACHERS && (
+            <AdminTeachers currentUser={currentUser} />
+          )}
           {currentPage === Page.ADMIN_TEACHER_STUDENTS && (
-            <AdminTeacherStudents currentUser={currentUser} />
+            <AdminStudents currentUser={currentUser} />
           )}
         </AdminLayout>
       );

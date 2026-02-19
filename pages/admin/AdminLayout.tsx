@@ -47,12 +47,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     },
     {
       id: 'teachers',
-      label: '教师数据管理 (Teacher Data)',
+      label: '教学管理 (Teaching)',
       items: [
         { label: '教师课程', page: Page.ADMIN_TEACHER_COURSES, icon: BookOpen, roles: ['SuperAdmin', 'Manager'] },
         { label: '教师作业', page: Page.ADMIN_TEACHER_ASSIGNMENTS, icon: FileText, roles: ['SuperAdmin', 'Manager'] },
         { label: '课堂考勤', page: Page.ADMIN_TEACHER_SESSIONS, icon: Clock, roles: ['SuperAdmin', 'Manager'] },
-        { label: '学生管理', page: Page.ADMIN_TEACHER_STUDENTS, icon: GraduationCap, roles: ['SuperAdmin', 'Manager'] },
+        { label: '教师管理', page: Page.ADMIN_TEACHER_TEACHERS, icon: GraduationCap, roles: ['SuperAdmin', 'Manager'] },
+        { label: '学生管理', page: Page.ADMIN_TEACHER_STUDENTS, icon: Users, roles: ['SuperAdmin', 'Manager'] },
       ]
     },
     {
@@ -201,8 +202,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
                 currentPage === Page.ADMIN_TEACHER_COURSES ? '教师课程管理' :
                 currentPage === Page.ADMIN_TEACHER_ASSIGNMENTS ? '教师作业管理' :
                 currentPage === Page.ADMIN_TEACHER_SESSIONS ? '课堂考勤管理' :
+                currentPage === Page.ADMIN_TEACHER_TEACHERS ? '教师管理' :
                 currentPage === Page.ADMIN_TEACHER_STUDENTS ? '学生管理' :
-                currentPage === Page.ADMIN_USERS ? '教师管理' :
+                currentPage === Page.ADMIN_USERS ? '用户管理' :
                 currentPage === Page.ADMIN_ANNOUNCEMENTS ? '全站公告' :
                 '控制台'}
             </h2>
