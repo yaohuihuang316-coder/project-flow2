@@ -31,6 +31,17 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     const canUseAI = userTier !== 'free';
     const canUseProModel = canUseAIModel(userTier, 'pro');
     const availableModels = getAvailableModels(userTier);
+    
+    // 调试信息
+    console.log('AI Assistant Debug:', {
+        userTier,
+        canUseAI,
+        canUseProModel,
+        availableModels,
+        availableModelsLength: availableModels.length,
+        currentUser: currentUser?.id,
+        membershipTier: currentUser?.membershipTier
+    });
 
     // 初始化消息和获取使用量
     useEffect(() => {
