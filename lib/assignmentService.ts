@@ -154,10 +154,10 @@ export async function deleteAssignment(assignmentId: string): Promise<void> {
  */
 export async function getAssignmentSubmissions(assignmentId: string): Promise<StudentSubmission[]> {
     const { data, error } = await supabase
-        .from('app_student_submissions')
+        .from('app_assignment_submissions')
         .select(`
       *,
-      app_users!inner(id, name, avatar)
+      student:student_id(id, name, avatar)
     `)
         .eq('assignment_id', assignmentId)
         .order('submitted_at', { ascending: false });
@@ -178,11 +178,11 @@ export async function getAssignmentSubmissions(assignmentId: string): Promise<St
         score: item.score,
         comment: item.comment,
         status: item.status,
-        student: {
-            id: item.app_users.id,
-            name: item.app_users.name,
-            avatar: item.app_users.avatar,
-        },
+        student: item.student ? {
+            id: item.student.id,
+            name: item.student.name,
+            avatar: item.student.avatar,
+        } : undefined,
     }));
 
     return submissions;
@@ -197,7 +197,7 @@ export async function gradeSubmission(
     comment: string
 ): Promise<StudentSubmission> {
     const { data, error } = await supabase
-        .from('app_student_submissions')
+        .from('app_assignment_submissions')
         .update({
             score,
             comment,
