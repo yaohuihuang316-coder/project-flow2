@@ -153,22 +153,45 @@ export async function deleteAssignment(assignmentId: string): Promise<void> {
  * 获取作业的所有提交
  */
 export async function getAssignmentSubmissions(assignmentId: string): Promise<StudentSubmission[]> {
-    const { data, error } = await supabase
+    // 首先获取提交数据
+    const { data: submissionsData, error: submissionsError } = await supabase
         .from('app_assignment_submissions')
-        .select(`
-      *,
-      student:student_id(id, name, avatar)
-    `)
+        .select('*')
         .eq('assignment_id', assignmentId)
         .order('submitted_at', { ascending: false });
 
-    if (error) {
-        console.error('获取作业提交失败:', error);
-        throw error;
+    if (submissionsError) {
+        console.error('获取作业提交失败:', submissionsError);
+        throw submissionsError;
+    }
+
+    if (!submissionsData || submissionsData.length === 0) {
+        return [];
+    }
+
+    // 获取所有学生ID
+    const studentIds = [...new Set(submissionsData.map((item: any) => item.student_id))];
+
+    // 批量查询学生信息
+    const { data: studentsData, error: studentsError } = await supabase
+        .from('app_users')
+        .select('id, name, avatar')
+        .in('id', studentIds);
+
+    if (studentsError) {
+        console.error('获取学生信息失败:', studentsError);
+    }
+
+    // 创建学生信息映射
+    const studentMap = new Map();
+    if (studentsData) {
+        studentsData.forEach((student: any) => {
+            studentMap.set(student.id, student);
+        });
     }
 
     // 格式化数据
-    const submissions = (data || []).map((item: any) => ({
+    const submissions = submissionsData.map((item: any) => ({
         id: item.id,
         assignment_id: item.assignment_id,
         student_id: item.student_id,
@@ -178,11 +201,11 @@ export async function getAssignmentSubmissions(assignmentId: string): Promise<St
         score: item.score,
         comment: item.comment,
         status: item.status,
-        student: item.student ? {
-            id: item.student.id,
-            name: item.student.name,
-            avatar: item.student.avatar,
-        } : undefined,
+        student: studentMap.get(item.student_id) || {
+            id: item.student_id,
+            name: '未知学生',
+            avatar: `https://i.pravatar.cc/150?u=${item.student_id}`,
+        },
     }));
 
     return submissions;
