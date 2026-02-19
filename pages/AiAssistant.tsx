@@ -29,7 +29,12 @@ const DAILY_LIMITS = {
     pro_plus: 50
 };
 
+// 版本号，用于强制刷新
+const VERSION = '2.0';
+
 const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
+    console.log('AI Assistant Version:', VERSION);
+    
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
@@ -40,6 +45,16 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     const userTier = currentUser?.membershipTier || 'free';
     const canUseAI = userTier !== 'free';
     const isProPlus = userTier === 'pro_plus';
+    
+    // 调试信息
+    useEffect(() => {
+        console.log('AI Assistant mounted:', {
+            version: VERSION,
+            userTier,
+            isProPlus,
+            canUseAI
+        });
+    }, []);
 
     // 初始化
     useEffect(() => {
