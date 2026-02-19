@@ -7,14 +7,7 @@ import {
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
-import { createClient } from '@supabase/supabase-js';
 import TeacherLayout from '../../components/TeacherLayout';
-
-// 创建 service role 客户端（仅用于测试）
-const serviceSupabase = createClient(
-  'https://ghhvdffsyvzkhbftifzy.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdoaHZkZmZzeXZ6a2hiZnRpZnp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzAxMjY0NCwiZXhwIjoyMDgyNTg4NjQ0fQ.L-sqETv0f0BY-m5ny_E3yEDf0VoS2MRmIxYK98dVHNs'
-);
 
 interface AssignmentsProps {
   currentUser?: UserProfile | null;
@@ -128,8 +121,8 @@ const TeacherAssignments: React.FC<AssignmentsProps> = ({
         console.warn('用户未认证，尝试使用演示账号...');
       }
 
-      // 使用 service role 客户端查询（绕过 RLS）
-      const { data, error } = await serviceSupabase
+      // 查询提交数据
+      const { data, error } = await supabase
         .from('app_assignment_submissions')
         .select('*')
         .eq('assignment_id', assignmentId)
