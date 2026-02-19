@@ -17,6 +17,7 @@ import GradingModal from '../../components/teacher/GradingModal';
 import GradeStats from '../../components/teacher/GradeStats';
 import RichTextEditor from '../../components/RichTextEditor';
 import FileUpload, { UploadFile } from '../../components/FileUpload';
+import { AIGradingService } from '../../src/services/aiGradingService';
 
 // import { useAssignments, useSubmissions, createAssignment, gradeSubmission } from '../../lib/teacherHooks';
 
@@ -250,6 +251,8 @@ interface AssignmentDetailModalProps {
   onGrade: (submission: StudentSubmission) => void;
   onBatchGrade: (submissionIds: string[], score: number) => void;
   onExport: () => void;
+  onAIGrade?: (submissionId: string) => Promise<void>;
+  onAIBatchGrade?: () => Promise<void>;
 }
 
 const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
@@ -259,7 +262,9 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
   submissions,
   onGrade,
   onBatchGrade,
-  onExport
+  onExport,
+  onAIGrade,
+  onAIBatchGrade
 }) => {
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
   const [showBatchAction, setShowBatchAction] = useState(false);
@@ -441,6 +446,24 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
               </div>
             )}
 
+            {/* AI批量批改按钮 */}
+            {currentSubs.some(s => s.status !== 'graded') && onAIBatchGrade && (
+              <div className="flex items-center justify-between mb-4 p-3 bg-purple-50 rounded-xl">
+                <span className="text-sm text-purple-700 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  AI自动批改
+                </span>
+                <button
+                  onClick={onAIBatchGrade}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  一键AI批改
+                </button>
+              </div>
+            )}
+
             {/* 全选 */}
             {showBatchAction && (
               <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
@@ -504,7 +527,23 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
                           <span className="font-bold">{sub.score}</span>
                         </div>
                       ) : (
-                        <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-lg">待批改</span>
+                        <div className="flex items-center gap-2">
+                          {onAIGrade && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAIGrade(sub.id);
+                              }}
+                              className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-1"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                              </svg>
+                              AI批改
+                            </button>
+                          )}
+                          <span className="px-2 py-1 bg-orange-100 text-orange-600 text-xs rounded-lg">待批改</span>
+                        </div>
                       )}
                     </div>
                     <p className="text-sm text-gray-600 line-clamp-2 mt-2">{sub.content}</p>
@@ -740,6 +779,63 @@ const Assignments: React.FC<AssignmentsProps> = ({
     }
   };
 
+  // AI自动批改
+  const handleAIGrade = async (submissionId: string) => {
+    if (!selectedAssignment) return;
+
+    try {
+      const result = await AIGradingService.gradeSubmission(submissionId, selectedAssignment.id);
+      
+      if (result.success) {
+        // 更新本地状态
+        setSubmissions(submissions.map(s =>
+          s.id === submissionId
+            ? { ...s, score: result.score, comment: result.comment, status: 'graded' as const }
+            : s
+        ));
+
+        // 更新作业状态
+        const assignmentSubmissions = submissions.filter(s => s.assignmentId === selectedAssignment.id);
+        const gradedCount = assignmentSubmissions.filter(s => s.status === 'graded').length + 1;
+
+        setAssignments(assignments.map(a =>
+          a.id === selectedAssignment.id
+            ? { ...a, status: gradedCount >= a.totalCount ? 'completed' : 'grading' }
+            : a
+        ));
+
+        alert(`AI批改完成！得分: ${result.score}分`);
+      } else {
+        alert('AI批改失败: ' + result.error);
+      }
+    } catch (err: any) {
+      console.error('AI批改失败:', err);
+      alert('AI批改失败: ' + (err.message || '未知错误'));
+    }
+  };
+
+  // AI批量批改
+  const handleAIBatchGrade = async () => {
+    if (!selectedAssignment) return;
+
+    if (!confirm('确定要使用AI自动批改所有未批改的作业吗？')) return;
+
+    try {
+      const result = await AIGradingService.batchGradeSubmissions(selectedAssignment.id);
+      
+      if (result.success) {
+        // 重新加载提交数据
+        await loadSubmissions(selectedAssignment.id);
+        alert(result.message);
+      } else {
+        alert('AI批量批改失败: ' + result.error);
+      }
+    } catch (err: any) {
+      console.error('AI批量批改失败:', err);
+      alert('AI批量批改失败: ' + (err.message || '未知错误'));
+    }
+  };
+
   // 删除单个作业
   const handleDeleteAssignment = async (assignmentId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -800,9 +896,35 @@ const Assignments: React.FC<AssignmentsProps> = ({
   };
 
   // 打开作业详情
-  const openAssignmentDetail = (assignment: Assignment) => {
+  const openAssignmentDetail = async (assignment: Assignment) => {
     setSelectedAssignment(assignment);
     setShowDetailModal(true);
+    
+    // 加载该作业的提交数据
+    await loadSubmissions(assignment.id);
+  };
+
+  // 加载作业提交数据
+  const loadSubmissions = async (assignmentId: string) => {
+    try {
+      const submissionsData = await assignmentService.getAssignmentSubmissions(assignmentId);
+      const formattedSubmissions: StudentSubmission[] = submissionsData.map(sub => ({
+        id: sub.id,
+        studentId: sub.student_id,
+        studentName: sub.student?.name || '未知学生',
+        studentAvatar: sub.student?.avatar || `https://i.pravatar.cc/150?u=${sub.student_id}`,
+        content: sub.content,
+        submittedAt: sub.submitted_at,
+        status: sub.status,
+        score: sub.score,
+        comment: sub.comment,
+        assignmentId: sub.assignment_id,
+        attachments: sub.attachments || []
+      }));
+      setSubmissions(prev => [...prev.filter(s => s.assignmentId !== assignmentId), ...formattedSubmissions]);
+    } catch (err) {
+      console.error('加载提交数据失败:', err);
+    }
   };
 
   // 打开批改弹窗
@@ -1182,6 +1304,8 @@ const Assignments: React.FC<AssignmentsProps> = ({
         onGrade={openGradeModal}
         onBatchGrade={handleBatchGrade}
         onExport={handleExportGrades}
+        onAIGrade={handleAIGrade}
+        onAIBatchGrade={handleAIBatchGrade}
       />
 
       <GradingModal

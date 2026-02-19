@@ -241,15 +241,12 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
 
   // 更新课堂会话状态
   const updateClassSession = async (sessionId: string, updates: any) => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('app_class_sessions')
       .update(updates)
-      .eq('id', sessionId)
-      .select()
-      .single();
+      .eq('id', sessionId);
     
     if (error) throw error;
-    return data;
   };
 
   // 白板状态
@@ -1329,10 +1326,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="flex">
-        {/* 桌面端侧边栏 */}
-        {renderSidebar()}
-        
-        {/* 主内容 */}
+        {/* 主内容 - 侧边栏由外部 TeacherLayout 提供 */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <div className="max-w-lg lg:max-w-none mx-auto">
             {/* 页面标题 */}
