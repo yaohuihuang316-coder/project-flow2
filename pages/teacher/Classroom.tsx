@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Home, BookOpen, Video, ClipboardList, User,
-  Clock, Play, Square, Monitor, Users, CheckCircle2,
-  MessageCircle, PenLine, Trash2,
-  ArrowLeft, BarChart3, Plus, X, QrCode,
-  MoreHorizontal, FileText, Send, Download, Copy
+  Clock, Play, Users, CheckCircle2,
+  MessageCircle,
+  BarChart3, Plus, X, QrCode,
+  FileText, Send, Download, Copy
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -202,7 +202,6 @@ function useAttendanceRealtime(sessionId?: string) {
 }
 
 // 创建课堂会话（预留功能 - 将来实现创建新课堂）
-// @ts-expect-error - 预留函数，暂时未使用
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function _createClassSession(_sessionData: any) {
   const { data, error } = await supabase
@@ -230,9 +229,13 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [activeTab, setActiveTab] = useState<TeacherTab>('class');
   const [isClassActive, setIsClassActive] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [classTimer, setClassTimer] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [screenShareType, setScreenShareType] = useState<'screen' | 'window' | 'ppt'>('screen');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [screenShareViewers, setScreenShareViewers] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -253,7 +256,9 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<Stroke | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [brushColor, setBrushColor] = useState('#3B82F6');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [brushWidth, setBrushWidth] = useState(3);
 
   // 互动工具状态
@@ -264,6 +269,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [showMoreModal, setShowMoreModal] = useState(false);
   const [newPollQuestion, setNewPollQuestion] = useState('');
   const [newPollOptions, setNewPollOptions] = useState(['', '']);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   
   // 随堂测状态
@@ -371,6 +377,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   }, [isScreenSharing, isClassActive, attendanceList.length]);
 
   // 格式化时间
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -415,6 +422,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   };
 
   // 结束上课
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const endClass = async () => {
     if (!confirm('确定要结束本节课堂吗？')) return;
     
@@ -446,6 +454,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   };
 
   // 白板绘制处理
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isClassActive) return;
     const canvas = e.currentTarget;
@@ -462,6 +471,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !currentStroke || !isClassActive) return;
     const canvas = e.currentTarget;
@@ -475,6 +485,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
     });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMouseUp = () => {
     if (currentStroke) {
       setStrokes([...strokes, currentStroke]);
@@ -484,6 +495,7 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   };
 
   // 清空白板
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const clearWhiteboard = () => {
     setStrokes([]);
   };
@@ -519,11 +531,13 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   };
 
   // 获取当前课程
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getCurrentClass = () => {
     return courseClasses.find(c => c.id === activeSessionId);
   };
 
   // 统计签到数据
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getAttendanceStats = () => {
     const present = attendanceList.filter(s => s.status === 'present').length;
     const late = attendanceList.filter(s => s.status === 'late').length;
@@ -681,420 +695,6 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
                 )}
               </div>
             ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ==================== 课堂进行中界面 ====================
-  const renderActiveClass = () => {
-    const currentClass = getCurrentClass();
-    const stats = getAttendanceStats();
-
-    return (
-      <div className="space-y-4 pb-24">
-        {/* 课堂头部 */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => {
-                  if (confirm('确定要退出课堂吗？课堂将保持进行状态。')) {
-                    setIsClassActive(false);
-                  }
-                }}
-                className="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <div>
-                <h2 className="text-xl font-bold">{currentClass?.title || '课堂进行中'}</h2>
-                <p className="text-blue-100 text-sm flex items-center gap-2 mt-1">
-                  <Clock size={14} /> 已进行 {formatTime(classTimer)}
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={endClass}
-              className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-medium flex items-center gap-2 hover:bg-red-600 transition-colors"
-            >
-              <Square size={14} fill="currentColor" /> 结束
-            </button>
-          </div>
-          
-          {/* 快捷工具 */}
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsScreenSharing(!isScreenSharing)}
-              className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors ${
-                isScreenSharing ? 'bg-green-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'
-              }`}
-            >
-              <Monitor size={18} /> 
-              {isScreenSharing ? `停止共享 (${screenShareViewers}人观看)` : '开始共享'}
-            </button>
-            <button 
-              onClick={() => setShowInviteModal(true)}
-              className="flex-1 py-3 bg-white/20 rounded-xl font-medium flex items-center justify-center gap-2 text-white hover:bg-white/30 transition-colors"
-            >
-              <Users size={18} /> 邀请学生
-            </button>
-          </div>
-          
-          {/* 屏幕共享类型选择 */}
-          {isScreenSharing && (
-            <div className="mt-3 flex gap-2">
-              {[
-                { type: 'screen', label: '整个屏幕', icon: Monitor },
-                { type: 'window', label: '应用窗口', icon: Play },
-                { type: 'ppt', label: 'PPT演示', icon: PenLine },
-              ].map(({ type, label, icon: Icon }) => (
-                <button
-                  key={type}
-                  onClick={() => setScreenShareType(type as any)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
-                    screenShareType === type 
-                      ? 'bg-white text-blue-600' 
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  }`}
-                >
-                  <Icon size={14} /> {label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 屏幕共享区域 */}
-        {isScreenSharing && (
-          <div className="bg-gray-900 rounded-3xl p-4 shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <Monitor size={18} className="text-green-400" /> 
-                正在共享
-                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                  {screenShareType === 'screen' ? '整个屏幕' : screenShareType === 'window' ? '应用窗口' : 'PPT演示'}
-                </span>
-              </h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-400 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  {screenShareViewers} 人观看
-                </span>
-                <button 
-                  onClick={() => setIsScreenSharing(false)}
-                  className="p-2 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-            
-            {/* 模拟共享内容 */}
-            <div className="relative bg-gray-800 rounded-2xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
-              {screenShareType === 'ppt' ? (
-                // PPT 演示模式
-                <div className="absolute inset-0 flex flex-col">
-                  <div className="flex-1 bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-8">
-                    <div className="text-center text-white">
-                      <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <PenLine size={40} />
-                      </div>
-                      <h4 className="text-2xl font-bold mb-2">项目管理基础</h4>
-                      <p className="text-white/80">第三章：进度管理与控制</p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
-                    <span className="text-sm text-gray-400">幻灯片 3 / 15</span>
-                    <div className="flex gap-2">
-                      <button className="px-3 py-1 bg-white/10 rounded-lg text-white text-sm hover:bg-white/20">上一页</button>
-                      <button className="px-3 py-1 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-700">下一页</button>
-                    </div>
-                  </div>
-                </div>
-              ) : screenShareType === 'window' ? (
-                // 应用窗口模式
-                <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
-                  <div className="w-3/4 h-3/4 bg-white rounded-xl shadow-2xl overflow-hidden">
-                    <div className="h-8 bg-gray-200 flex items-center px-3 gap-2">
-                      <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                      <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                      <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                      <span className="ml-2 text-xs text-gray-500">代码编辑器</span>
-                    </div>
-                    <div className="p-4 font-mono text-sm text-gray-700">
-                      <div className="text-purple-600">function</div>
-                      <div className="pl-4">
-                        <span className="text-blue-600">calculateProgress</span>
-                        <span className="text-gray-500">(tasks)</span>
-                      </div>
-                      <div className="pl-4 text-gray-400">{'{ ... }'}</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // 整个屏幕模式
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <div className="w-24 h-24 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                      <Monitor size={48} className="text-white/80" />
-                    </div>
-                    <p className="text-lg font-medium">正在共享屏幕</p>
-                    <p className="text-sm text-white/60 mt-1">学生可以看到您的屏幕内容</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* 观看人数浮层 */}
-              <div className="absolute top-3 right-3 px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full text-white text-sm flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                {screenShareViewers} 人观看
-              </div>
-            </div>
-            
-            <p className="text-xs text-gray-500 mt-3 text-center">
-              屏幕共享模拟 · 实际实现需要 WebRTC 技术支持
-            </p>
-          </div>
-        )}
-
-        {/* 白板区域 */}
-        <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2">
-              <PenLine size={18} className="text-blue-500" /> 课堂白板
-            </h3>
-            <div className="flex items-center gap-2">
-              {/* 颜色选择 */}
-              <div className="flex gap-1">
-                {['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#1F2937'].map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setBrushColor(color)}
-                    className={`w-6 h-6 rounded-full border-2 transition-all ${
-                      brushColor === color ? 'border-gray-900 scale-110' : 'border-transparent'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-              <div className="w-px h-6 bg-gray-200 mx-1"></div>
-              {/* 画笔粗细 */}
-              <div className="flex gap-1">
-                {[2, 4, 6].map(width => (
-                  <button
-                    key={width}
-                    onClick={() => setBrushWidth(width)}
-                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                      brushWidth === width ? 'bg-gray-200' : ''
-                    }`}
-                  >
-                    <div 
-                      className="rounded-full bg-gray-600"
-                      style={{ width: width, height: width }}
-                    />
-                  </button>
-                ))}
-              </div>
-              <div className="w-px h-6 bg-gray-200 mx-1"></div>
-              <button 
-                onClick={clearWhiteboard}
-                className="p-2 bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-          
-          {/* 画布区域 */}
-          <div className="relative h-64 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 overflow-hidden">
-            <canvas
-              className="absolute inset-0 w-full h-full cursor-crosshair"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              ref={(canvas) => {
-                if (canvas) {
-                  const ctx = canvas.getContext('2d');
-                  if (ctx) {
-                    // 清空画布
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // 绘制所有笔触
-                    strokes.forEach(stroke => {
-                      ctx.beginPath();
-                      ctx.strokeStyle = stroke.color;
-                      ctx.lineWidth = stroke.width;
-                      ctx.lineCap = 'round';
-                      ctx.lineJoin = 'round';
-                      stroke.points.forEach((point, idx) => {
-                        if (idx === 0) {
-                          ctx.moveTo(point.x, point.y);
-                        } else {
-                          ctx.lineTo(point.x, point.y);
-                        }
-                      });
-                      ctx.stroke();
-                    });
-                    
-                    // 绘制当前笔触
-                    if (currentStroke) {
-                      ctx.beginPath();
-                      ctx.strokeStyle = currentStroke.color;
-                      ctx.lineWidth = currentStroke.width;
-                      ctx.lineCap = 'round';
-                      ctx.lineJoin = 'round';
-                      currentStroke.points.forEach((point, idx) => {
-                        if (idx === 0) {
-                          ctx.moveTo(point.x, point.y);
-                        } else {
-                          ctx.lineTo(point.x, point.y);
-                        }
-                      });
-                      ctx.stroke();
-                    }
-                  }
-                }
-              }}
-              width={800}
-              height={300}
-            />
-            {strokes.length === 0 && !currentStroke && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
-                <div className="text-center">
-                  <PenLine size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">在上方选择颜色和粗细，开始书写板书</p>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <p className="text-xs text-gray-400 mt-2 text-center">
-            支持手写板书、选择颜色、调整画笔粗细
-          </p>
-        </div>
-
-        {/* 学生签到 - 简化版 */}
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2">
-              <Users size={18} className="text-green-500" /> 学生签到
-            </h3>
-            <div className="flex gap-3 text-sm">
-              <span className="text-green-600 font-medium">出勤 {stats.present}</span>
-              <span className="text-yellow-600 font-medium">迟到 {stats.late}</span>
-              <span className="text-red-600 font-medium">缺勤 {stats.absent}</span>
-            </div>
-          </div>
-          
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {attendanceList.length === 0 ? (
-              <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-xl">
-                <Users size={32} className="mx-auto mb-2 opacity-30" />
-                <p>暂无学生签到数据</p>
-              </div>
-            ) : (
-              attendanceList.map((student) => (
-                <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <img src={student.avatar} alt="" className="w-10 h-10 rounded-full" />
-                  <span className="flex-1 font-medium text-gray-900">{student.name}</span>
-                  <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                    student.status === 'present' ? 'bg-green-100 text-green-700' :
-                    student.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {student.status === 'present' ? '已签到' : student.status === 'late' ? '迟到' : '缺勤'}
-                  </span>
-                  {student.checkInTime && (
-                    <span className="text-xs text-gray-400">{student.checkInTime}</span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* 互动工具 */}
-        <div className="grid grid-cols-4 gap-3">
-          <button 
-            onClick={() => setShowQuestionModal(true)}
-            className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-blue-200 transition-colors"
-          >
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
-              <MessageCircle size={20} />
-            </div>
-            <span className="text-xs font-medium text-gray-900">提问</span>
-            <span className="text-[10px] text-gray-500">{questions.filter(q => !q.isAnswered).length} 未答</span>
-          </button>
-          
-          <button 
-            onClick={() => setShowPollModal(true)}
-            className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-green-200 transition-colors"
-          >
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center text-green-600">
-              <BarChart3 size={20} />
-            </div>
-            <span className="text-xs font-medium text-gray-900">投票</span>
-            <span className="text-[10px] text-gray-500">{activePoll ? '进行中' : '发起'}</span>
-          </button>
-          
-          <button 
-            onClick={() => setShowQuizModal(true)}
-            className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-purple-200 transition-colors"
-          >
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600">
-              <ClipboardList size={20} />
-            </div>
-            <span className="text-xs font-medium text-gray-900">随堂测</span>
-            <span className="text-[10px] text-gray-500">{activeQuiz ? '进行中' : '发起'}</span>
-          </button>
-          
-          <button 
-            onClick={() => setShowMoreModal(true)}
-            className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center gap-2 hover:border-orange-200 transition-colors"
-          >
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
-              <MoreHorizontal size={20} />
-            </div>
-            <span className="text-xs font-medium text-gray-900">更多</span>
-            <span className="text-[10px] text-gray-500">工具箱</span>
-          </button>
-        </div>
-
-        {/* 当前投票结果 */}
-        {activePoll && (
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <BarChart3 size={18} className="text-green-500" /> 当前投票
-              </h3>
-              <button 
-                onClick={() => setActivePoll(null)}
-                className="text-xs text-gray-400 hover:text-gray-600"
-              >
-                结束投票
-              </button>
-            </div>
-            <p className="text-gray-700 mb-4">{activePoll.question}</p>
-            <div className="space-y-3">
-              {activePoll.options.map((option) => (
-                <div key={option.id}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-700">{option.text}</span>
-                    <span className="text-gray-500">{option.votes} 票 ({activePoll.totalVotes > 0 ? Math.round((option.votes / activePoll.totalVotes) * 100) : 0}%)</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 rounded-full transition-all"
-                      style={{ width: `${activePoll.totalVotes > 0 ? (option.votes / activePoll.totalVotes) * 100 : 0}%` }} 
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-gray-400 mt-3 text-center">共 {activePoll.totalVotes} 人参与投票</p>
           </div>
         )}
       </div>
