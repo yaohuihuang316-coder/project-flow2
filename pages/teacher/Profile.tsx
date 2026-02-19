@@ -802,6 +802,7 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
       onNavigate={onNavigate}
       onLogout={onLogout}
       currentUser={currentUser}
+      onSettingsClick={() => setShowSettings(true)}
     >
       <div className="space-y-6">
         {/* 页面标题 */}

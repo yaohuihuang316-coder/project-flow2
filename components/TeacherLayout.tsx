@@ -8,6 +8,7 @@ interface TeacherLayoutProps {
   onTabChange: (tab: 'home' | 'courses' | 'class' | 'assignments' | 'profile') => void;
   onNavigate?: (page: Page) => void;
   onLogout?: () => void;
+  onSettingsClick?: () => void;
   currentUser?: { name?: string; avatar?: string; role?: string } | null;
   hideBottomNav?: boolean;
 }
@@ -18,6 +19,7 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({
   onTabChange,
   onNavigate,
   onLogout,
+  onSettingsClick,
   currentUser,
   hideBottomNav = false
 }) => {
@@ -81,8 +83,12 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({
           <div className="border-t border-gray-100 pt-4 space-y-1">
             <button
               onClick={() => {
-                // 设置功能在个人中心页面内，先跳转到个人中心
-                onNavigate?.(Page.TEACHER_PROFILE);
+                if (onSettingsClick) {
+                  onSettingsClick();
+                } else {
+                  // 默认跳转到个人中心
+                  onNavigate?.(Page.TEACHER_PROFILE);
+                }
               }}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all"
             >
