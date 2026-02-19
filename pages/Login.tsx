@@ -243,12 +243,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           created_at: new Date().toISOString()
       };
 
-      // Try to sync to DB (may fail if offline)
-      try {
-          await supabase.from('app_users').upsert(dbUser);
-      } catch (err) {
-          console.warn("Could not sync demo user to DB", err);
-      }
+      // Try to sync to DB (may fail if offline) - 异步执行，不阻塞登录
+      (async () => {
+          try {
+              await supabase.from('app_users').upsert(dbUser);
+              console.log("Demo user synced to DB");
+          } catch (err) {
+              console.warn("Could not sync demo user to DB", err);
+          }
+      })();
 
       onLogin({
           id: user.id,
