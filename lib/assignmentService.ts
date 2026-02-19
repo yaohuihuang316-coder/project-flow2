@@ -172,23 +172,26 @@ export async function getAssignmentSubmissions(assignmentId: string): Promise<St
     // 获取所有学生ID
     const studentIds = [...new Set(submissionsData.map((item: any) => item.student_id))];
 
-    // 批量查询学生信息
-    const { data: studentsData, error: studentsError } = await supabase
-        .from('app_users')
-        .select('id, name, avatar')
-        .in('id', studentIds);
-
-    if (studentsError) {
-        console.error('获取学生信息失败:', studentsError);
+    // 批量查询学生信息（如果失败则使用默认值）
+    let studentsData: any[] = [];
+    try {
+        const { data, error } = await supabase
+            .from('app_users')
+            .select('id, name, avatar')
+            .in('id', studentIds);
+        
+        if (!error && data) {
+            studentsData = data;
+        }
+    } catch (e) {
+        console.warn('无法获取学生信息，使用默认值');
     }
 
     // 创建学生信息映射
     const studentMap = new Map();
-    if (studentsData) {
-        studentsData.forEach((student: any) => {
-            studentMap.set(student.id, student);
-        });
-    }
+    studentsData.forEach((student: any) => {
+        studentMap.set(student.id, student);
+    });
 
     // 格式化数据
     const submissions = submissionsData.map((item: any) => ({
