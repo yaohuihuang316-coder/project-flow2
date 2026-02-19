@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Users, Target, Award, BarChart3 } from 'lucide-react';
+import { TrendingDown, Target, Award, BarChart3 } from 'lucide-react';
 
 interface GradeStatsProps {
   submissions: {
@@ -16,7 +16,6 @@ const GradeStats: React.FC<GradeStatsProps> = ({ submissions, maxScore }) => {
     
     if (graded.length === 0) {
       return {
-        avgScore: 0,
         maxScore: 0,
         minScore: 0,
         passRate: 0,
@@ -27,7 +26,6 @@ const GradeStats: React.FC<GradeStatsProps> = ({ submissions, maxScore }) => {
     }
 
     const scores = graded.map(s => s.score!);
-    const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
     const max = Math.max(...scores);
     const min = Math.min(...scores);
     const passRate = (scores.filter(s => s >= maxScore * 0.6).length / scores.length) * 100;
@@ -42,7 +40,6 @@ const GradeStats: React.FC<GradeStatsProps> = ({ submissions, maxScore }) => {
     ];
 
     return {
-      avgScore: avgScore.toFixed(1),
       maxScore: max,
       minScore: min,
       passRate: passRate.toFixed(1),
@@ -66,20 +63,8 @@ const GradeStats: React.FC<GradeStatsProps> = ({ submissions, maxScore }) => {
 
   return (
     <div className="space-y-6">
-      {/* 主要统计卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <TrendingUp size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{stats.avgScore}</p>
-              <p className="text-xs text-gray-500">平均分</p>
-            </div>
-          </div>
-        </div>
-
+      {/* 主要统计卡片 - 移除与父组件重复的"平均分"和"已批改" */}
+      <div className="grid grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
@@ -106,12 +91,12 @@ const GradeStats: React.FC<GradeStatsProps> = ({ submissions, maxScore }) => {
 
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-              <Users size={20} className="text-orange-600" />
+            <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+              <TrendingDown size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{stats.gradedCount}/{stats.total}</p>
-              <p className="text-xs text-gray-500">已批改</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.minScore}</p>
+              <p className="text-xs text-gray-500">最低分</p>
             </div>
           </div>
         </div>

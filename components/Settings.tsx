@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  User, Mail, Lock, Bell, Shield,
+  User, Mail, Lock, Bell, Shield, Camera,
   Eye, EyeOff, Save, Loader2, CheckCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -32,6 +32,37 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
     newEmail: currentUser?.email || '',
     password: ''
   });
+
+  // 个人资料状态
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || '',
+    avatar: currentUser?.avatar || '',
+    bio: currentUser?.bio || ''
+  });
+
+  // 通知设置状态
+  const [notificationSettings, setNotificationSettings] = useState({
+    emailNotifications: true,
+    assignmentReminders: true,
+    classReminders: true,
+    announcementNotifications: true,
+    marketingEmails: false
+  });
+
+  // 同步用户数据到表单
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || '',
+        avatar: currentUser.avatar || '',
+        bio: currentUser.bio || ''
+      });
+      setEmailForm(prev => ({
+        ...prev,
+        newEmail: currentUser.email || ''
+      }));
+    }
+  }, [currentUser]);
 
   // 修改密码
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -94,6 +125,48 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 修改个人资料
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    if (!currentUser?.id) {
+      setMessage({ type: 'error', text: '请先登录' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('app_users')
+        .update({
+          name: profileForm.name,
+          bio: profileForm.bio,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentUser.id);
+
+      if (error) throw error;
+
+      setMessage({ type: 'success', text: '个人资料更新成功！' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '更新失败' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 切换通知设置
+  const handleNotificationToggle = (key: keyof typeof notificationSettings) => {
+    setNotificationSettings(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+    // 这里可以添加保存到数据库的逻辑
+    setMessage({ type: 'success', text: '设置已更新' });
+    setTimeout(() => setMessage(null), 2000);
   };
 
   const menuItems = [
@@ -322,14 +395,122 @@ const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
               </div>
             )}
 
-            {/* 其他标签页占位 */}
-            {(activeTab === 'profile' || activeTab === 'notifications') && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Shield size={32} className="text-gray-400" />
+            {/* 个人资料 */}
+            {activeTab === 'profile' && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-6">个人资料</h2>
+                <form onSubmit={handleProfileUpdate} className="space-y-6">
+                  {/* 头像 */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <img
+                        src={profileForm.avatar || 'https://i.pravatar.cc/150?u=default'}
+                        alt="头像"
+                        className="w-20 h-20 rounded-2xl object-cover border-2 border-gray-100"
+                      />
+                      <button
+                        type="button"
+                        className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors"
+                        title="更换头像"
+                      >
+                        <Camera size={14} />
+                      </button>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">头像</p>
+                      <p className="text-sm text-gray-500">支持 JPG、PNG 格式，最大 2MB</p>
+                    </div>
+                  </div>
+
+                  {/* 昵称 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      昵称
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="请输入昵称"
+                    />
+                  </div>
+
+                  {/* 个人简介 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      个人简介
+                    </label>
+                    <textarea
+                      value={profileForm.bio}
+                      onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                      rows={4}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="介绍一下自己..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1">{profileForm.bio.length}/200 字符</p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        保存中...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={18} />
+                        保存修改
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* 通知设置 */}
+            {activeTab === 'notifications' && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-6">通知设置</h2>
+                <div className="space-y-4">
+                  {[
+                    { key: 'emailNotifications', label: '邮件通知', desc: '接收重要的系统邮件通知' },
+                    { key: 'assignmentReminders', label: '作业提醒', desc: '作业截止前接收提醒' },
+                    { key: 'classReminders', label: '上课提醒', desc: '课程开始前接收提醒' },
+                    { key: 'announcementNotifications', label: '公告通知', desc: '接收平台公告和更新' },
+                    { key: 'marketingEmails', label: '营销邮件', desc: '接收课程推荐和优惠信息' },
+                  ].map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{item.label}</p>
+                        <p className="text-sm text-gray-500">{item.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => handleNotificationToggle(item.key as keyof typeof notificationSettings)}
+                        className={`w-12 h-6 rounded-full transition-colors relative ${
+                          notificationSettings[item.key as keyof typeof notificationSettings]
+                            ? 'bg-blue-600'
+                            : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            notificationSettings[item.key as keyof typeof notificationSettings]
+                              ? 'translate-x-7'
+                              : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">功能开发中</h3>
-                <p className="text-gray-500">该功能即将上线，敬请期待</p>
               </div>
             )}
           </div>

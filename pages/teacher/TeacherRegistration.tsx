@@ -143,10 +143,10 @@ export default function TeacherRegistration({ onNavigate }: TeacherRegistrationP
             </p>
           </div>
           <button
-            onClick={() => onNavigate?.(Page.PROFILE)}
+            onClick={() => onNavigate?.(Page.TEACHER_PROFILE)}
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-shadow"
           >
-            返回个人中心
+            返回教师中心
           </button>
         </div>
       </div>
@@ -159,7 +159,7 @@ export default function TeacherRegistration({ onNavigate }: TeacherRegistrationP
         {/* 返回按钮 */}
         <div className="mb-6">
           <button
-            onClick={() => onNavigate?.(Page.PROFILE)}
+            onClick={() => onNavigate?.(Page.TEACHER_PROFILE)}
             className="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

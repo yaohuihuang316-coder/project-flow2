@@ -396,9 +396,18 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
       
       // 刷新会话列表
       await refetchSessions();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to start class:', err);
-      alert('开始上课失败，请重试');
+      // 提供更详细的错误信息
+      let errorMsg = '开始上课失败，请重试';
+      if (err?.message?.includes('permission') || err?.message?.includes('Policy')) {
+        errorMsg = '权限不足，无法开始上课。请联系管理员。';
+      } else if (err?.message?.includes('network') || err?.message?.includes('fetch')) {
+        errorMsg = '网络连接失败，请检查网络后重试。';
+      } else if (err?.message) {
+        errorMsg = `开始上课失败: ${err.message}`;
+      }
+      alert(errorMsg);
     } finally {
       setIsLoading(false);
     }
