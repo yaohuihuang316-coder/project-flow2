@@ -9,6 +9,7 @@ import {
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
 import Settings from '../../components/Settings';
+import TeacherLayout from '../../components/TeacherLayout';
 
 interface TeacherProfileProps {
   currentUser?: UserProfile | null;
@@ -777,69 +778,63 @@ const TeacherProfile: React.FC<TeacherProfileProps> = ({
 
   // ==================== 主内容 ====================
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 桌面端侧边栏导航 */}
-      {renderSidebar()}
-
-      {/* 主内容区域 - 响应式布局 */}
-      <main className="lg:ml-64 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="space-y-6 pb-28 lg:pb-6">
-            {/* 页面标题 - 移动端显示 */}
-            <div className="flex items-center justify-between lg:hidden">
-              <h1 className="text-2xl font-bold text-gray-900">个人中心</h1>
-              <button 
-                className="p-2 bg-white rounded-xl shadow-sm border border-gray-100"
-                onClick={() => setShowSettings(true)}
-              >
-                <SettingsIcon size={20} className="text-gray-600" />
-              </button>
-            </div>
-
-            {/* 桌面端页面标题 */}
-            <div className="hidden lg:flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">个人中心</h1>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>最后更新:</span>
-                <span>{new Date().toLocaleDateString('zh-CN')}</span>
-              </div>
-            </div>
-
-            {/* 教师信息卡片 */}
-            {renderTeacherCard()}
-
-            {/* 教学统计 */}
-            {renderTeachingStats()}
-
-            {/* 两列布局 - 桌面端 */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              {/* 认证状态 */}
-              {renderVerificationStatus()}
-
-              {/* 联系信息 */}
-              {renderContactInfo()}
-            </div>
-
-            {/* 功能菜单 */}
-            <div className="lg:hidden">
-              {renderMenuList()}
-            </div>
-
-            {/* 退出登录 - 仅移动端 */}
-            {renderLogoutButton()}
+    <TeacherLayout
+      activeTab="profile"
+      onTabChange={(tab) => {
+        setActiveTab(tab);
+        if (onNavigate) {
+          switch (tab) {
+            case 'home':
+              onNavigate(Page.TEACHER_DASHBOARD);
+              break;
+            case 'courses':
+              onNavigate(Page.TEACHER_COURSES);
+              break;
+            case 'class':
+              onNavigate(Page.TEACHER_CLASSROOM);
+              break;
+            case 'assignments':
+              onNavigate(Page.TEACHER_ASSIGNMENTS);
+              break;
+          }
+        }
+      }}
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+      currentUser={currentUser}
+    >
+      <div className="space-y-6">
+        {/* 页面标题 */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">个人中心</h1>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>最后更新:</span>
+            <span>{new Date().toLocaleDateString('zh-CN')}</span>
           </div>
         </div>
-      </main>
 
-      {/* 底部导航 - 仅移动端显示 */}
-      {renderBottomNav()}
+        {/* 教师信息卡片 */}
+        {renderTeacherCard()}
+
+        {/* 教学统计 */}
+        {renderTeachingStats()}
+
+        {/* 两列布局 - 桌面端 */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* 认证状态 */}
+          {renderVerificationStatus()}
+
+          {/* 联系信息 */}
+          {renderContactInfo()}
+        </div>
+      </div>
 
       {/* 编辑资料弹窗 */}
       {renderEditModal()}
 
       {/* 设置页面 */}
       {renderSettings()}
-    </div>
+    </TeacherLayout>
   );
 };
 
