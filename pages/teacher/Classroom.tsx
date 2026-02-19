@@ -214,19 +214,6 @@ async function _createClassSession(_sessionData: any) {
   return data;
 }
 
-// 更新课堂会话状态
-async function updateClassSession(sessionId: string, updates: any) {
-  const { data, error } = await supabase
-    .from('app_class_sessions')
-    .update(updates)
-    .eq('id', sessionId)
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
-}
-
 const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   currentUser,
   onNavigate,
@@ -247,6 +234,19 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
   const [screenShareType, setScreenShareType] = useState<'screen' | 'window' | 'ppt'>('screen');
   const [screenShareViewers, setScreenShareViewers] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 更新课堂会话状态
+  const updateClassSession = async (sessionId: string, updates: any) => {
+    const { data, error } = await supabase
+      .from('app_class_sessions')
+      .update(updates)
+      .eq('id', sessionId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  };
 
   // 白板状态
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -596,77 +596,6 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
           </nav>
         </div>
       </aside>
-    );
-  };
-
-  // ==================== 底部导航（移动端） ====================
-  const renderBottomNav = () => {
-    const navItems = [
-      { id: 'home', icon: Home, label: '首页' },
-      { id: 'courses', icon: BookOpen, label: '课程' },
-      { id: 'class', icon: Video, label: '上课', highlight: true },
-      { id: 'assignments', icon: ClipboardList, label: '作业' },
-      { id: 'profile', icon: User, label: '我的' },
-    ];
-
-    return (
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-200/50 pb-safe pt-2 px-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-between items-center h-16 max-w-lg mx-auto">
-          {navItems.map((item) => {
-            const isActive = activeTab === item.id;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  // 如果正在上课，提示确认
-                  if (isClassActive && item.id !== 'class') {
-                    if (!confirm('课堂正在进行中，确定要离开吗？')) {
-                      return;
-                    }
-                    // 结束课堂状态
-                    setIsClassActive(false);
-                    setActiveSessionId(null);
-                    setClassTimer(0);
-                  }
-                  
-                  setActiveTab(item.id as TeacherTab);
-                  if (item.id !== 'class' && onNavigate) {
-                    const pageMap: Record<string, Page> = {
-                      'home': Page.TEACHER_DASHBOARD,
-                      'courses': Page.TEACHER_COURSES,
-                      'assignments': Page.TEACHER_ASSIGNMENTS,
-                      'profile': Page.TEACHER_PROFILE
-                    };
-                    onNavigate(pageMap[item.id]);
-                  }
-                }}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-all ${
-                  item.highlight ? '-mt-4' : ''
-                }`}
-              >
-                {item.highlight ? (
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
-                    isActive ? 'bg-blue-600 shadow-blue-500/30' : 'bg-gray-100'
-                  }`}>
-                    <Icon size={28} className={isActive ? 'text-white' : 'text-gray-500'} />
-                  </div>
-                ) : (
-                  <div className={`p-2 rounded-xl transition-colors ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
-                    <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                  </div>
-                )}
-                <span className={`text-[10px] font-medium transition-colors ${
-                  item.highlight ? 'text-gray-600' : isActive ? 'text-blue-600' : 'text-gray-400'
-                }`}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="h-2 w-full"></div>
-      </div>
     );
   };
 
@@ -1860,8 +1789,8 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
         </main>
       </div>
       
-      {/* 移动端底部导航 */}
-      <div className="lg:hidden">{renderBottomNav()}</div>
+      {/* 移动端底部导航 - 已移除，由 TeacherLayout 统一管理 */}
+      {/* <div className="lg:hidden">{renderBottomNav()}</div> */}
       {renderQuestionModal()}
       {renderPollModal()}
       {renderAttendanceModal()}

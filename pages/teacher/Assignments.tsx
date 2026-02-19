@@ -269,7 +269,9 @@ const AssignmentDetailModal: React.FC<AssignmentDetailModalProps> = ({
   const currentSubs = submissions.filter(s => s.assignmentId === assignment.id);
   const gradedCount = currentSubs.filter(s => s.status === 'graded').length;
   const avgScore = currentSubs.filter(s => s.score !== undefined).reduce((sum, s) => sum + (s.score || 0), 0) / gradedCount || 0;
-  const submitRate = Math.round((assignment.submittedCount / assignment.totalCount) * 100);
+  const submitRate = assignment.totalCount > 0 
+    ? Math.round((assignment.submittedCount / assignment.totalCount) * 100) 
+    : 0;
 
   const toggleSubmissionSelection = (submissionId: string) => {
     setSelectedSubmissions(prev =>

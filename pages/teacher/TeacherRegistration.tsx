@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   Upload, FileText, Building2, 
-  CheckCircle, AlertCircle, ArrowRight, Loader2 
+  CheckCircle, AlertCircle, ArrowRight, Loader2, ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { Page } from '../../types';
@@ -156,6 +156,17 @@ export default function TeacherRegistration({ onNavigate }: TeacherRegistrationP
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
+        {/* 返回按钮 */}
+        <div className="mb-6">
+          <button
+            onClick={() => onNavigate?.(Page.PROFILE)}
+            className="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>返回</span>
+          </button>
+        </div>
+
         {/* 头部 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-800 mb-2">教师认证</h1>
