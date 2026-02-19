@@ -908,7 +908,9 @@ const Assignments: React.FC<AssignmentsProps> = ({
   // 加载作业提交数据
   const loadSubmissions = async (assignmentId: string) => {
     try {
+      console.log('Loading submissions for assignment:', assignmentId);
       const submissionsData = await assignmentService.getAssignmentSubmissions(assignmentId);
+      console.log('Raw submissions data:', submissionsData);
       const formattedSubmissions: StudentSubmission[] = submissionsData.map(sub => ({
         id: sub.id,
         studentId: sub.student_id,
@@ -922,7 +924,9 @@ const Assignments: React.FC<AssignmentsProps> = ({
         assignmentId: sub.assignment_id,
         attachments: sub.attachments || []
       }));
+      console.log('Formatted submissions:', formattedSubmissions);
       setSubmissions(prev => [...prev.filter(s => s.assignmentId !== assignmentId), ...formattedSubmissions]);
+      console.log('Submissions state updated');
     } catch (err) {
       console.error('加载提交数据失败:', err);
     }
