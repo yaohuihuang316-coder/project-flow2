@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Page, UserProfile } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
+import ActiveClassroom from '../../components/teacher/ActiveClassroom';
 
 interface TeacherClassroomProps {
   currentUser?: UserProfile | null;
@@ -1750,7 +1751,19 @@ const TeacherClassroom: React.FC<TeacherClassroomProps> = ({
             )}
 
             {/* 主内容区 */}
-            {isClassActive ? renderActiveClass() : (
+            {isClassActive && activeSessionId ? (
+              <ActiveClassroom
+                sessionId={activeSessionId}
+                currentUser={currentUser}
+                onNavigate={onNavigate}
+                onEndClass={() => {
+                  setIsClassActive(false);
+                  setActiveSessionId(null);
+                  setClassTimer(0);
+                  refetchSessions();
+                }}
+              />
+            ) : (
               <div className="space-y-6 pb-24 lg:pb-0">
                 {renderUpcomingClasses()}
                 
