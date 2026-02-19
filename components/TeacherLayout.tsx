@@ -80,7 +80,10 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({
         <div className="p-6 pt-0 mt-auto">
           <div className="border-t border-gray-100 pt-4 space-y-1">
             <button
-              onClick={() => onNavigate?.(Page.PROFILE)}
+              onClick={() => {
+                // 设置功能在个人中心页面内，先跳转到个人中心
+                onNavigate?.(Page.TEACHER_PROFILE);
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-all"
             >
               <Settings size={20} />
