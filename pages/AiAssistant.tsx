@@ -155,6 +155,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             if (modelConfig.provider === 'moonshot') {
                 // 使用 Moonshot/Kimi API
                 const apiKey = getMoonshotApiKey();
+                console.log('Moonshot API Key check:', {
+                    hasKey: !!apiKey,
+                    keyLength: apiKey?.length,
+                    keyPrefix: apiKey?.substring(0, 10) + '...'
+                });
                 if (!apiKey) {
                     throw new Error('Moonshot API Key 未配置');
                 }
@@ -185,7 +190,13 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API请求失败: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('Moonshot API Error:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorText
+                    });
+                    throw new Error(`API请求失败: ${response.status} - ${errorText}`);
                 }
 
                 const data = await response.json();
