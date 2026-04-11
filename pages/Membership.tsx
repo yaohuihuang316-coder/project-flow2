@@ -254,7 +254,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     ]},
     { category: 'AI 助手', items: [
       { name: 'AI 日调用次数', free: '5次', pro: '20次', pro_plus: '50次', desc: '每日AI助手使用次数' },
-      { name: 'AI 模型', free: 'Gemini Flash', pro: 'Gemini + Kimi', pro_plus: 'Gemini Pro + Kimi', desc: '可用AI模型' },
+      { name: 'AI 模型', free: 'DeepSeek Chat', pro: 'DeepSeek Chat', pro_plus: 'DeepSeek Chat', desc: '可用AI模型' },
       { name: '高级分析', free: false, pro: false, pro_plus: true, desc: '深度项目分析报告' },
     ]},
     { category: '实战模拟', items: [

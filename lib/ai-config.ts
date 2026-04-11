@@ -3,25 +3,25 @@ import { AIModelConfig, MembershipTier } from '../types';
 
 export const AI_MODELS: Record<'basic' | 'pro', AIModelConfig> = {
   basic: {
-    id: 'moonshot-v1-8k',
-    provider: 'moonshot',
-    name: 'Kimi AI',
-    description: 'Kimi智能助手，快速响应项目管理问题（默认）',
+    id: 'deepseek-chat',
+    provider: 'deepseek',
+    name: 'DeepSeek Chat',
+    description: 'DeepSeek 轻量模型，适合日常问答、写作和课程辅导',
     maxTokens: 8192,
     temperature: 0.7,
-    icon: '🌙',
-    color: '#6366f1',
+    icon: '🧠',
+    color: '#2563eb',
     features: ['知识问答', '概念解释', '简单分析', '文档辅助']
   },
   pro: {
-    id: 'gemini-2.0-flash',
-    provider: 'google',
-    name: 'Gemini Flash',
-    description: 'Google Gemini，快速响应备选方案',
+    id: 'deepseek-chat',
+    provider: 'deepseek',
+    name: 'DeepSeek Chat',
+    description: 'DeepSeek 统一模型，覆盖高频学习与分析场景',
     maxTokens: 8192,
     temperature: 0.7,
-    icon: '⚡',
-    color: '#4285f4',
+    icon: '🧠',
+    color: '#2563eb',
     features: ['知识问答', '概念解释', '简单分析']
   }
 };
@@ -43,8 +43,8 @@ export const canUseAIModel = (
     pro: 1,
     pro_plus: 2
   };
-  // pro模型(Gemini)需要pro_plus权限
-  // basic模型(Kimi)所有付费会员(pro/pro_plus)都可用
+  // pro模型仍保留给 pro_plus 权限，方便和现有会员体系兼容
+  // basic模型对所有付费会员(pro/pro_plus)开放
   const requiredLevel = modelType === 'pro' ? 2 : 1;
   return tierLevels[userTier] >= requiredLevel;
 };
@@ -52,8 +52,8 @@ export const canUseAIModel = (
 // 获取用户可用的AI模型
 export const getAvailableModels = (userTier: MembershipTier): ('basic' | 'pro')[] => {
   if (userTier === 'free') return [];
-  if (userTier === 'pro') return ['basic']; // Pro会员只能用Kimi
-  if (userTier === 'pro_plus') return ['basic', 'pro']; // ProPlus可以用Kimi和Gemini
+  if (userTier === 'pro') return ['basic'];
+  if (userTier === 'pro_plus') return ['basic', 'pro'];
   return [];
 };
 
@@ -89,28 +89,15 @@ export const getUsageLimitMessage = (
 };
 
 // API Key 获取
-export const getGeminiApiKey = (): string | null => {
+export const getDeepSeekApiKey = (): string | null => {
   try {
     // @ts-ignore - Vite env
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore - Vite env
-      return import.meta.env.VITE_GEMINI_API_KEY || null;
+      return import.meta.env.VITE_DEEPSEEK_API_KEY || import.meta.env.API_KEY || null;
     }
   } catch (e) {
-    console.error('Failed to get Gemini API key:', e);
-  }
-  return null;
-};
-
-export const getMoonshotApiKey = (): string | null => {
-  try {
-    // @ts-ignore - Vite env
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore - Vite env
-      return import.meta.env.VITE_MOONSHOT_API_KEY || null;
-    }
-  } catch (e) {
-    console.error('Failed to get Moonshot API key:', e);
+    console.error('Failed to get DeepSeek API key:', e);
   }
   return null;
 };

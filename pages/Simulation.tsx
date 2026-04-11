@@ -9,7 +9,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { Page } from '../types';
-import { generateSimulationReport, SimulationReportData, KimiReportResponse, generateHTMLReport } from '../lib/kimiService';
+import { generateSimulationReport, SimulationReportData, SimulationReportResponse, generateHTMLReport } from '../lib/simulationReportService';
 
 interface SimulationProps {
     onNavigate?: (page: Page) => void;
@@ -105,7 +105,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
 
     
     // AI 报告状态
-    const [kimiReport, setKimiReport] = useState<KimiReportResponse | null>(null);
+    const [kimiReport, setKimiReport] = useState<SimulationReportResponse | null>(null);
 
     // 获取场景列表
     useEffect(() => {
@@ -831,7 +831,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                     // 使用缓存（24小时有效）
                     kimiReportVal = JSON.parse(cachedReport);
                 } else {
-                    // 调用 Kimi API 生成报告
+                    // 调用 DeepSeek 生成报告
                     kimiReportVal = await generateSimulationReport(reportDataVal);
                     // 保存缓存
                     localStorage.setItem(cacheKey, JSON.stringify(kimiReportVal));
@@ -895,7 +895,7 @@ const Simulation: React.FC<SimulationProps> = ({ onBack: _onBack, currentUser })
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">正在生成分析报告...</h2>
                         <p className="text-gray-500 max-w-md text-center">
-                            Kimi AI 正在分析你的决策过程，生成个性化的能力评估和改进建议
+                            DeepSeek 正在分析你的决策过程，生成个性化的能力评估和改进建议
                         </p>
                     </div>
                 </div>

@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 import { Page, UserProfile } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { GoogleGenAI } from "@google/genai";
+import { createDeepSeekCompletion, getDeepSeekApiKey, parseJsonFromText } from '../lib/deepseekService';
 import { jsPDF } from 'jspdf';
 
 // --- Toast System ---
@@ -124,21 +124,7 @@ interface LearningHubProps {
 }
 
 // Helper for Safe Env Access
-const getApiKey = () => {
-    try {
-        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-            return process.env.API_KEY;
-        }
-    } catch (e) { }
-    try {
-        // @ts-ignore
-        if (typeof import.meta !== 'undefined' && import.meta.env) {
-            // @ts-ignore
-            return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
-        }
-    } catch (e) { }
-    return '';
-};
+const getApiKey = () => getDeepSeekApiKey();
 
 
 // --- 1. Data Configuration (Advanced Labs) ---
@@ -1497,10 +1483,20 @@ const ProjectCharter = () => {
         try {
             const apiKey = getApiKey();
             if (!apiKey) throw new Error("API Key Missing");
-            const ai = new GoogleGenAI({ apiKey });
             const prompt = `Generate a professional Project Charter for "${data.name}" with goal: "${data.goal}". Include Executive Summary, Objectives, Scope, Stakeholders.`;
-            const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: [{ role: 'user', parts: [{ text: prompt }] }] });
-            setContent(resp.text || '');
+            const responseText = await createDeepSeekCompletion({
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a professional project management consultant. Write concise, structured project charters in English.',
+                    },
+                    {
+                        role: 'user',
+                        content: prompt,
+                    },
+                ],
+            });
+            setContent(responseText || '');
             setStep(3);
         } catch (e) { alert("AI Error"); } finally { setIsGenerating(false); }
     };
@@ -1794,7 +1790,7 @@ const UserStorySplitter = () => {
     const handleSplit = async () => {
         setIsThinking(true); const apiKey = getApiKey();
         if (!apiKey) { alert("No Key"); setIsThinking(false); return; }
-        try { const ai = new GoogleGenAI({ apiKey }); const resp = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: [{ role: 'user', parts: [{ text: `Split this epic into 3 INVEST user stories: "${input}". List only.` }] }] }); setOutput((resp.text || '').split('\n').filter((l: string) => l.trim())); } catch (e) { console.error(e); } finally { setIsThinking(false); }
+        try { const responseText = await createDeepSeekCompletion({ messages: [{ role: 'system', content: 'You are a senior agile product coach. Split epics into concise INVEST user stories and return plain text lines only.' }, { role: 'user', content: `Split this epic into 3 INVEST user stories: "${input}". List only.` }] }); setOutput((responseText || '').split('\n').filter((l: string) => l.trim())); } catch (e) { console.error(e); } finally { setIsThinking(false); }
     };
     return <div className="h-full flex flex-col animate-fade-in"><h2 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-indigo-600" /> User Story 拆分</h2><div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="flex flex-col gap-4"><textarea className="flex-1 bg-gray-50 border rounded-2xl p-4 resize-none" placeholder="Enter Epic..." value={input} onChange={e => setInput(e.target.value)} /><button onClick={handleSplit} disabled={isThinking || !input} className="py-3 bg-black text-white rounded-xl font-bold">{isThinking ? 'Thinking...' : 'Split Story'}</button></div><div className="bg-white rounded-2xl border p-6 overflow-y-auto"><ul className="space-y-3">{output.map((s, i) => <li key={i} className="bg-gray-50 p-3 rounded-lg text-sm">{s}</li>)}</ul></div></div></div>;
 };
@@ -2575,17 +2571,23 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
             // 后台预加载
             setIsPreloading(true);
             try {
-                const ai = new GoogleGenAI({ apiKey });
                 const prompt = `Create 5 project management multiple choice questions based on case: "${caseData.title}". Return JSON array only: [{ "question_text": "...", "options": ["A..","B.."], "correct_answer": "...", "explanation": "..." }]`;
 
-                const resp = await ai.models.generateContent({
-                    model: 'gemini-3-flash-preview',
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    config: { responseMimeType: 'application/json' }
+                const text = await createDeepSeekCompletion({
+                    temperature: 0.3,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a project management exam assistant. Return valid JSON only.',
+                        },
+                        {
+                            role: 'user',
+                            content: prompt,
+                        },
+                    ],
                 });
-                
-                const text = resp.text || '[]';
-                const generated = JSON.parse(text);
+
+                const generated = parseJsonFromText<any[]>(text || '[]');
                 
                 if (Array.isArray(generated) && generated.length > 0 && generated[0].question_text) {
                     // 转换格式确保兼容
@@ -2659,18 +2661,24 @@ const ProjectSimulationView = ({ caseData, onClose }: { caseData: any, onClose: 
         );
         
         try {
-            const ai = new GoogleGenAI({ apiKey });
             const prompt = `Create 5 project management multiple choice questions based on case: "${caseData.title}". Return JSON array only: [{ "question_text": "...", "options": ["A..","B.."], "correct_answer": "...", "explanation": "..." }]`;
 
-            const aiPromise = ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                config: { responseMimeType: 'application/json' }
+            const aiPromise = createDeepSeekCompletion({
+                temperature: 0.3,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a project management exam assistant. Return valid JSON only.',
+                    },
+                    {
+                        role: 'user',
+                        content: prompt,
+                    },
+                ],
             });
             
-            const resp = await Promise.race([aiPromise, timeoutPromise]) as any;
-            const text = resp.text || '[]';
-            const generated = JSON.parse(text);
+            const text = await Promise.race([aiPromise, timeoutPromise]) as string;
+            const generated = parseJsonFromText<any[]>(text || '[]');
             
             if (Array.isArray(generated) && generated.length > 0 && generated[0].question_text) {
                 const formattedQuestions: Question[] = generated.map((q: any, idx: number) => ({
@@ -3206,4 +3214,3 @@ const LearningHub: React.FC<LearningHubProps> = ({ onNavigate, currentUser }) =>
 };
 
 export default LearningHub;
-

@@ -181,7 +181,7 @@ export interface KnowledgeEdge {
 
 export interface AIModelConfig {
   id: string;
-  provider: 'google' | 'moonshot';
+  provider: 'deepseek';
   name: string;
   description: string;
   maxTokens: number;

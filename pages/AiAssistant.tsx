@@ -1,79 +1,48 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, Bot, User, Sparkles, Loader2, Eraser, Lightbulb, AlertTriangle } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { UserProfile, ChatMessage } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import {
+    createDeepSeekCompletion,
+    DEFAULT_DEEPSEEK_MODEL,
+    getDeepSeekApiKey,
+    mapDeepSeekError,
+} from '../lib/deepseekService';
 
 interface AiAssistantProps {
     currentUser?: UserProfile | null;
 }
 
-type ModelKey = 'kimi' | 'gemini';
-type AIProvider = 'moonshot' | 'google';
+type ModelKey = 'deepseek';
 
 interface AIModelDefinition {
     name: string;
     icon: string;
     id: string;
-    provider: AIProvider;
 }
 
-const MODELS = {
-    kimi: {
-        name: 'Kimi AI',
-        icon: '🌙',
-        id: 'moonshot-v1-8k',
-        provider: 'moonshot'
+const MODELS: Record<ModelKey, AIModelDefinition> = {
+    deepseek: {
+        name: 'DeepSeek AI',
+        icon: '🧠',
+        id: DEFAULT_DEEPSEEK_MODEL,
     },
-    gemini: {
-        name: 'Gemini Flash',
-        icon: '⚡',
-        id: 'gemini-3-flash-preview',
-        provider: 'google'
-    }
-} satisfies Record<ModelKey, AIModelDefinition>;
+};
 
 const DAILY_LIMITS = {
     free: 0,
     pro: 20,
-    pro_plus: 50
+    pro_plus: 50,
 };
 
 const QUICK_PROMPTS = [
-    { text: '解释关键路径法（CPM）', emoji: '📈' },
-    { text: '如何编写项目章程？', emoji: '📝' },
-    { text: '什么是挣值管理（EVM）？', emoji: '📊' },
-    { text: '敏捷和瀑布该怎么选？', emoji: '🤔' }
+    { text: '解释关键路径法（CPM）是什么，以及适合用在什么场景。', emoji: '📈' },
+    { text: '帮我写一份简洁的项目章程模板。', emoji: '📝' },
+    { text: '挣值管理（EVM）到底怎么理解？', emoji: '📊' },
+    { text: '敏捷和瀑布应该怎么选？', emoji: '🚀' },
 ];
 
-const MOONSHOT_API_URL = 'https://api.moonshot.cn/v1/chat/completions';
-const VERSION = '2.1';
-
-const getApiKeys = () => {
-    try {
-        // @ts-ignore
-        const env = import.meta.env || {};
-        const genericKey = env.API_KEY || '';
-        const explicitGeminiKey = env.VITE_GEMINI_API_KEY || '';
-        const explicitMoonshotKey = env.VITE_MOONSHOT_API_KEY || '';
-        const inferredMoonshotKey = explicitGeminiKey.startsWith('sk-')
-            ? explicitGeminiKey
-            : (genericKey.startsWith('sk-') ? genericKey : '');
-        const inferredGeminiKey = explicitGeminiKey && !explicitGeminiKey.startsWith('sk-')
-            ? explicitGeminiKey
-            : (!genericKey.startsWith('sk-') ? genericKey : '');
-
-        return {
-            gemini: inferredGeminiKey,
-            moonshot: explicitMoonshotKey || inferredMoonshotKey
-        };
-    } catch {
-        return {
-            gemini: '',
-            moonshot: ''
-        };
-    }
-};
+const VERSION = '2.2';
 
 const buildSystemPrompt = (currentUser: UserProfile, userTier: string) => `你是 ProjectFlow 的 AI 智能助手，擅长项目管理知识解答、文档撰写、风险分析与学习辅导。
 
@@ -84,108 +53,31 @@ const buildSystemPrompt = (currentUser: UserProfile, userTier: string) => `你�
 
 请使用简洁、专业、鼓励式的中文回答。`;
 
-const generateGeminiReply = async (
-    apiKey: string,
-    modelId: string,
-    systemPrompt: string,
-    userText: string
-) => {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-        model: modelId,
-        contents: [
-            {
-                role: 'user',
-                parts: [{ text: `${systemPrompt}\n\n用户问题：${userText}` }]
-            }
-        ]
-    });
-
-    return response.text || '抱歉，我暂时没有生成有效回复。';
-};
-
-const generateMoonshotReply = async (
-    apiKey: string,
-    modelId: string,
-    systemPrompt: string,
-    userText: string
-) => {
-    const response = await fetch(MOONSHOT_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: modelId,
-            messages: [
-                {
-                    role: 'system',
-                    content: systemPrompt
-                },
-                {
-                    role: 'user',
-                    content: userText
-                }
-            ],
-            temperature: 0.7
-        })
-    });
-
-    if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(`Moonshot API ${response.status}: ${detail}`);
-    }
-
-    const result = await response.json();
-    return result.choices?.[0]?.message?.content?.trim() || '抱歉，我暂时没有生成有效回复。';
-};
-
 const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     console.log('AI Assistant Version:', VERSION);
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [selectedModel, setSelectedModel] = useState<ModelKey>('kimi');
+    const [selectedModel, setSelectedModel] = useState<ModelKey>('deepseek');
     const [usage, setUsage] = useState({ used: 0, limit: 0 });
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const userTier = currentUser?.membershipTier || 'free';
     const canUseAI = userTier !== 'free';
-    const isProPlus = userTier === 'pro_plus';
-
-    const apiKeys = getApiKeys();
-    const hasGeminiKey = Boolean(apiKeys.gemini);
-    const hasMoonshotKey = Boolean(apiKeys.moonshot);
-    const availableModels: ModelKey[] = [];
-
-    if (canUseAI) {
-        if (hasMoonshotKey) {
-            availableModels.push('kimi');
-        }
-        if (isProPlus && hasGeminiKey) {
-            availableModels.push('gemini');
-        }
-        if (availableModels.length === 0 && hasGeminiKey) {
-            availableModels.push('gemini');
-        }
-    }
-
-    const activeModelKey = availableModels.includes(selectedModel)
-        ? selectedModel
-        : (availableModels[0] || 'kimi');
+    const hasDeepSeekKey = Boolean(getDeepSeekApiKey());
+    const availableModels: ModelKey[] = canUseAI && hasDeepSeekKey ? ['deepseek'] : [];
+    const activeModelKey = availableModels.includes(selectedModel) ? selectedModel : 'deepseek';
     const activeModel = MODELS[activeModelKey];
 
     useEffect(() => {
         console.log('AI Assistant mounted:', {
             version: VERSION,
             userTier,
-            isProPlus,
             canUseAI,
-            activeModel: activeModelKey
+            activeModel: activeModelKey,
         });
-    }, [userTier, isProPlus, canUseAI, activeModelKey]);
+    }, [userTier, canUseAI, activeModelKey]);
 
     useEffect(() => {
         if (!currentUser) {
@@ -196,25 +88,19 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             {
                 id: '0',
                 role: 'ai',
-                content: `你好 ${currentUser.name || '探索者'}！我是 ProjectFlow AI 助手。当前已为你接入更稳定的演示模型，可以继续帮你解答项目管理、文档写作和风险分析相关问题。`,
-                timestamp: new Date()
-            }
+                content: `你好 ${currentUser.name || '探索者'}，我已经切换到 DeepSeek，可以继续帮你处理项目管理问答、文档写作和学习辅导。`,
+                timestamp: new Date(),
+            },
         ]);
         setUsage({
             used: currentUser.aiDailyUsed || 0,
-            limit: DAILY_LIMITS[userTier]
+            limit: DAILY_LIMITS[userTier],
         });
     }, [currentUser, userTier]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
-
-    useEffect(() => {
-        if (availableModels.length > 0 && !availableModels.includes(selectedModel)) {
-            setSelectedModel(availableModels[0]);
-        }
-    }, [selectedModel, canUseAI, hasGeminiKey, hasMoonshotKey, isProPlus]);
 
     const handleSendMessage = async (text: string = input) => {
         if (!text.trim() || !currentUser || !canUseAI) {
@@ -228,8 +114,8 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                     id: Date.now().toString(),
                     role: 'ai',
                     content: '⚠️ 今日 AI 调用次数已达上限，请明天再试或升级会员。',
-                    timestamp: new Date()
-                }
+                    timestamp: new Date(),
+                },
             ]);
             return;
         }
@@ -240,9 +126,9 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 {
                     id: Date.now().toString(),
                     role: 'ai',
-                    content: '⚠️ 当前没有可用的 AI 配置。请先配置 Kimi 或 Gemini 的 API Key。',
-                    timestamp: new Date()
-                }
+                    content: '⚠️ 当前没有可用的 DeepSeek 配置，请先检查 VITE_DEEPSEEK_API_KEY。',
+                    timestamp: new Date(),
+                },
             ]);
             return;
         }
@@ -251,7 +137,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             id: Date.now().toString(),
             role: 'user',
             content: text,
-            timestamp: new Date()
+            timestamp: new Date(),
         };
 
         setMessages(prev => [...prev, userMsg]);
@@ -265,20 +151,24 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 id: aiMsgId,
                 role: 'ai',
                 content: '',
-                timestamp: new Date()
-            }
+                timestamp: new Date(),
+            },
         ]);
 
         try {
-            const apiKey = activeModel.provider === 'google' ? apiKeys.gemini : apiKeys.moonshot;
-            if (!apiKey) {
-                throw new Error('AI_API_KEY_MISSING');
-            }
-
-            const systemPrompt = buildSystemPrompt(currentUser, userTier);
-            const aiResponse = activeModel.provider === 'google'
-                ? await generateGeminiReply(apiKey, activeModel.id, systemPrompt, text)
-                : await generateMoonshotReply(apiKey, activeModel.id, systemPrompt, text);
+            const aiResponse = await createDeepSeekCompletion({
+                model: activeModel.id as typeof DEFAULT_DEEPSEEK_MODEL,
+                messages: [
+                    {
+                        role: 'system',
+                        content: buildSystemPrompt(currentUser, userTier),
+                    },
+                    {
+                        role: 'user',
+                        content: text,
+                    },
+                ],
+            });
 
             setIsThinking(false);
             setMessages(prev =>
@@ -289,7 +179,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 user_id: currentUser.id,
                 model: activeModel.id,
                 prompt_tokens: Math.floor(text.length * 0.3),
-                completion_tokens: Math.floor(aiResponse.length * 0.7)
+                completion_tokens: Math.floor(aiResponse.length * 0.7),
             });
 
             await supabase
@@ -298,17 +188,13 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 .eq('id', currentUser.id);
 
             setUsage(prev => ({ ...prev, used: prev.used + 1 }));
-        } catch (err: any) {
+        } catch (error) {
             setIsThinking(false);
 
-            const errorText = String(err?.message || '');
-            const errorMsg = errorText.includes('AI_API_KEY_MISSING')
-                ? '⚠️ 错误：AI API Key 未配置，请检查环境变量。'
-                : errorText.includes('401') || errorText.includes('403')
-                    ? '⚠️ 错误：API Key 无效或权限不足，请检查当前使用的 AI 服务配置。'
-                    : errorText.includes('429')
-                        ? '⚠️ 错误：AI 服务请求过多，请稍后再试。'
-                        : '⚠️ 连接中断，请稍后再试。';
+            const errorMsg = mapDeepSeekError(
+                error,
+                '⚠️ DeepSeek API Key 未配置，请检查 VITE_DEEPSEEK_API_KEY。'
+            );
 
             setMessages(prev =>
                 prev.map(msg => (msg.id === aiMsgId ? { ...msg, content: errorMsg } : msg))
@@ -332,7 +218,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">会员专属功能</h2>
                         <p className="text-gray-500 mb-6">
-                            AI 助手是会员专属功能。升级会员后即可使用智能问答与分析能力。
+                            AI 助手是会员专属功能。升级会员后即可使用 DeepSeek 智能问答与分析能力。
                         </p>
                     </div>
                 </div>
@@ -362,13 +248,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                     <div className="flex items-center gap-3">
                         <select
                             value={activeModelKey}
-                            onChange={(e) => setSelectedModel(e.target.value as ModelKey)}
+                            onChange={e => setSelectedModel(e.target.value as ModelKey)}
                             className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             disabled={availableModels.length === 0}
                         >
-                            {availableModels.includes('kimi') && <option value="kimi">🌙 Kimi AI</option>}
-                            {availableModels.includes('gemini') && <option value="gemini">⚡ Gemini Flash</option>}
-                            {availableModels.length === 0 && <option value="kimi">未配置可用模型</option>}
+                            <option value="deepseek">🧠 DeepSeek AI</option>
                         </select>
 
                         <div
@@ -397,7 +281,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
 
             <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6">
                 <div className="max-w-5xl mx-auto space-y-5">
-                    {messages.map((msg) => (
+                    {messages.map(msg => (
                         <div
                             key={msg.id}
                             className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -447,7 +331,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                             <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
                                 <div className="flex items-center gap-2 text-gray-500">
                                     <Loader2 className="animate-spin" size={16} />
-                                    <span className="text-sm">AI 正在思考...</span>
+                                    <span className="text-sm">DeepSeek 正在思考...</span>
                                 </div>
                             </div>
                         </div>
@@ -488,8 +372,8 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                         <div className="flex-1 relative">
                             <textarea
                                 value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => {
+                                onChange={e => setInput(e.target.value)}
+                                onKeyDown={e => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         handleSendMessage();
@@ -497,7 +381,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                                 }}
                                 placeholder={
                                     availableModels.length === 0
-                                        ? '当前未配置可用 AI 模型'
+                                        ? '当前未配置可用 DeepSeek 模型'
                                         : usage.used >= usage.limit
                                             ? '今日调用次数已达上限'
                                             : '输入你的问题，例如：如何编写项目计划？'

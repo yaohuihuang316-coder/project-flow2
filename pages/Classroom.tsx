@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { UserProfile, ChatMessage } from '../types';
-import { GoogleGenAI } from "@google/genai";
+import { createDeepSeekCompletion, getDeepSeekApiKey, mapDeepSeekError } from '../lib/deepseekService';
 
 interface ClassroomProps {
     courseId?: string;
@@ -50,22 +50,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
   const [checkInMessage, setCheckInMessage] = useState('');
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
 
-  // Helper for Safe Env Access
-  const getApiKey = () => {
-      try {
-          if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-              return process.env.API_KEY;
-          }
-      } catch (e) {}
-      try {
-          // @ts-ignore
-          if (typeof import.meta !== 'undefined' && import.meta.env) {
-              // @ts-ignore
-              return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY;
-          }
-      } catch (e) {}
-      return '';
-  };
+  const getApiKey = () => getDeepSeekApiKey();
   
   // Reset search when tab changes
   useEffect(() => {
@@ -256,7 +241,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
       }
   };
 
-  // 6. Real AI Chat Handler (Gemini Streaming)
+  // 6. Real AI Chat Handler (DeepSeek)
   const handleSendMessage = async () => {
       if (!aiInput.trim()) return;
       
@@ -290,34 +275,28 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
         
         console.log("🚀 Initializing Gemini with Key: ", apiKey.substring(0, 5) + "...");
 
-        const ai = new GoogleGenAI({ apiKey: apiKey });
-        
-        // Use Streaming
-        // Switched to 'gemini-3-flash-preview' as per instructions to fix 404
-        const responseStream = await ai.models.generateContentStream({
-            model: 'gemini-3-flash-preview', 
-            contents: [
-                { role: 'user', parts: [{ text: `Context: User is learning the course "${data?.title}".` }] },
-                { role: 'user', parts: [{ text: currentInput }] }
+        const aiResponse = await createDeepSeekCompletion({
+            messages: [
+                {
+                    role: 'system',
+                    content: '你是企业项目管理学习系统里的专业 AI 助教。请结合课程上下文，用简洁、鼓励、实用的中文回答。',
+                },
+                {
+                    role: 'user',
+                    content: `课程标题：${data?.title || '未命名课程'}\n用户问题：${currentInput}`,
+                },
             ],
-            config: {
-                systemInstruction: "You are a helpful, professional AI teaching assistant for an Enterprise Project Management Learning System. Keep answers concise, encouraging, and relevant to the course context.",
-            }
         });
 
         setIsAiThinking(false);
-
-        for await (const chunk of responseStream) {
-            const chunkText = chunk.text; 
-            setChatMessages(prev => prev.map(msg => 
-                msg.id === aiMsgId 
-                ? { ...msg, content: msg.content + chunkText }
-                : msg
-            ));
-        }
+        setChatMessages(prev => prev.map(msg => 
+            msg.id === aiMsgId 
+            ? { ...msg, content: aiResponse || '抱歉，我暂时没有生成有效回复。' }
+            : msg
+        ));
 
       } catch (err: any) {
-          console.error("Gemini Error Detail:", err);
+          console.error('DeepSeek Error Detail:', err);
           setIsAiThinking(false);
           
           let errorMsg = "抱歉，我现在无法连接到大脑。";
@@ -330,6 +309,11 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
           } else if (err.message.includes("fetch")) {
               errorMsg = "⚠️ 网络错误：无法连接到 Google API，请检查网络设置。";
           }
+
+          errorMsg = mapDeepSeekError(
+              err,
+              '⚠️ 错误：未配置 DeepSeek API Key，请检查 VITE_DEEPSEEK_API_KEY。'
+          );
 
           setChatMessages(prev => prev.map(msg => 
             msg.id === aiMsgId 
@@ -793,7 +777,7 @@ const Classroom: React.FC<ClassroomProps> = ({ courseId = 'default', currentUser
                          <div>
                              <h3 className="font-bold text-gray-900 text-sm">AI 助教</h3>
                              <p className="text-[10px] text-green-500 font-bold flex items-center gap-1">
-                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (Gemini 3 Flash)
+                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online (DeepSeek)
                              </p>
                          </div>
                      </div>
