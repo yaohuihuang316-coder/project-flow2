@@ -23,7 +23,7 @@ interface AIModelDefinition {
 
 const MODELS: Record<ModelKey, AIModelDefinition> = {
     deepseek: {
-        name: 'DeepSeek AI',
+        name: 'DeepSeek 智能助手',
         icon: '🧠',
         id: DEFAULT_DEEPSEEK_MODEL,
     },
@@ -52,6 +52,16 @@ const buildSystemPrompt = (currentUser: UserProfile, userTier: string) => `你�
 - 会员等级：${userTier}
 
 请使用简洁、专业、鼓励式的中文回答。`;
+
+const getWelcomeMessage = (currentUser: UserProfile, userTier: string) => {
+    const name = currentUser.name || '探索者';
+
+    if (userTier === 'pro_plus') {
+        return `你好，${name}。你的增强版 AI 助手已经就绪，可以继续帮你完成项目管理问答、文档写作、学习辅导和更深入的分析整理。`;
+    }
+
+    return `你好，${name}。你的 AI 助手已经就绪，可以继续帮你处理项目管理问答、文档写作和学习辅导。`;
+};
 
 const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
     console.log('AI Assistant Version:', VERSION);
@@ -88,7 +98,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             {
                 id: '0',
                 role: 'ai',
-                content: `你好 ${currentUser.name || '探索者'}，我已经切换到 DeepSeek，可以继续帮你处理项目管理问答、文档写作和学习辅导。`,
+                content: getWelcomeMessage(currentUser, userTier),
                 timestamp: new Date(),
             },
         ]);
@@ -96,6 +106,18 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
             used: currentUser.aiDailyUsed || 0,
             limit: DAILY_LIMITS[userTier],
         });
+    }, [currentUser, userTier]);
+
+    useEffect(() => {
+        if (!currentUser) {
+            return;
+        }
+
+        setMessages(prev =>
+            prev.length > 0
+                ? [{ ...prev[0], content: getWelcomeMessage(currentUser, userTier) }, ...prev.slice(1)]
+                : prev
+        );
     }, [currentUser, userTier]);
 
     useEffect(() => {
@@ -252,7 +274,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                             className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             disabled={availableModels.length === 0}
                         >
-                            <option value="deepseek">🧠 DeepSeek AI</option>
+                            <option value="deepseek">🧠 DeepSeek 智能助手</option>
                         </select>
 
                         <div
@@ -306,9 +328,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                                     </div>
                                 ) : (
                                     <div
-                                        className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                                            msg.role === 'user' ? 'text-white' : 'text-gray-800'
-                                        }`}
+                                        className={`text-sm leading-relaxed whitespace-pre-wrap ${{ msg.role === 'user' ? 'text-white' : 'text-gray-800' }}`}
                                     >
                                         {msg.content}
                                     </div>
@@ -346,19 +366,13 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                     <div className="max-w-5xl mx-auto">
                         <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                             <Lightbulb size={16} className="text-yellow-500" />
-                            快速开始探索
+                            快速开始揢�6�
                         </p>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                             {QUICK_PROMPTS.map((prompt, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => handleSendMessage(prompt.text)}
-                                    className="group flex items-center gap-2 p-3 bg-white/70 border border-white/50 rounded-xl hover:border-purple-300 hover:bg-white hover:shadow-md transition-all text-left"
-                                >
+                                <button key={idx} onClick={() => handleSendMessage(prompt.text)} className="group flex items-center gap-2 p-3 bg-white/70 border border-white/50 rounded-xl hover:border-purple-300 hover:bg-white hover:shadow-md transition-all text-left">
                                     <span className="text-lg">{prompt.emoji}</span>
-                                    <span className="text-sm font-medium text-gray-800 group-hover:text-purple-700 truncate">
-                                        {prompt.text}
-                                    </span>
+                                    <span className="text-sm font-medium text-gray-800 group-hover:text-purple-700 truncate">{prompt.text}</span>
                                 </button>
                             ))}
                         </div>
@@ -370,45 +384,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ currentUser }) => {
                 <div className="max-w-5xl mx-auto">
                     <div className="flex gap-3">
                         <div className="flex-1 relative">
-                            <textarea
-                                value={input}
-                                onChange={e => setInput(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSendMessage();
-                                    }
-                                }}
-                                placeholder={
-                                    availableModels.length === 0
-                                        ? '当前未配置可用 DeepSeek 模型'
-                                        : usage.used >= usage.limit
-                                            ? '今日调用次数已达上限'
-                                            : '输入你的问题，例如：如何编写项目计划？'
-                                }
-                                disabled={usage.used >= usage.limit || availableModels.length === 0}
-                                className="w-full resize-none bg-white border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm placeholder:text-gray-400 text-sm"
-                                rows={2}
-                            />
+                            <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} placeholder={ availableModels.length === 0 ? '当前未配置可用 DeepSeek 模垉' : usage.used >= usage.limit ? '今旧胳用次数已达上馐用' : '输入你的问题，例如：如何编写项目计划？' } disabled={usage.used >= usage.limit || availableModels.length === 0} className="w-full resize-none bg-white border border-gray-200 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-sm placeholder:text-gray-400 text-sm" rows={2} />
                         </div>
-                        <button
-                            onClick={() => handleSendMessage()}
-                            disabled={!input.trim() || isThinking || usage.used >= usage.limit || availableModels.length === 0}
-                            className="px-5 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"
-                        >
-                            <Send size={18} />
-                        </button>
+                        <button onClick={() => handleSendMessage()} disabled={!input.trim() || isThinking || usage.used >= usage.limit || availableModels.length === 0} className="px-5 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center"><Send size={18} /></button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-[10px]">Enter</kbd>
-                            发送
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-[10px]">Shift + Enter</kbd>
-                            换行
-                        </span>
-                    </p>
+                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-3"><span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-[10px]">Enter</kbd>发送</span><span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-[10px]">Shift + Enter</kbd>换行</span></p>
                 </div>
             </div>
         </div>

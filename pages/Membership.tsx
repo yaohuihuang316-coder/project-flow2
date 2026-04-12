@@ -213,10 +213,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
           <Crown size={64} className="mx-auto text-gray-300 mb-6" />
           <h2 className="text-2xl font-bold text-gray-900 mb-3">请先登录</h2>
           <p className="text-gray-500 mb-8 text-lg">登录后查看您的会员状态和权益</p>
-          <button 
-            onClick={() => onNavigate(Page.LOGIN)}
-            className="px-8 py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all"
-          >
+          <button onClick={() => onNavigate(Page.LOGIN)} className="px-8 py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all">
             去登录
           </button>
         </div>
@@ -224,7 +221,6 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     );
   }
 
-  // 加载中状态
   if (isLoadingConfig || !membershipConfig) {
     return (
       <div className="pt-24 pb-12 px-6 max-w-6xl mx-auto text-center">
@@ -240,7 +236,6 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
   const proConfig = membershipConfig.pro;
   const proPlusConfig = membershipConfig.pro_plus;
 
-  // 会员权益详细对比数据
   const comparisonData = [
     { category: '课程学习', items: [
       { name: 'Foundation 基础课程', free: true, pro: true, pro_plus: true, desc: '6门基础课程完整学习' },
@@ -274,6 +269,27 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
     ]},
   ];
 
+  const displayComparisonData = comparisonData.map(category => ({
+    ...category,
+    items: category.items.map(item => {
+      if (
+        item.free === 'DeepSeek Chat' &&
+        item.pro === 'DeepSeek Chat' &&
+        item.pro_plus === 'DeepSeek Chat'
+      ) {
+        return {
+          ...item,
+          free: 'AI 体验版',
+          pro: 'DeepSeek 标准助手',
+          pro_plus: 'DeepSeek 增强助手',
+          desc: '可用 AI 能力',
+        };
+      }
+
+      return item;
+    }),
+  }));
+
   const renderValue = (value: boolean | string) => {
     if (value === true) return <Check size={20} className="text-green-500 mx-auto" />;
     if (value === false) return <X size={20} className="text-gray-300 mx-auto" />;
@@ -282,15 +298,11 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
 
   return (
     <div className="pt-24 pb-12 px-4 sm:px-6 max-w-7xl mx-auto min-h-screen">
-      {/* Header */}
       <header className="mb-10 text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-3">选择您的会员计划</h1>
-        <p className="text-gray-500 text-lg max-w-2xl mx-auto">
-          解锁更多高级功能和工具，加速您的项目管理成长之路
-        </p>
+        <p className="text-gray-500 text-lg max-w-2xl mx-auto">解锁更多高级功能和工具，加速您的项目管理成长之路</p>
       </header>
 
-      {/* Current Status Banner */}
       {currentTier !== 'free' && (
         <div className={`mb-10 rounded-3xl p-6 bg-gradient-to-r ${membershipConfig[currentTier].gradient} text-white`}>
           <div className="flex items-center justify-between">
@@ -302,9 +314,7 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
                 <p className="text-white/80 text-sm">当前会员</p>
                 <h2 className="text-2xl font-bold">{membershipConfig[currentTier].name}</h2>
                 {currentUser.membershipExpiresAt && (
-                  <p className="text-white/80 text-sm">
-                    有效期至: {new Date(currentUser.membershipExpiresAt).toLocaleDateString('zh-CN')}
-                  </p>
+                  <p className="text-white/80 text-sm">有效期至: {new Date(currentUser.membershipExpiresAt).toLocaleDateString('zh-CN')}</p>
                 )}
               </div>
             </div>
@@ -313,7 +323,6 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
               <div className="text-white/80 text-sm">已完成课程</div>
             </div>
           </div>
-          
           {nextTierInfo && (
             <div className="mt-4 bg-white/10 rounded-2xl p-4">
               <div className="flex items-center justify-between mb-2">
@@ -321,285 +330,35 @@ const Membership: React.FC<MembershipProps> = ({ currentUser, onNavigate }) => {
                 <span className="text-sm font-bold">{stats.nextTierProgress}/{stats.nextTierRequired}</span>
               </div>
               <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-white rounded-full transition-all"
-                  style={{ width: `${(stats.nextTierProgress / stats.nextTierRequired) * 100}%` }}
-                />
+                <div className="h-full bg-white rounded-full transition-all" style={{ width: `${(stats.nextTierProgress / stats.nextTierRequired) * 100}%` }} />
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Three Column Pricing Cards */}
       <div className="grid md:grid-cols-3 gap-6 mb-16">
-        {/* Free Plan */}
         <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'free' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 bg-white'}`}>
-          {currentTier === 'free' && (
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="px-4 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">当前计划</span>
-            </div>
-          )}
-          
+          {currentTier === 'free' && (<div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="px-4 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">当前计划</span></div>)}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              {React.createElement(getIconComponent(freeConfig.icon), { size: 32, className: 'text-gray-600' })}
-            </div>
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">{React.createElement(getIconComponent(freeConfig.icon), { size: 32, className: 'text-gray-600' })}</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">{freeConfig.badge}</h3>
             <p className="text-gray-500 text-sm mb-4">{freeConfig.name}</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold text-gray-900">
-                {freeConfig.priceMonthly === 0 ? '免费' : `¥${freeConfig.priceMonthly}`}
-              </span>
-            </div>
+            <div className="flex items-baseline justify-center gap-1"><span className="text-4xl font-bold text-gray-900">{freeConfig.priceMonthly === 0 ? '免紹' : `¥${freeConfig.priceMonthly}`}</span></div>
             <p className="text-sm text-gray-400 mt-2">注册即可获得</p>
           </div>
-
-          <ul className="space-y-4 mb-8">
-            {freeConfig.features.map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 text-gray-600">
-                <Check size={18} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm">{item.text}</span>
-              </li>
-            ))}
-          </ul>
-
-          <button 
-            onClick={() => onNavigate(Page.LEARNING)}
-            className={`w-full py-4 rounded-2xl font-bold transition-all ${
-              currentTier === 'free'
-                ? 'bg-gray-200 text-gray-700 cursor-default'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-            disabled={currentTier === 'free'}
-          >
-            {currentTier === 'free' ? '当前计划' : '开始学习'}
-          </button>
+          <ul className="space-y-4 mb-8">{freeConfig.features.map((item, idx) => (<li key={idx} className="flex items-center gap-3 text-gray-600"><Check size={18} className="text-green-500 flex-shrink-0" /><span className="text-sm">{item.text}</span></li>))}</ul>
+          <button onClick={() => onNavigate(Page.LEARNING)} className={`w-full py-4 rounded-2xl font-bold transition-all ${currentTier === 'free' ? 'bg-gray-200 text-gray-700 cursor-default' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} } disabled={currentTier === 'free'}>{currentTier === 'free' ? '当前计划' : '开始学习'}</button>
         </div>
-
-        {/* Pro Plan */}
-        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'pro' ? 'border-blue-500 bg-blue-50/50' : 'border-blue-200 bg-gradient-to-b from-blue-50/30 to-white'}`}>
-          {currentTier === 'pro' && (
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="px-4 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">当前计划</span>
-            </div>
-          )}
-          
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              {React.createElement(getIconComponent(proConfig.icon), { size: 32, className: 'text-blue-600' })}
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{proConfig.badge}</h3>
-            <p className="text-blue-600 text-sm font-medium mb-4">{proConfig.name}</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold text-gray-900">¥{proConfig.priceMonthly}</span>
-              <span className="text-gray-500">/月</span>
-            </div>
-            <p className="text-sm text-gray-400 mt-2">或完成 {proConfig.requiredCourses} 门课程解锁</p>
-          </div>
-
-          <ul className="space-y-4 mb-8">
-            {proConfig.features.map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 text-gray-600">
-                <Check size={18} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm">{item.text}</span>
-              </li>
-            ))}
-          </ul>
-
-          <button 
-            className={`w-full py-4 rounded-2xl font-bold transition-all ${
-              currentTier === 'pro'
-                ? 'bg-blue-100 text-blue-700 cursor-default'
-                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
-            }`}
-            disabled={currentTier === 'pro'}
-            onClick={() => currentTier !== 'pro' && onNavigate(Page.PAYMENT, 'pro')}
-          >
-            {currentTier === 'pro' ? '当前计划' : currentTier === 'pro_plus' ? '已拥有' : '立即升级'}
-          </button>
-        </div>
-
-        {/* Pro+ Plan */}
-        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'pro_plus' ? 'border-amber-500 bg-amber-50/50' : 'border-amber-200 bg-gradient-to-b from-amber-50/30 to-white'}`}>
-          {/* 推荐标签 */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            <span className={`px-4 py-1 text-white text-sm font-bold rounded-full ${
-              currentTier === 'pro_plus' ? 'bg-amber-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
-            }`}>
-              {currentTier === 'pro_plus' ? '当前计划' : '强烈推荐'}
-            </span>
-          </div>
-          
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Gift size={32} className="text-amber-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{proPlusConfig.badge}</h3>
-            <p className="text-amber-600 text-sm font-medium mb-4">{proPlusConfig.name}</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold text-gray-900">¥{proPlusConfig.priceMonthly}</span>
-              <span className="text-gray-500">/月</span>
-            </div>
-            <p className="text-sm text-gray-400 mt-2">或完成 {proPlusConfig.requiredCourses} 门课程解锁</p>
-          </div>
-
-          <ul className="space-y-4 mb-8">
-            {proPlusConfig.features.map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 text-gray-600">
-                <Check size={18} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm">{item.text}</span>
-              </li>
-            ))}
-          </ul>
-
-          <button 
-            className={`w-full py-4 rounded-2xl font-bold transition-all ${
-              currentTier === 'pro_plus'
-                ? 'bg-amber-100 text-amber-700 cursor-default'
-                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:shadow-xl hover:shadow-amber-200'
-            }`}
-            disabled={currentTier === 'pro_plus'}
-            onClick={() => currentTier !== 'pro_plus' && onNavigate(Page.PAYMENT, 'pro_plus')}
-          >
-            {currentTier === 'pro_plus' ? '当前计划' : '立即升级'}
-          </button>
-        </div>
+        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'pro' ? 'border-blue-500 bg-blue-50/50' : 'border-blue-200 bg-gradient-to-b from-blue-50/30 to-white'} }>
+          tcurrentTier === 'pro' && (<div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="px-4 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">当前计划</span></div>)
+          <div className="text-center mb-8"><div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">{React.createElement(getIconComponent(proConfig.icon), { size: 32, className: 'text-blue-600' })}</div><h3 className="text-2xl font-bold text-gray-900 mb-1">{proConfig.badge}</h3><p className="text-blue-600 text-sm font-medium mb-4">{proConfig.name}</p><div className="flex items-baseline justify-center gap-1"><span className="text-4xl font-bold text-gray-900">¥{proConfig.priceMonthly}</span><span className="text-gray-500">/月</span></div><p className="text-sm text-gray-400 mt-2">或完成 {proConfig.requiredCourses} 门课程解锁</p></div><ul className="space-y-4 mb-8">{proConfig.features.map((item, idx) => (<li key={idx} className="flex items-center gap-3 text-gray-600"><Check size={18} className="text-green-500 flex-shrink-0" /><span className="text-sm">{item.text}</span></li>))}</ul><button className={`w-full py-4 rounded-2xl font-bold transition-all ${currentTier === 'pro' ? 'bg-blue-100 text-blue-700 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'}`} disabled={currentTier === 'pro'} onClick={() => currentTier !== 'pro' && onNavigate(Page.PAYMENT, 'pro')}>{currentTier === 'pro' ? '当前计划' : currentTier === 'pro_plus' ? '已拥有' : '立即升级'}</button></div>
+        <div className={`rounded-3xl p-8 border-2 relative ${currentTier === 'pro_plus' ? 'border-amber-500 bg-amber-50/50' : 'border-amber-200 bg-gradient-to-b from-amber-50/30 to-white'} }>
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className={`px-4 py-1 text-white text-sm font-bold rounded-full ${currentTier === 'pro_plus' ? 'bg-amber-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`}>{currentTier === 'pro_plus' ? '当前计划' : '强烈推荐'}</span></div><div className="text-center mb-8"><div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><Gift size={32} className="text-amber-600" /></div><h3 className="text-2xl font-bold text-gray-900 mb-1">{proPlusConfig.badge}</h3><p className="text-amber-600 text-sm font-medium mb-4">{proPlusConfig.name}</p><div className="flex items-baseline justify-center gap-1"><span className="text-4xl font-bold text-gray-900">¥{proPlusConfig.priceMonthly}</span><span className="text-gray-500">/月</span></div><p className="text-sm text-gray-400 mt-2">或完成 {proPlusConfig.requiredCourses} 门课程解锁</p></div><ul className="space-y-4 mb-8">{proPlusConfig.features.map((item, idx) => (<li key={idx} className="flex items-center gap-3 text-gray-600"><Check size={18} className="text-green-500 flex-shrink-0" /><span className="text-sm">{item.text}</span></li>))}</ul><button className={`w-full py-4 rounded-2xl font-bold transition-all ${currentTier === 'pro_plus' ? 'bg-amber-100 text-amber-700 cursor-default' : 'bg-gradient-to-r from-amber-500 to-orange-500 text-ghite hover:shadow-xl hover:shadow-amber-200'}`} disabled={currentTier === 'pro_plus'} onClick={() => currentTier !== 'pro_plus' && onNavigate(Page.PAYMENT, 'pro_plus')}>{currentTier === 'pro_plus' ? '当前计划' : '立即升级'}</button></div>
       </div>
 
-      {/* Detailed Comparison Table */}
       <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden mb-12">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-gray-900">详细权益对比</h3>
-          <div className="flex gap-2 text-sm">
-            <span className="flex items-center gap-1"><Check size={14} className="text-green-500"/> 支持</span>
-            <span className="flex items-center gap-1"><X size={14} className="text-gray-300"/> 不支持</span>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left p-4 font-bold text-gray-700 w-1/3">功能</th>
-                <th className="text-center p-4 font-bold text-gray-600 w-48">
-                  <div className="flex flex-col items-center">
-                    <span className="text-lg">🆓</span>
-                    <span>{freeConfig.badge}</span>
-                  </div>
-                </th>
-                <th className="text-center p-4 font-bold text-blue-600 w-48 bg-blue-50/50">
-                  <div className="flex flex-col items-center">
-                    <span className="text-lg">💎</span>
-                    <span>{proConfig.badge}</span>
-                  </div>
-                </th>
-                <th className="text-center p-4 font-bold text-amber-600 w-48 bg-amber-50/50">
-                  <div className="flex flex-col items-center">
-                    <span className="text-lg">👑</span>
-                    <span>{proPlusConfig.badge}</span>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonData.map((category, catIdx) => (
-                <React.Fragment key={catIdx}>
-                  <tr className="bg-gray-50/50">
-                    <td colSpan={4} className="p-3 text-sm font-bold text-gray-500 uppercase tracking-wider">
-                      {category.category}
-                    </td>
-                  </tr>
-                  {category.items.map((item, itemIdx) => (
-                    <tr key={itemIdx} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                      <td className="p-4">
-                        <div className="font-medium text-gray-900">{item.name}</div>
-                        <div className="text-xs text-gray-400 mt-1">{item.desc}</div>
-                      </td>
-                      <td className="text-center p-4 border-l border-gray-100">
-                        {renderValue(item.free)}
-                      </td>
-                      <td className="text-center p-4 border-l border-gray-100 bg-blue-50/30">
-                        {renderValue(item.pro)}
-                      </td>
-                      <td className="text-center p-4 border-l border-gray-100 bg-amber-50/30">
-                        {renderValue(item.pro_plus)}
-                      </td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Redeem Code Section */}
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-3xl p-8 border border-purple-100">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <Ticket size={32} className="text-purple-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">有兑换码？</h3>
-            <p className="text-gray-500">输入兑换码立即激活会员权益</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-                placeholder="输入兑换码，如 PF-PRO-XXXXXX"
-                className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl uppercase tracking-wider font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-              <button
-                onClick={handleRedeemCode}
-                disabled={!codeInput.trim() || isRedeeming}
-                className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-              >
-                {isRedeeming && <Loader2 size={18} className="animate-spin" />}
-                {isRedeeming ? '兑换中' : '激活'}
-              </button>
-            </div>
-            
-            {redeemMessage && (
-              <div className={`mt-4 p-4 rounded-xl text-sm flex items-center gap-2 ${
-                redeemMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
-                {redeemMessage.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
-                {redeemMessage.text}
-              </div>
-            )}
-          </div>
-          
-          <div className="mt-4 text-center">
-            <p className="text-xs text-gray-400">
-              兑换码区分大小写，可通过企业培训、活动或合作伙伴获取
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="mt-16 max-w-3xl mx-auto">
-        <h3 className="text-xl font-bold text-gray-900 text-center mb-8">常见问题</h3>
-        <div className="space-y-4">
-          {[
-            { q: '如何免费升级会员？', a: `完成课程学习即可自动升级。完成${proConfig.requiredCourses}门课程升级为Pro会员，完成${proPlusConfig.requiredCourses}门课程升级为Pro+会员。` },
-            { q: '会员到期后会怎样？', a: '会员到期后，您将回到Free等级，但已完成的课程进度和成就不会丢失。' },
-            { q: '可以退款吗？', a: '购买后7天内，如果使用不满意，可以申请全额退款。' },
-            { q: '兑换码如何使用？', a: '在上方输入框中输入兑换码，点击"激活"即可立即获得对应会员权益。' },
-          ].map((faq, idx) => (
-            <div key={idx} className="bg-white rounded-2xl p-6 border border-gray-100">
-              <h4 className="font-bold text-gray-900 mb-2">{faq.q}</h4>
-              <p className="text-gray-500 text-sm">{faq.a}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center"><h3 className="text-xl font-bold text-gray-900">详细权益对比</h3><div className="flex gap-2 text-sm"><span className="flex items-center gap-1"><Check size={14} className="text-green-500"/> 支持</span><span className="flex items-center gap-1"><X size={14} className="text-gray-300"/> 不支持</span></div></div><div className="overflow-x-auto"><table className="w-full"><thead><tr className="bg-gray-50 border-b border-gray-100"><th className="text-left p-4 font-bold text-gray-700 w-1/3">功轾</th><th className="text-center p-4 font-bold text-gray-600 w-48"><div className="flex flex-col items-center"><span className="text-lg">😓</span><span>{freeConfig.badge}</span></div></th><th className="text-center p-4 font-bold text-blue-600 w-48 bg-blue-50/50"><div className="flex flex-col items-center"><span className="text-lg">💎</span><span>{proConfig.badge}</span></div></th><th className="text-center p-4 font-bold text-amber-600 w-48 bg-amber-50/50"><div className="flex flex-col items-center"><span className="text-lg">👑</span><span>{proPlusConfig.badge}</span></div></th></tr></thead><tbody>{displayComparisonData.map((category, catIdx) => (<React.Fragment key={catIdx}><tr className="bg-gray-50/50"><td colSpan={4} className="p-3 text-sm font-bold text-gray-500 uppercase tracking-wider">{category.category}</td></tr>{category.items.map((item, itemIdx) => (<tr key={itemIdx} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"><td className="p-4"><div className="font-medium text-gray-900">{item.name}</div><div className="text-xs text-gray-400 mt-1">{item.desc}</div></td><td className="text-center p-4 border-l border-gray-100">{renderValue(item.free)}</td><td className="text-center p-4 border-l border-gray-100 bg-blue-50/30">{renderValue(item.pro)}</td><td className="text-center p-4 border-l border-gray-100 bg-amber-50/30">{renderValue(item.pro_plus)}</td></tr>))}</React.Fragment>))}</tbody></table></div></div><div className="max-w-2xl mx-auto"><div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-3xl p-8 border border-purple-100"><div className="text-center mb-6"><div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm"><Ticket size={32} className="text-purple-600" /></div><h3 className="text-2xl font-bold text-gray-900 mb-2">有兑换码？</h3><p className="text-gray-500">输入兑换码立即激活会员权益</p></div><div className="bg-white rounded-2xl p-6 shadow-sm"><div className="flex gap-3"><input type="text" value={codeInput} onChange={(e) => setCodeInput(e.target.value.toUpperCase())} placeholder="输入兑换码，如 PF-PRO-XXXXXX" className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl uppercase tracking-wider font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" /><button onClick={handleRedeemCode} disabled={!codeInput.trim() || isRedeeming} className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all">{isRedeeming && <Loader2 size={18} className="animate-spin" />}{isRedeeming ? '兑换中' : '激活'}</button></div>{redeemMessage && (<div className={`mt-4 p-4 rounded-xl text-sm flex items-center gap-2 ${redeemMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>{redeemMessage.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}{redeemMessage.text}</div>)</div><div className="mt-4 text-center"><p className="text-xs text-gray-400">兑换码区分大小写，可通过企业培训、活动或合作伙伴获取</p></div></div></div><div className="mt-16 max-w-3xl mx-auto"><h3 className="text-xl font-bold text-gray-900 text-center mb-8">常见问题</h3><div className="space-y-4">{[{ q: '如故免紣卋级会员？', a: `完成课程学习即可自动升级。完成${proConfig.requiredCourses}嗨课程升级为Pro会员，完成${proPlusConfig.requiredCourses}门课程升级为Pro+会员。` }, { q: '会员到期后会怎样〟', a: '会员到期后，您将回到Free然积缩，但已完成的达上与缗程不会丢失。" }, { q: '可以退款吗？', a: '购买后天日内，如果使用不满意，可以申请全额退款。' }, { q: '兑换码如何使用？', a: '在上方输入框中输入兑换码，点击"激活"即可立即获得对应会员权益。' }].map((faq, idx) => (<div key={idx} className="bg-white rounded-2xl p-6 border border-gray-100"><h4 className="font-bold text-gray-900 mb-2">{faq.q}</h4><p className="text-gray-500 text-sm">{faq.a}</p></div>))}</div></div></div>
   );
 };
 
